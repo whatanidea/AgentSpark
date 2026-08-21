@@ -1,0 +1,218 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1160" font-family="'Segoe UI', Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="brand" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#c026d3"/><stop offset="50%" stop-color="#7c3aed"/><stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="page" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#ffffff"/><stop offset="100%" stop-color="#f7f6fc"/>
+    </linearGradient>
+    <linearGradient id="orch" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#4c1d95"/><stop offset="100%" stop-color="#4338ca"/>
+    </linearGradient>
+    <linearGradient id="azure" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#1e3a8a"/><stop offset="100%" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <filter id="sh" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#3b1f6a" flood-opacity="0.18"/>
+    </filter>
+    <marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#a78bfa"/>
+    </marker>
+  </defs>
+
+  <!-- page -->
+  <rect x="0" y="0" width="1600" height="1160" fill="url(#page)"/>
+  <rect x="16" y="16" width="1568" height="1128" rx="22" fill="none" stroke="#ece9f7" stroke-width="2"/>
+
+  <!-- Title -->
+  <text x="48" y="68" font-size="40" font-weight="800" fill="url(#brand)">AgentSense</text>
+  <text x="305" y="68" font-size="20" font-weight="600" fill="#475569">— Agentic Architecture</text>
+  <text x="48" y="92" font-size="14" fill="#94a3b8">Enterprise AI Transformation Advisor · 7-stage multi-agent flow on the Microsoft Azure AI stack</text>
+  <text x="1552" y="60" text-anchor="end" font-size="13" font-weight="700" fill="#7c3aed">Shriram K Vasudevan</text>
+  <rect x="48" y="104" width="1504" height="3" rx="1.5" fill="url(#brand)"/>
+
+  <!-- ===== left stage labels ===== -->
+  <g font-size="11" font-weight="800" fill="#7c3aed" letter-spacing="1.2">
+    <text x="40" y="172">INPUT</text>
+    <text x="40" y="288">GATEWAY</text>
+    <text x="40" y="398">ORCHESTRATION</text>
+    <text x="40" y="520">CORE AGENTS</text>
+    <text x="40" y="650">KNOWLEDGE</text>
+    <text x="40" y="763">AZURE</text>
+    <text x="40" y="882">OUTPUTS</text>
+  </g>
+
+  <!-- ===== INPUT ===== -->
+  <g filter="url(#sh)">
+    <rect x="180" y="132" width="220" height="76" rx="14" fill="#faf5ff" stroke="#d8b4fe" stroke-width="1.5"/>
+  </g>
+  <text x="290" y="166" text-anchor="middle" font-size="14" font-weight="700" fill="#1e1b2e">👤 Enterprise Stakeholder</text>
+  <text x="290" y="188" text-anchor="middle" font-size="11.5" fill="#6b7280">Workflows · documents · context</text>
+  <line x1="400" y1="170" x2="455" y2="170" stroke="#a78bfa" stroke-width="2" marker-end="url(#arr)"/>
+  <g filter="url(#sh)">
+    <rect x="460" y="124" width="870" height="92" rx="14" fill="#ffffff" stroke="#ddd6fe" stroke-width="1.5"/>
+  </g>
+  <text x="484" y="156" font-size="15" font-weight="800" fill="#1e1b2e">React SPA</text>
+  <text x="484" y="178" font-size="12" fill="#6b7280">TypeScript · Vite · TailwindCSS — built static, served by FastAPI (single origin)</text>
+  <g font-size="11" font-weight="600" fill="#6d28d9">
+    <rect x="484" y="188" width="92" height="20" rx="10" fill="#f3f0ff"/><text x="530" y="202" text-anchor="middle">Intake</text>
+    <rect x="584" y="188" width="100" height="20" rx="10" fill="#f3f0ff"/><text x="634" y="202" text-anchor="middle">Diagnostic</text>
+    <rect x="692" y="188" width="92" height="20" rx="10" fill="#f3f0ff"/><text x="738" y="202" text-anchor="middle">Analysis</text>
+    <rect x="792" y="188" width="92" height="20" rx="10" fill="#f3f0ff"/><text x="838" y="202" text-anchor="middle">Blueprint</text>
+    <rect x="892" y="188" width="96" height="20" rx="10" fill="#f3f0ff"/><text x="940" y="202" text-anchor="middle">Portfolio</text>
+    <rect x="996" y="188" width="92" height="20" rx="10" fill="#f3f0ff"/><text x="1042" y="202" text-anchor="middle">Security</text>
+  </g>
+
+  <line x1="740" y1="216" x2="740" y2="244" stroke="#a78bfa" stroke-width="2.5" marker-end="url(#arr)"/>
+
+  <!-- ===== GATEWAY (API + security) ===== -->
+  <g filter="url(#sh)">
+    <rect x="180" y="246" width="1150" height="86" rx="14" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+  </g>
+  <text x="204" y="278" font-size="15" font-weight="800" fill="#1e1b2e">⚙ FastAPI · REST API</text>
+  <text x="204" y="300" font-size="11.5" fill="#6b7280">/api/v1 · same-origin · structured JSON</text>
+  <g filter="url(#sh)">
+    <rect x="560" y="258" width="750" height="62" rx="12" fill="#ecfdf5" stroke="#34d399" stroke-width="1.5"/>
+  </g>
+  <text x="584" y="284" font-size="13.5" font-weight="800" fill="#065f46">🛡 Security Guardrails — pre-LLM input screening</text>
+  <text x="584" y="304" font-size="11.5" fill="#047857">Prompt-injection detection · PII detection &amp; redaction · blocked inputs never reach the model</text>
+
+  <line x1="740" y1="332" x2="740" y2="360" stroke="#a78bfa" stroke-width="2.5" marker-end="url(#arr)"/>
+
+  <!-- ===== ORCHESTRATION ===== -->
+  <g filter="url(#sh)">
+    <rect x="180" y="362" width="1150" height="64" rx="14" fill="url(#orch)"/>
+  </g>
+  <text x="740" y="390" text-anchor="middle" font-size="16" font-weight="800" fill="#ffffff">⚡ LangGraph Orchestrator — 7-stage state graph</text>
+  <text x="740" y="412" text-anchor="middle" font-size="11.5" fill="#c4b5fd">central routing · agent sequencing · shared state · governance &amp; audit</text>
+
+  <line x1="740" y1="426" x2="740" y2="452" stroke="#a78bfa" stroke-width="2.5" marker-end="url(#arr)"/>
+
+  <!-- ===== PIPELINE (7 agents) ===== -->
+  <!-- card geometry: x = 180 + i*168, w=152, gap 16 -->
+  <g>
+    <!-- 1 Diagnostic -->
+    <g filter="url(#sh)"><rect x="180" y="456" width="152" height="128" rx="12" fill="#ffffff" stroke="#ddd6fe" stroke-width="1.5"/></g>
+    <rect x="180" y="456" width="152" height="6" rx="3" fill="#7c3aed"/>
+    <text x="196" y="486" font-size="10" font-weight="800" fill="#a78bfa">1 · AGENT</text>
+    <text x="196" y="506" font-size="13" font-weight="800" fill="#1e1b2e">Diagnostic</text>
+    <text x="196" y="526" font-size="10.5" fill="#6b7280"><tspan x="196" dy="0">Interview →</tspan><tspan x="196" dy="13">structured</tspan><tspan x="196" dy="13">WorkflowIntel</tspan><tspan x="196" dy="13">(function call)</tspan></text>
+
+    <!-- 2 Scoring -->
+    <g filter="url(#sh)"><rect x="348" y="456" width="152" height="128" rx="12" fill="#ffffff" stroke="#ddd6fe" stroke-width="1.5"/></g>
+    <rect x="348" y="456" width="152" height="6" rx="3" fill="#7c3aed"/>
+    <text x="364" y="486" font-size="10" font-weight="800" fill="#a78bfa">2 · ENGINE</text>
+    <text x="364" y="506" font-size="13" font-weight="800" fill="#1e1b2e">Scoring</text>
+    <text x="364" y="526" font-size="10.5" fill="#6b7280"><tspan x="364" dy="0">Readiness Index</tspan><tspan x="364" dy="13">12 weighted</tspan><tspan x="364" dy="13">criteria, each</tspan><tspan x="364" dy="13">explained</tspan></text>
+
+    <!-- 3 Mapping -->
+    <g filter="url(#sh)"><rect x="516" y="456" width="152" height="128" rx="12" fill="#ffffff" stroke="#ddd6fe" stroke-width="1.5"/></g>
+    <rect x="516" y="456" width="152" height="6" rx="3" fill="#7c3aed"/>
+    <text x="532" y="486" font-size="10" font-weight="800" fill="#a78bfa">3 · AGENT</text>
+    <text x="532" y="506" font-size="13" font-weight="800" fill="#1e1b2e">Mapping</text>
+    <text x="532" y="526" font-size="10.5" fill="#6b7280"><tspan x="532" dy="0">Maps workflow</tspan><tspan x="532" dy="13">to the Azure</tspan><tspan x="532" dy="13">service stack</tspan></text>
+
+    <!-- 4 Recommendation -->
+    <g filter="url(#sh)"><rect x="684" y="456" width="152" height="128" rx="12" fill="#ffffff" stroke="#ddd6fe" stroke-width="1.5"/></g>
+    <rect x="684" y="456" width="152" height="6" rx="3" fill="#7c3aed"/>
+    <text x="700" y="486" font-size="10" font-weight="800" fill="#a78bfa">4 · AGENT</text>
+    <text x="700" y="506" font-size="13" font-weight="800" fill="#1e1b2e">Recommend</text>
+    <text x="700" y="526" font-size="10.5" fill="#6b7280"><tspan x="700" dy="0">RAG over 50</tspan><tspan x="700" dy="13">patterns +</tspan><tspan x="700" dy="13">confidence &amp;</tspan><tspan x="700" dy="13">self-critique</tspan></text>
+
+    <!-- 5 Validation -->
+    <g filter="url(#sh)"><rect x="852" y="456" width="152" height="128" rx="12" fill="#ecfdf5" stroke="#34d399" stroke-width="1.5"/></g>
+    <rect x="852" y="456" width="152" height="6" rx="3" fill="#059669"/>
+    <text x="868" y="486" font-size="10" font-weight="800" fill="#10b981">5 · AGENT</text>
+    <text x="868" y="506" font-size="13" font-weight="800" fill="#065f46">Validation</text>
+    <text x="868" y="526" font-size="10.5" fill="#047857"><tspan x="868" dy="0">Guardrail checks</tspan><tspan x="868" dy="13">+ Human-in-</tspan><tspan x="868" dy="13">the-Loop gate</tspan></text>
+
+    <!-- 6 ROI -->
+    <g filter="url(#sh)"><rect x="1020" y="456" width="152" height="128" rx="12" fill="#fffbeb" stroke="#fbbf24" stroke-width="1.5"/></g>
+    <rect x="1020" y="456" width="152" height="6" rx="3" fill="#d97706"/>
+    <text x="1036" y="486" font-size="10" font-weight="800" fill="#d97706">6 · ENGINE</text>
+    <text x="1036" y="506" font-size="13" font-weight="800" fill="#92400e">ROI</text>
+    <text x="1036" y="526" font-size="10.5" fill="#b45309"><tspan x="1036" dy="0">$ &amp; hours saved</tspan><tspan x="1036" dy="13">payback &amp;</tspan><tspan x="1036" dy="13">ROI multiple</tspan></text>
+
+    <!-- 7 Blueprint -->
+    <g filter="url(#sh)"><rect x="1188" y="456" width="142" height="128" rx="12" fill="#ffffff" stroke="#ddd6fe" stroke-width="1.5"/></g>
+    <rect x="1188" y="456" width="142" height="6" rx="3" fill="#7c3aed"/>
+    <text x="1204" y="486" font-size="10" font-weight="800" fill="#a78bfa">7 · AGENT</text>
+    <text x="1204" y="506" font-size="13" font-weight="800" fill="#1e1b2e">Blueprint</text>
+    <text x="1204" y="526" font-size="10.5" fill="#6b7280"><tspan x="1204" dy="0">Architecture,</tspan><tspan x="1204" dy="13">diagram, cost,</tspan><tspan x="1204" dy="13">roadmap, code</tspan></text>
+
+    <!-- connectors between cards -->
+    <g stroke="#c4b5fd" stroke-width="2">
+      <line x1="332" y1="520" x2="346" y2="520" marker-end="url(#arr)"/>
+      <line x1="500" y1="520" x2="514" y2="520" marker-end="url(#arr)"/>
+      <line x1="668" y1="520" x2="682" y2="520" marker-end="url(#arr)"/>
+      <line x1="836" y1="520" x2="850" y2="520" marker-end="url(#arr)"/>
+      <line x1="1004" y1="520" x2="1018" y2="520" marker-end="url(#arr)"/>
+      <line x1="1172" y1="520" x2="1186" y2="520" marker-end="url(#arr)"/>
+    </g>
+  </g>
+
+  <line x1="740" y1="584" x2="740" y2="610" stroke="#a78bfa" stroke-width="2.5" marker-end="url(#arr)"/>
+
+  <!-- ===== KNOWLEDGE & MEMORY ===== -->
+  <g filter="url(#sh)"><rect x="180" y="612" width="565" height="74" rx="12" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/></g>
+  <text x="204" y="643" font-size="14" font-weight="800" fill="#1e3a8a">🔎 Azure AI Search — RAG</text>
+  <text x="204" y="665" font-size="11.5" fill="#3b66c4">Hybrid retrieval over a curated 50-pattern agentic library (local fallback)</text>
+  <g filter="url(#sh)"><rect x="765" y="612" width="565" height="74" rx="12" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/></g>
+  <text x="789" y="643" font-size="14" font-weight="800" fill="#1e3a8a">🗄 Azure Cosmos DB</text>
+  <text x="789" y="665" font-size="11.5" fill="#3b66c4">Per-session WorkflowState · agentic memory · audit trail persistence</text>
+
+  <line x1="740" y1="686" x2="740" y2="712" stroke="#a78bfa" stroke-width="2.5" marker-end="url(#arr)"/>
+
+  <!-- ===== AZURE FOUNDATION ===== -->
+  <g filter="url(#sh)"><rect x="180" y="714" width="1150" height="92" rx="14" fill="url(#azure)"/></g>
+  <text x="204" y="744" font-size="14" font-weight="800" fill="#ffffff">☁ Microsoft Azure Foundation</text>
+  <g font-size="12" font-weight="700">
+    <rect x="204" y="758" width="250" height="34" rx="17" fill="#ffffff" opacity="0.12"/><text x="329" y="780" text-anchor="middle" fill="#ffffff">Azure AI Foundry + OpenAI (GPT-4o)</text>
+    <rect x="466" y="758" width="150" height="34" rx="17" fill="#ffffff" opacity="0.12"/><text x="541" y="780" text-anchor="middle" fill="#ffffff">Azure AI Search</text>
+    <rect x="628" y="758" width="150" height="34" rx="17" fill="#ffffff" opacity="0.12"/><text x="703" y="780" text-anchor="middle" fill="#ffffff">Azure Cosmos DB</text>
+    <rect x="790" y="758" width="150" height="34" rx="17" fill="#ffffff" opacity="0.12"/><text x="865" y="780" text-anchor="middle" fill="#ffffff">Azure App Service</text>
+    <rect x="952" y="758" width="200" height="34" rx="17" fill="#ffffff" opacity="0.12"/><text x="1052" y="780" text-anchor="middle" fill="#ffffff">GitHub Copilot (dev-time)</text>
+  </g>
+
+  <line x1="740" y1="806" x2="740" y2="832" stroke="#a78bfa" stroke-width="2.5" marker-end="url(#arr)"/>
+
+  <!-- ===== OUTPUTS ===== -->
+  <g filter="url(#sh)"><rect x="180" y="834" width="1150" height="82" rx="14" fill="#faf5ff" stroke="#d8b4fe" stroke-width="1.5"/></g>
+  <text x="204" y="862" font-size="13" font-weight="800" fill="#6d28d9">CLIENT OUTPUTS</text>
+  <g font-size="12" font-weight="700" fill="#5b21b6">
+    <rect x="204" y="874" width="150" height="30" rx="15" fill="#ffffff" stroke="#ddd6fe"/><text x="279" y="894" text-anchor="middle">Readiness Score</text>
+    <rect x="366" y="874" width="130" height="30" rx="15" fill="#ffffff" stroke="#ddd6fe"/><text x="431" y="894" text-anchor="middle">ROI Estimate</text>
+    <rect x="508" y="874" width="180" height="30" rx="15" fill="#ffffff" stroke="#ddd6fe"/><text x="598" y="894" text-anchor="middle">Architecture Blueprint</text>
+    <rect x="700" y="874" width="130" height="30" rx="15" fill="#ffffff" stroke="#ddd6fe"/><text x="765" y="894" text-anchor="middle">Code Scaffold</text>
+    <rect x="842" y="874" width="160" height="30" rx="15" fill="#ffffff" stroke="#ddd6fe"/><text x="922" y="894" text-anchor="middle">Validation Report</text>
+    <rect x="1014" y="874" width="160" height="30" rx="15" fill="#ffffff" stroke="#ddd6fe"/><text x="1094" y="894" text-anchor="middle">Portfolio Ranking</text>
+  </g>
+
+  <!-- ===== RIGHT CROSS-CUTTING RAIL ===== -->
+  <rect x="1360" y="362" width="200" height="444" rx="16" fill="none" stroke="#cbd5e1" stroke-width="1.5" stroke-dasharray="6 5"/>
+  <text x="1460" y="350" text-anchor="middle" font-size="10.5" font-weight="800" fill="#94a3b8" letter-spacing="1">CROSS-CUTTING</text>
+
+  <g filter="url(#sh)"><rect x="1378" y="386" width="164" height="180" rx="12" fill="#fffbeb" stroke="#fbbf24" stroke-width="1.5"/></g>
+  <text x="1460" y="430" text-anchor="middle" font-size="26">🧑‍⚖️</text>
+  <text x="1460" y="462" text-anchor="middle" font-size="13.5" font-weight="800" fill="#92400e">Human-in-</text>
+  <text x="1460" y="480" text-anchor="middle" font-size="13.5" font-weight="800" fill="#92400e">the-Loop</text>
+  <text x="1460" y="510" text-anchor="middle" font-size="10.5" fill="#b45309"><tspan x="1460" dy="0">Mandatory gate on</tspan><tspan x="1460" dy="13">high-compliance /</tspan><tspan x="1460" dy="13">high-error-cost</tspan><tspan x="1460" dy="13">workflows</tspan></text>
+
+  <g filter="url(#sh)"><rect x="1378" y="586" width="164" height="200" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/></g>
+  <text x="1460" y="630" text-anchor="middle" font-size="26">🔭</text>
+  <text x="1460" y="662" text-anchor="middle" font-size="13.5" font-weight="800" fill="#334155">Observability</text>
+  <text x="1460" y="680" text-anchor="middle" font-size="13.5" font-weight="800" fill="#334155">&amp; Audit Trace</text>
+  <text x="1460" y="710" text-anchor="middle" font-size="10.5" fill="#64748b"><tspan x="1460" dy="0">Per-stage status</tspan><tspan x="1460" dy="13">+ latency logged</tspan><tspan x="1460" dy="13">for every run —</tspan><tspan x="1460" dy="13">a real audit trail</tspan></text>
+
+  <!-- footer tech tags -->
+  <text x="48" y="1000" font-size="12.5" font-weight="700" fill="#64748b">AI techniques:</text>
+  <g font-size="11.5" font-weight="600" fill="#6d28d9">
+    <rect x="150" y="986" width="170" height="22" rx="11" fill="#f3f0ff"/><text x="235" y="1001" text-anchor="middle">Function calling</text>
+    <rect x="330" y="986" width="70" height="22" rx="11" fill="#f3f0ff"/><text x="365" y="1001" text-anchor="middle">RAG</text>
+    <rect x="410" y="986" width="190" height="22" rx="11" fill="#f3f0ff"/><text x="505" y="1001" text-anchor="middle">Multi-agent orchestration</text>
+    <rect x="610" y="986" width="130" height="22" rx="11" fill="#f3f0ff"/><text x="675" y="1001" text-anchor="middle">Agentic memory</text>
+    <rect x="750" y="986" width="170" height="22" rx="11" fill="#f3f0ff"/><text x="835" y="1001" text-anchor="middle">Governance gate</text>
+    <rect x="930" y="986" width="180" height="22" rx="11" fill="#f3f0ff"/><text x="1020" y="1001" text-anchor="middle">Self-critique + conf.</text>
+  </g>
+  <text x="48" y="1048" font-size="12" fill="#94a3b8">Stack: React · TypeScript · Tailwind · FastAPI · LangGraph · Azure OpenAI (GPT-4o) · Azure AI Search · Cosmos DB · Azure App Service · Docker</text>
+</svg>

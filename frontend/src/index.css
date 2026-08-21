@@ -1,0 +1,22 @@
+@import "tailwindcss";
+
+:root {
+  font-family: "Outfit", system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  background: #07060f;
+  color: #e2e8f0;
+}
+
+/* Subtle animated brand glow used behind the hero */
+@keyframes spin-slow { to { transform: rotate(360deg); } }
+.spin-slow { animation: spin-slow 22s linear infinite; }
+
+/* Thin scrollbars */
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: #2e2a45; border-radius: 8px; }
+*::-webkit-scrollbar-track { background: transparent; }

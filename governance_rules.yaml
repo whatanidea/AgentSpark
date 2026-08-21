@@ -1,0 +1,45 @@
+# Enterprise Governance Rules
+# Deterministic policies to evaluate agent recommendations.
+
+thresholds:
+  confidence_min: 70
+  confidence_high: 90
+
+policies:
+  - id: REJECT_HIGH_RISK_AUTONOMY
+    condition: "autonomy_level == 'Fully Autonomous' and compliance == 'HIGH'"
+    decision: REJECT
+    reason: "High-compliance workflows cannot be fully autonomous."
+
+  - id: REJECT_UNSAFE
+    condition: "security == 'FAIL'"
+    decision: REJECT
+    reason: "Security assessment failed."
+
+  - id: REJECT_POOR_ROI
+    condition: "estimated_cost > expected_roi"
+    decision: REJECT
+    reason: "Estimated cost exceeds expected ROI."
+
+  - id: HITL_HIGH_COMPLIANCE
+    condition: "compliance == 'HIGH'"
+    decision: HUMAN_REVIEW_REQUIRED
+    reason: "Workflow operates in a high-compliance domain."
+
+  - id: HITL_RESTRICTED_DATA
+    condition: "data_sensitivity == 'RESTRICTED'"
+    decision: HUMAN_REVIEW_REQUIRED
+    reason: "Workflow handles restricted data."
+
+  - id: HITL_LOW_CONFIDENCE
+    condition: "confidence < 70"
+    decision: HUMAN_REVIEW_REQUIRED
+    reason: "Recommendation confidence is below the minimum threshold."
+
+  - id: AUTO_APPROVE_SAFE
+    condition: "confidence > 90 and compliance == 'LOW' and security == 'PASS' and roi_positive and operational_risk == 'LOW'"
+    decision: AUTO_APPROVE
+    reason: "Workflow is low risk, highly confident, and positive ROI."
+
+# Fallback decision if no rule matches
+default_decision: HUMAN_REVIEW_REQUIRED
