@@ -1,13 +1,19 @@
-version: '3.8'
-
 services:
   agentsense:
     build: .
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     env_file:
-      - .env
-    volumes:
-      - .:/app
+      - path: .env
+        required: false
     environment:
-      - ENVIRONMENT=development
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      AGENTSENSE_MODE: ${AGENTSENSE_MODE:-demo}
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    init: true

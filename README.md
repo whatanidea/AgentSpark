@@ -127,7 +127,8 @@ React SPA  ──/api/v1──►  FastAPI  ──►  LangGraph Orchestrator
   calling** so every agent returns schema-validated Pydantic objects
 - **Knowledge (RAG):** Azure AI Search over a curated agentic-pattern library
 - **State / Memory:** Azure Cosmos DB (per-session `WorkflowState`)
-- **Deploy:** Docker → Azure App Service (GitHub Actions in `.github/workflows/deploy.yml`)
+- **Delivery:** tested Docker image archives via [GitHub Actions](.github/workflows/ci.yml);
+  hosting/deployment is separately approved (no automatic Azure deployment).
 
 > **Demo mode:** `AGENTSENSE_MODE=demo` runs end-to-end on deterministic mock data,
 > process-local storage, and the local pattern library. Local development defaults
@@ -409,8 +410,8 @@ volume <=10,000,000), bounded labels/lists, and valid categorical values.
 # 1. Configure (optional locally — defaults to demo)
 cp .env.example .env  # keep demo, or select live and fill in your Azure settings
 
-# 2. Backend deps
-pip install -r requirements.txt
+# 2. Backend deps (Python 3.12)
+python -m pip install --only-binary=:all: --require-hashes -r requirements.lock
 
 # 3. Build the frontend (one-time; outputs frontend/dist that FastAPI serves)
 npm --prefix frontend ci
@@ -420,8 +421,8 @@ npm --prefix frontend run build
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 #    → open http://localhost:8000
 
-# or, build + run everything with Docker (multi-stage: node build → python serve)
-docker-compose up --build
+# or, build + run a loopback-only local demo with Docker Compose v2.24+
+docker compose up --build
 ```
 
 **Frontend dev mode** (hot reload, proxies the API to :8000):
@@ -443,10 +444,32 @@ python -m evals.run_evals      # scoring & governance invariants
 python -m unittest discover -s tests -v  # policy, graph routing, and persisted review regressions
 ```
 
+## Repeatable delivery and operations (Phase 6)
+
+Python dependencies now have a universal, SHA256-verified transitive lock; Node 24
+build/browser dependencies use `npm ci`. [scripts/check.py](scripts/check.py) runs
+the same offline backend, E2E, scoring, dependency, TypeScript and SPA-build gates
+locally and in CI. Automated Chromium tests cover clarification, privacy,
+review/restoration, actual Markdown downloads, no-agent outcomes and deletion.
+
+The [delivery workflow](.github/workflows/ci.yml) adds pinned Actions, read-only
+repository permissions, concurrency/time limits, a high-severity npm advisory gate,
+and a container job that must follow successful quality checks. The production
+image is non-root and fail-closed unless configured. CI verifies a read-only demo
+container serves its built assets and preserves workflow policy boundaries.
+Successful runs retain a tested image archive, metadata, dependency locks and
+checksums for three days; **nothing is deployed automatically**.
+
+See the [operations runbook](docs/operations.md) for clean setup, browser checks,
+lock regeneration, container use, required branch checks, release retention,
+production approval, monitoring and rollback. Live identity/Azure integration and
+organizational release controls remain operator-owned prerequisites.
+
 ### Dependencies
-FastAPI · Uvicorn · Gradio · LangGraph · LangChain (+ `langchain-openai`) · Pydantic ·
+FastAPI · Uvicorn · LangGraph · LangChain (+ `langchain-openai`) · Pydantic ·
 `azure-cosmos` · `azure-search-documents` · `azure-identity` · httpx. Full list in
-[`requirements.txt`](requirements.txt).
+[`requirements.txt`](requirements.txt); verified installation uses
+[`requirements.lock`](requirements.lock).
 
 ---
 

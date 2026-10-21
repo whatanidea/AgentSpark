@@ -1,0 +1,2 @@
+# Dependency-lock generator only; not installed in the application image.
+uv==0.13.4
