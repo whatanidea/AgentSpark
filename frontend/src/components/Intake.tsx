@@ -67,7 +67,7 @@ export default function Intake({ sessionId, initialContext, onSaved, onBusyChang
     <div className="space-y-6">
       <header>
         <h1 className="text-3xl font-extrabold">Enterprise Context</h1>
-        <p className="text-slate-400 mt-1">Tell AgentSense about a workflow you're considering for agentification — or load a sample to see a full run fast.</p>
+        <p className="text-slate-400 mt-1">Tell AgentSpark about a workflow you're considering for agentification — or load a sample to see a full run fast.</p>
       </header>
 
       <Card title="Quick start">

@@ -1,9 +1,9 @@
-# AgentSense - The Agent for All your Agentic Needs.
+# AgentSpark - The Agent for All your Agentic Needs.
 
 > **The agent that tells you where agents belong.**
 
-AgentSense is an AI-powered enterprise transformation advisor. Before an organization
-spends a single sprint "agentifying" a workflow, AgentSense answers four questions:
+AgentSpark is an AI-powered enterprise transformation advisor. Before an organization
+spends a single sprint "agentifying" a workflow, AgentSpark answers four questions:
 
 1. **IF** AI agents should be used at all
 2. **WHERE** they add the most value across a backlog
@@ -13,7 +13,8 @@ spends a single sprint "agentifying" a workflow, AgentSense answers four questio
 It is a **meta-agent**: a multi-agent system whose job is to design *other* agentic systems
 responsibly — including telling you when the honest answer is "don't use an agent here."
 
-- 🎥 Demo video: https://youtu.be/GVvUbAuSXLs
+Existing `AGENTSENSE_*` configuration keys, the `AgentSense.Reviewer` role, and
+repository/package identifiers remain unchanged for compatibility.
 
 ---
 
@@ -35,7 +36,7 @@ Every run emits an **agent trace** (per-step status + latency) for observability
 
 ### Governance and human review
 
-AgentSense approves **advisory recommendations**, not execution or deployment of a
+AgentSpark approves **advisory recommendations**, not execution or deployment of a
 customer's business workflow.
 
 - `AUTO_APPROVE` produces a blueprint with workflow status `completed`.
@@ -320,7 +321,7 @@ probabilistic forecast is implied. Validate assumptions and budgets with owners.
 
 Blueprint generation receives workflow/intake, evidence, score, mapping, grounded
 references, policy result and ROI assumptions/scenarios. The diagram represents the
-customer workflow rather than AgentSense's internal agents. Generated code is
+customer workflow rather than AgentSpark's internal agents. Generated code is
 labeled **illustrative, untested, not deployment-ready**, including in Markdown
 exports; demo endpoints deliberately return `501` until integrations, authorization,
 audit and approval enforcement are implemented. Azure costs are unpriced cost
@@ -475,7 +476,7 @@ FastAPI · Uvicorn · LangGraph · LangChain (+ `langchain-openai`) · Pydantic 
 
 ## AI Tools Used (disclosure)
 
-Here is how AI was used in building and running AgentSense:
+Here is how AI was used in building and running AgentSpark:
 
 **In the product (runtime):**
 - **Azure OpenAI — GPT-4o**: powers the Diagnostic, Mapping, Recommendation, and Blueprint

@@ -10,7 +10,7 @@ from app.utils.errors import InvalidDependencyResponse
 
 logger = logging.getLogger(__name__)
 
-_INTERVIEW_SYSTEM = """You are AgentSense's Diagnostic Agent — a senior Enterprise AI Transformation
+_INTERVIEW_SYSTEM = """You are AgentSpark's Diagnostic Agent — a senior Enterprise AI Transformation
 Architect interviewing a stakeholder. Your goal is to understand one business workflow well enough to
 judge whether AI agents belong there.
 
@@ -19,7 +19,7 @@ compliance sensitivity, how much human judgement is required, how stable the rul
 of the work is unstructured text/documents. Ask ONE sharp, professional question at a time. Keep
 replies under 60 words. Do not give recommendations yet — you are only gathering intelligence."""
 
-_EXTRACT_SYSTEM = """You are AgentSense's Diagnostic Agent. From the enterprise context and interview
+_EXTRACT_SYSTEM = """You are AgentSpark's Diagnostic Agent. From the enterprise context and interview
 transcript, extract a WorkflowDiagnosis with intelligence and evidence for EVERY essential field:
 workflow_name, summary, steps, departments, decision_points, systems, exceptions_per_week, volume_per_day,
 compliance_sensitivity, data_availability, rule_stability, human_judgment, unstructured_content, error_cost.

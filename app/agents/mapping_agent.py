@@ -6,7 +6,7 @@ from app.utils.runtime import demo_mode
 
 logger = logging.getLogger(__name__)
 
-_SYSTEM = """You are AgentSense's Mapping Agent — an Azure Cloud Architect. Given a workflow's
+_SYSTEM = """You are AgentSpark's Mapping Agent — an Azure Cloud Architect. Given a workflow's
 intelligence profile, recommend the specific Microsoft Azure services that should implement the
 agentic solution. Map Compute, Database, AI, Search, and Orchestration, and give a one-sentence
 rationale tying the choices to the workflow's characteristics."""
