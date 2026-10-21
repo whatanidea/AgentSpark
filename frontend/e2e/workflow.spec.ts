@@ -32,8 +32,10 @@ test.afterEach(async ({ page }) => {
   // Each test owns one isolated browser tab and deletes its own fictional server document.
   const pointer = await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1"));
   if (pointer) {
-    const { session } = JSON.parse(pointer);
-    const response = await page.request.delete(`/api/v1/sessions/${session}`);
+    const { session, workspace } = JSON.parse(pointer);
+    const response = await page.request.delete(`/api/v1/sessions/${session}`, {
+      headers: workspace ? { "X-Organization-ID": workspace.organization_id, "X-Team-ID": workspace.team_id } : {},
+    });
     expect([200, 404]).toContain(response.status());
   }
 });
@@ -220,4 +222,53 @@ test("Home reports listing failure and refresh recovers", async ({ page }) => {
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await expect(page.getByRole("heading", { name: "No workflows in this view", exact: true })).toBeVisible();
   await expect(page.getByRole("alert")).toHaveCount(0);
+});
+
+test("team workspace restores its scope, prevents self-review and stays separate from personal Home", async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/");
+  const administration = page.getByRole("button", { name: "Organizations & teams", exact: true });
+  await administration.click();
+  await expect(page.getByText("Shared local demo: everyone uses the same identity.", { exact: false })).toBeVisible();
+  await page.getByLabel("Organization name", { exact: true }).fill("Fictional browser organization");
+  await page.getByRole("button", { name: "Create organization", exact: true }).click();
+  await page.getByLabel("Team name", { exact: true }).fill("Browser finance");
+  await page.getByRole("button", { name: "Create team", exact: true }).click();
+  await page.getByRole("button", { name: "Manage Browser finance roles", exact: true }).click();
+  await page.getByLabel("Team member identity ID", { exact: true }).fill("local-demo");
+  await page.getByLabel("reviewer", { exact: true }).check();
+  await page.getByRole("button", { name: "Save team roles", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Team roles saved." })).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await page.getByRole("button", { name: "Use Browser finance", exact: true }).click();
+  await page.getByRole("button", { name: "Create workflow", exact: false }).click();
+  await page.getByRole("button", { name: "🧾 Invoice Approval (Finance)", exact: true }).click();
+  await page.getByRole("button", { name: "Submit Intake", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Diagnostic Interview", exact: true })).toBeVisible();
+  const result = await analyze(page);
+  expect(result.status).toBe("awaiting_human_review");
+  await page.getByRole("button", { name: "4 · Blueprint & Review", exact: true }).click();
+  await expect(page.getByText("Your identity cannot review this workflow.", { exact: false })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Approve recommendation", exact: true })).toHaveCount(0);
+  await page.reload();
+  await expect(page.getByText("Workflow restored from the server.", { exact: true })).toBeVisible();
+  await expect(page.getByText("Fictional browser organization / Browser finance", { exact: true })).toBeVisible();
+  await expect(page.getByText("Your identity cannot review this workflow.", { exact: false })).toBeVisible();
+  const pointer = await page.evaluate(() => JSON.parse(sessionStorage.getItem("agentsense.session.v1")!));
+  expect(pointer.workspace.organization_id).toBeTruthy();
+  expect(pointer.workspace.team_id).toBeTruthy();
+  const personalRead = await page.request.get(`/api/v1/sessions/${pointer.session}`);
+  expect(personalRead.status()).toBe(404);
+  await administration.click();
+  await page.getByRole("button", { name: "Use personal workspace", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Open Invoice Approval Pending review", exact: true })).toHaveCount(0);
+  expect(await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1"))).toBeNull();
+  await administration.click();
+  await page.getByRole("button", { name: "Use Browser finance", exact: true }).click();
+  await page.getByRole("button", { name: "Open Invoice Approval Pending review", exact: true }).click();
+  await expect(page.getByText("Your identity cannot review this workflow.", { exact: false })).toBeVisible();
+  await page.getByRole("button", { name: "Delete workflow", exact: true }).click();
+  await page.getByRole("button", { name: "Confirm delete", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Open Invoice Approval Pending review", exact: true })).toHaveCount(0);
 });

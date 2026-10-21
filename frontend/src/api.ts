@@ -3,6 +3,20 @@
 const BASE = "/api/v1";
 let accessToken = "";
 export function setAccessToken(token: string) { accessToken = token; }
+export type Permissions = { read: boolean; write: boolean; review: boolean; delete: boolean };
+export type WorkspaceSelection = {
+  organization_id: string; team_id: string; organization_name: string; team_name: string; permissions: Permissions;
+};
+let workspace: Pick<WorkspaceSelection, "organization_id" | "team_id"> | null = null;
+export function setWorkspace(value: typeof workspace) { workspace = value; }
+export type DirectoryPage<T> = { items: T[]; next_cursor: string | null };
+export type Organization = { organization_id: string; name: string; role: "owner" | "admin" | "member" };
+export type Team = { team_id: string; name: string; permissions: (keyof Permissions)[] };
+export type TeamRole = "contributor" | "reviewer" | "viewer";
+export type DirectoryMember = {
+  identity_id: string; role: "owner" | "admin" | "member"; roles: TeamRole[];
+  active: boolean; version: string; effective_active?: boolean;
+};
 export type AuthConfig = { mode: "local-demo" | "oidc"; retention_hours: number; archive_retention_days: number };
 export type HomeStatus = "draft" | "pending_review" | "approved" | "rejected";
 export type HomeItem = {
@@ -32,6 +46,10 @@ export type SessionSnapshot = {
   expires_at: string;
   demo_scenario: DemoScenario | null;
   analysis_id: string | null;
+  organization_id: string | null;
+  team_id: string | null;
+  permissions: Permissions;
+  workspace: { organization_name: string; team_name: string } | null;
   [key: string]: any;
 };
 
@@ -86,6 +104,7 @@ async function request(path: string, method = "GET", body?: unknown) {
   const r = await fetch(`${BASE}${path}`, {
     method, cache: "no-store",
     headers: { ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      ...(workspace ? { "X-Organization-ID": workspace.organization_id, "X-Team-ID": workspace.team_id } : {}),
       ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
@@ -103,6 +122,22 @@ const get = (path: string) => request(path);
 const post = (path: string, body: unknown) => request(path, "POST", body);
 
 export const api = {
+  organizations: (cursor = ""): Promise<DirectoryPage<Organization>> =>
+    get(`/organizations?${new URLSearchParams({ cursor })}`),
+  createOrganization: (name: string): Promise<Organization> => post("/organizations", { name }),
+  teams: (organization: string, cursor = ""): Promise<DirectoryPage<Team>> =>
+    get(`/organizations/${encodeURIComponent(organization)}/teams?${new URLSearchParams({ cursor })}`),
+  createTeam: (organization: string, name: string): Promise<Pick<Team, "team_id" | "name">> =>
+    post(`/organizations/${encodeURIComponent(organization)}/teams`, { name }),
+  members: (organization: string, cursor = ""): Promise<DirectoryPage<DirectoryMember>> =>
+    get(`/organizations/${encodeURIComponent(organization)}/members?${new URLSearchParams({ cursor })}`),
+  setMember: (organization: string, identity: string, role: "admin" | "member", active: boolean, version?: string) =>
+    request(`/organizations/${encodeURIComponent(organization)}/members/${encodeURIComponent(identity)}`, "PUT", { role, active, version }),
+  teamMembers: (organization: string, team: string, cursor = ""): Promise<DirectoryPage<DirectoryMember>> =>
+    get(`/organizations/${encodeURIComponent(organization)}/teams/${encodeURIComponent(team)}/members?${new URLSearchParams({ cursor })}`),
+  setTeamMember: (organization: string, team: string, identity: string, roles: TeamRole[], active: boolean, version?: string) =>
+    request(`/organizations/${encodeURIComponent(organization)}/teams/${encodeURIComponent(team)}/members/${encodeURIComponent(identity)}`,
+      "PUT", { roles, active, version }),
   authConfig: (): Promise<AuthConfig> => get("/auth/config"),
   me: (): Promise<Identity> => get("/auth/me"),
   session: (id: string): Promise<SessionSnapshot> => get(`/sessions/${encodeURIComponent(id)}`),

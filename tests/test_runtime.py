@@ -178,20 +178,24 @@ class RuntimeTests(unittest.TestCase):
         with patch.object(runtime.settings, "mode", "live"), \
                 patch.object(health, "check_openai", side_effect=DependencyUnavailable("openai")) as openai, \
                 patch.object(health, "check_search") as search, \
-                patch.object(health.db_client, "check_ready") as cosmos:
+                patch.object(health.db_client, "check_ready") as cosmos, \
+                patch.object(health.tenant_directory, "check_ready") as directory:
             ready, dependencies = health.readiness()
         self.assertFalse(ready)
-        self.assertEqual(dependencies, {"openai": "unavailable", "search": "ready", "cosmos": "ready"})
+        self.assertEqual(dependencies, {"openai": "unavailable", "search": "ready", "cosmos": "ready",
+                                        "tenant_directory": "ready"})
         openai.assert_called_once()
         search.assert_called_once()
         cosmos.assert_called_once()
+        directory.assert_called_once()
 
     def test_demo_readiness_never_calls_cloud_probes(self):
         with patch.object(runtime.settings, "mode", "demo"), \
                 patch.object(health, "check_openai") as openai:
             ready, dependencies = health.readiness()
         self.assertTrue(ready)
-        self.assertEqual(dependencies, {"openai": "demo", "search": "demo", "cosmos": "demo", "decision_archive": "ready"})
+        self.assertEqual(dependencies, {"openai": "demo", "search": "demo", "cosmos": "demo",
+                                        "decision_archive": "ready", "tenant_directory": "ready"})
         openai.assert_not_called()
 
     def test_live_readiness_missing_configuration_in_a_fresh_process(self):

@@ -10,6 +10,7 @@ from dotenv import load_dotenv
 load_dotenv()  # Load variables from .env if present
 
 from app.api.routes import router
+from app.api.tenants import router as tenant_router
 from app.api.middleware import RequestSizeLimit, SecurityBoundary
 from app.utils.errors import ConcurrentUpdate, DependencyUnavailable, InvalidDependencyResponse, WorkflowNotFound
 from app.utils.health import readiness
@@ -23,6 +24,7 @@ app = FastAPI(title="AgentSpark API", version="2.0.0",
               description="Enterprise Agentification Advisor — React SPA + FastAPI + LangGraph")
 
 app.include_router(router, prefix="/api/v1")
+app.include_router(tenant_router, prefix="/api/v1")
 app.add_middleware(RequestSizeLimit)
 app.add_middleware(SecurityBoundary)
 

@@ -6,6 +6,7 @@ from app.utils.models import HumanReview, SessionId, SignalLevel, DemoScenario, 
 from app.utils.runtime import demo_mode
 
 from app.database.cosmos_client import db_client
+from app.database.tenant_directory import tenant_directory
 from app.orchestration.langgraph_flow import run_orchestration
 from app.agents.diagnostic_agent import diagnostic_agent
 from app.rag.retrieval import retrieve_patterns, get_pattern
@@ -32,7 +33,13 @@ def auth_me():
 @router.get("/sessions/{session_id}")
 def restore_session(session_id: SessionId):
     state = db_client.get_workflow_state(session_id)
-    return state.model_dump(mode="json", exclude={"owner_id"})
+    workspace = None
+    if state.organization_id and state.team_id:
+        organization = tenant_directory.get(state.organization_id, "organization")
+        team = tenant_directory.get(state.organization_id, f"team-{state.team_id}")
+        workspace = {"organization_name": organization.name, "team_name": team.name}
+    return {**state.model_dump(mode="json", exclude={"owner_id"}), "permissions": db_client.permissions(state),
+            "workspace": workspace}
 
 
 @router.delete("/sessions/{session_id}")
@@ -102,6 +109,7 @@ def save_intake(req: IntakeRequest):
         if not scan_input(text).safe:
             raise HTTPException(status_code=422, detail="Intake contains instruction-override content. Please rephrase.")
     state = db_client.get_workflow_state(req.session_id, create_if_missing=True)
+    db_client._authorize(state, "write")
     state.invalidate_analysis()
     state.demo_scenario = req.demo_scenario
     state.enterprise_context.business_domain = redact_pii(req.business_domain)
@@ -119,6 +127,7 @@ def chat_interaction(req: ChatRequest):
     if req.demo_scenario is not None and not demo_mode():
         raise HTTPException(status_code=422, detail="Demo fixtures cannot be selected in live mode.")
     state = db_client.get_workflow_state(req.session_id, create_if_missing=True)
+    db_client._authorize(state, "write")
 
     # Security gate: screen every inbound message before it reaches the LLM.
     guard = scan_input(req.message)
@@ -151,6 +160,7 @@ def chat_interaction(req: ChatRequest):
 
 @router.post("/analyze/{session_id}")
 def analyze_workflow(session_id: SessionId, req: AnalyzeRequest | None = None):
+    db_client._authorize(db_client.get_workflow_state(session_id), "write")
     s = (run_orchestration(session_id, roi_assumptions=req.roi_assumptions)
          if req and req.roi_assumptions is not None else run_orchestration(session_id))
     return redact_data({
@@ -180,6 +190,7 @@ def get_blueprint(session_id: SessionId):
     res["human_review"] = state.human_review.model_dump(mode="json") if state.human_review else None
     res["diagnosis"] = state.diagnosis.model_dump() if state.diagnosis else None
     res["demo_scenario"] = state.demo_scenario
+    res["permissions"] = db_client.permissions(state)
     if state.status == "rejected":
         res["alternative"] = (
             (state.governance or {}).get("rejection_package") or {}
@@ -219,6 +230,7 @@ def get_review(session_id: SessionId):
 def submit_review(session_id: SessionId, req: ReviewRequest):
     reviewer = require_reviewer()
     state = db_client.get_workflow_state(session_id)
+    db_client._authorize(state, "review")
     if not state.analysis_id:
         raise HTTPException(status_code=404, detail="No current analysis to review.")
     if state.analysis_id != req.analysis_id:
@@ -236,7 +248,7 @@ def submit_review(session_id: SessionId, req: ReviewRequest):
     state.status = "completed" if req.decision == "approve" else "rejected"
     if req.decision == "reject":
         state.blueprint = None
-    db_client.save_workflow_state(state)
+    db_client.save_workflow_state(state, action="review")
     return {
         "status": state.status,
         "analysis_id": state.analysis_id,

@@ -12,6 +12,7 @@ export default function Blueprint({ sessionId, active, canReview, secureReview, 
   const [err, setErr] = useState("");
   const [reviewer, setReviewer] = useState("");
   const [note, setNote] = useState("");
+  const authorizedReview = canReview && bp?.permissions?.review === true;
 
   useEffect(() => {
     if (!active || !sessionId) return;
@@ -40,7 +41,7 @@ export default function Blueprint({ sessionId, active, canReview, secureReview, 
   }
 
   async function review(decision: "approve" | "reject") {
-    if (!bp?.analysis_id || (!secureReview && !reviewer.trim()) || !note.trim() || !canReview) return;
+    if (!bp?.analysis_id || (!secureReview && !reviewer.trim()) || !note.trim() || !authorizedReview) return;
     setBusy(true); onBusyChange(true); setErr("");
     try {
       await api.submitReview(sessionId, {
@@ -178,10 +179,10 @@ ${bp.code_scaffold || ""}
               <p className="text-sm mt-2"><b>Non-agentic alternative:</b> {bp.alternative}</p>
             </div>
           )}
-          {bp.provisional && !canReview && <p role="status" className="mt-3 text-amber-800">Your identity does not have the reviewer role.</p>}
-          {bp.provisional && canReview && (
+          {bp.provisional && !authorizedReview && <p role="status" className="mt-3 text-amber-800">Your identity cannot review this workflow. Team reviews require a reviewer grant, the configured token role in live mode, and a reviewer other than the creator.</p>}
+          {bp.provisional && authorizedReview && (
             <div className="mt-4 space-y-3">
-              <p className="notice notice-warning">{secureReview ? "Review is attributed to the verified token identity; owner and role checks are enforced by the API."
+              <p className="notice notice-warning">{secureReview ? "Review is attributed to the verified token identity; ownership, membership and role checks are enforced by the API."
                 : "Local demo only: reviewer names are self-reported, not production approval authority."}</p>
               {!secureReview && <label className="block text-sm">
                 Reviewer

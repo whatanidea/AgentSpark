@@ -69,8 +69,11 @@ outcomes. The Blueprint screen contains the review controls.
 **Access boundary:** local demo remains shared and unauthenticated, with
 self-reported reviewers; never expose it publicly. Live/production requires
 validated OIDC bearer tokens and isolates every session read/write/delete to its
-owner. Reviewing requires that same owner to hold the configured reviewer role;
-the verified subject replaces the submitted reviewer name. ETags and analysis IDs
+owner in the personal workspace. Team workspaces require active organization
+membership and team permissions. Team review requires an explicit reviewer grant,
+the configured token role, and a reviewer other than the workflow creator;
+personal review still requires its owner and the token role. The verified subject
+replaces the submitted reviewer name. ETags and analysis IDs
 provide concurrency protection, not authorization. Reviews remain advisory rather
 than an execution authority or an immutable compliance ledger.
 
@@ -161,8 +164,50 @@ do not configure a shared browser-client/ID-token audience. Owners are opaque
 hashes of issuer and subject; knowing a session ID grants no access. Foreign,
 expired, and missing sessions return indistinguishable 404 responses.
 `GET /api/v1/auth/config`, `/health`, `/ready`, and static assets are public;
-all other `/api/` requests require authentication in OIDC mode. Review requires
-both ownership and role (there is no separate reviewer sharing/delegation model).
+all other `/api/` requests require authentication in OIDC mode. Personal review
+requires ownership and the configured token role; team review additionally follows
+the independent-review rules below.
+
+### Organizations and team workspaces
+
+Use **Organizations & teams** to create an organization, manage membership and
+select a team workspace. New organizations have a founding owner. Share the opaque
+identity ID shown on that page with an administrator to request membership;
+email invitations and identity-provider directory lookup are not implemented.
+
+| Membership or team role | Team workflow permissions |
+|---|---|
+| Organization owner / administrator | Read, create/edit, and delete across the organization's teams |
+| Contributor | Read and create/edit in the assigned team |
+| Reviewer | Read and review in the assigned team |
+| Viewer | Read only in the assigned team |
+
+Team roles can be combined. Owners/administrators need an explicit team reviewer
+grant to review; no team member, including the founding owner, can review a
+workflow they created. OIDC review also requires `AUTH_REVIEWER_ROLE` in the
+verified token. Local demo uses one shared identity, so it cannot demonstrate
+independent team approval; use separate verified identities for that acceptance test.
+
+The owner manages administrators; administrators manage ordinary memberships and
+team grants. The founding owner cannot be changed or revoked in this phase.
+Membership/grant updates require the current record `version`; stale writes return
+409. Revoking membership immediately blocks subsequent authorized requests.
+Reactivating membership does not reactivate old team grants: explicitly regrant
+team access. Organization deletion and ownership transfer are deferred.
+
+`POST/GET /api/v1/organizations` creates/lists organizations.
+`POST/GET /api/v1/organizations/{organization_id}/teams` creates/lists teams.
+Organization and team membership administration uses the respective
+`/members` listing endpoints and `PUT /members/{identity_id}`.
+Listings return bounded `items` and `next_cursor` pages.
+
+Workflow requests select a team using **both** `X-Organization-ID` and `X-Team-ID`;
+omit both for personal scope. These headers select scope, never grant authority:
+the server checks membership and permissions on every protected operation.
+Personal, other-team and other-organization reads cannot open a team workflow.
+Switching workspaces clears the current workflow pointer without moving or
+deleting its records. The UI disables unavailable mutation/review controls;
+server authorization remains authoritative.
 
 **Identity-provider integration is deliberately configuration-only:** no tenant,
 app registration, hosting resource, or OAuth callback is provisioned. The initial
@@ -199,7 +244,7 @@ complete interactive SSO experience.
 
 ### Personal Home and decision archive
 
-Home lists the current owner's workflows with draft, pending review, approved,
+Home lists the selected personal or team workspace's workflows with draft, pending review, approved,
 and rejected filters. Open an active workflow to continue it, or open a finalized
 decision to see a read-only snapshot with its reviewer, comments, and decision
 time. Automated policy outcomes are explicitly distinguished from human reviews.
@@ -221,7 +266,7 @@ full interview transcript or code scaffold. They are deletable snapshots,
 - **Live:** session and archive documents share the existing Cosmos
   `/session_id` partition. Final decision and snapshot are committed in one
   ETag-protected transactional batch. Per-document TTL and application checks
-  enforce expiry. Home uses owner-filtered, projected, bounded keyset queries;
+  enforce expiry. Home uses owner- or team-filtered, projected, bounded keyset queries;
   keep `home.sort_key` range-indexed for these queries.
 - **Deletion:** deleting a workflow removes all its retained decision versions
   and comments. Archived workflows remain deletable after active-session expiry
@@ -231,9 +276,12 @@ full interview transcript or code scaffold. They are deletable snapshots,
   short-lived legacy records until session expiry. They are not retroactively
   converted into durable decisions.
 
-This release implements **personal ownership only**. Organization/team
-membership, shared access, tenant administration and enterprise-scale partition
-design are deferred. Before a multi-organization rollout, validate the indexing,
+Organization/team membership uses a separate Cosmos `directory` container with
+partition key `/organization_id`, automatic expiry disabled, and range indexing
+on `directory_key`. Local demo persists its directory in a sibling
+`decisions.tenants.sqlite3` file (derived from `DEMO_ARCHIVE_PATH`).
+Existing personal records are not reassigned to organizations.
+Before a multi-organization rollout, validate the indexing,
 cross-partition query costs, tenant isolation, membership/RBAC and load profile
 against real Cosmos infrastructure.
 
@@ -261,7 +309,8 @@ restored state comes from the server rather than fabricated progress. The sideba
 shows actual workflow status/expiry and dependency readiness refreshed every 30
 seconds, distinguishing fictional demo data from live/degraded operation.
 
-Only an opaque session pointer, opaque owner identity and active step are stored
+Only an opaque session pointer, opaque owner identity, selected organization/team
+IDs for that workflow, and active step are stored
 in **tab-scoped sessionStorage**—not transcripts, intake, recommendations or access
 tokens. Reload restores the matching owner's server session after authentication;
 a different identity or missing/expired session discards the pointer. Browser
@@ -393,8 +442,10 @@ or the live index is empty. Structured generation retries malformed output once 
 a real JSON completion; transport/authentication failures do not take that retry.
 Invalid final output is an error, not a placeholder blueprint or mapping.
 
-Before live use, provision the Cosmos database (default `agentsense_db`) and its
-`workflows` container with partition key `/session_id`. The application no longer
+Before live use, provision the Cosmos database (default `agentsense_db`), its
+TTL-enabled `workflows` container with partition key `/session_id`, and the
+non-expiring `directory` container with partition key `/organization_id`.
+The application no longer
 creates databases/containers during startup or readiness checks. Provision and seed
 the Azure AI Search index separately. Demo ingestion reports that no live write
 occurred; partial live ingestion is an error.
@@ -437,8 +488,9 @@ volume <=10,000,000), bounded labels/lists, and valid categorical values.
 - `GET /health` is dependency-free liveness. It reports the selected `mode`; its
   compatibility `live` flag means **mode selected**, not Azure connectivity.
 - `GET /ready` returns `200` with `ready: true`, or `503` with `ready: false` and
-  per-dependency status for OpenAI, Search, and Cosmos. Demo dependencies are marked
-  `demo`; this is not a claim that Azure was tested.
+  per-dependency status for OpenAI, Search, Cosmos, and the tenant directory.
+  Demo Azure dependencies are marked `demo`; the local archive and directory are
+  checked for writable storage. This is not a claim that Azure was tested.
 - Live readiness performs a one-token OpenAI inference on the configured deployment,
   verifies the Search index has documents, and reads Cosmos container metadata.
   **The OpenAI probe consumes tokens and can be rate-limited.** Poll conservatively;
