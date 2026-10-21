@@ -3,93 +3,128 @@ import logging
 
 from pydantic import BaseModel, Field
 
-from app.utils.models import AgentSuitabilityScore
+from app.utils.models import (
+    AgentSuitabilityScore, WorkflowIntelligence, EnterpriseContext, WorkflowDiagnosis,
+    DesignFamily, AutonomyLevel, GovernanceDecision,
+)
 from app.utils.llm import get_chat_llm, structured_call
 from app.utils.runtime import demo_mode
+from app.utils.errors import InvalidDependencyResponse
 
 logger = logging.getLogger(__name__)
 
 
 class Blueprint(BaseModel):
-    architecture_doc: str = Field(..., description="Markdown architecture document")
-    mermaid_diagram: str = Field(..., description="Mermaid 'graph TD' source, no code fences")
-    cost_estimate: str = Field(..., description="Approximate monthly Azure cost with assumptions")
-    roadmap: str = Field(..., description="Markdown 30/60/90-day implementation roadmap")
-    code_scaffold: str = Field(..., description="Python FastAPI + LangGraph starter scaffold")
+    design_family: DesignFamily
+    autonomy_level: AutonomyLevel
+    requires_hitl: bool
+    pattern_ids: list[str] = Field(min_length=1, max_length=4)
+    governance_decision: GovernanceDecision
+    architecture_doc: str = Field(..., description="Markdown architecture for the CUSTOMER workflow")
+    mermaid_diagram: str = Field(..., description="Mermaid graph TD of the customer workflow, no fences")
+    cost_estimate: str = Field(..., description="Unpriced cost drivers; distinguish supplied budgets from assumptions")
+    roadmap: str = Field(..., description="30/60/90-day roadmap that preserves the prescribed design and human gate")
+    code_scaffold: str = Field(..., description="Illustrative untested scaffold, NOT deployment-ready code")
 
 
-_SYSTEM = """You are AgentSense's Blueprint Agent — a Principal AI Architect and Lead Engineer. Turn the
-suitability score and architecture recommendation into an implementation-ready blueprint: a markdown
-architecture doc, a Mermaid graph TD diagram (no code fences), an Azure cost estimate with assumptions,
-a 30/60/90-day roadmap, and a runnable Python scaffold (FastAPI + LangGraph) reflecting the recommended
-patterns. Be concrete and specific to this workflow."""
+_SYSTEM = """You are AgentSense's Blueprint Agent. Design the CUSTOMER workflow, never AgentSense's
+diagnostic/scoring pipeline. Use ALL supplied context, workflow facts and evidence, prescribed design,
+Azure mapping, grounded pattern IDs/source references, ROI assumptions and scenarios, and policy outcome.
+The prescribed design/autonomy and any human gate are mandatory; do not escalate a copilot or RPA design
+into multi-agent autonomy. A HUMAN_REVIEW_REQUIRED blueprint is provisional, not approved for deployment.
+Do not invent measured facts, prices, integrations, or citations. Costs without supplied pricing are
+unpriced cost drivers, not Azure quotes. Include limitations. Code is illustrative, untested scaffolding;
+never claim it is runnable, production-ready, or deployed. Do not include code fences in code_scaffold."""
 
-_MOCK_MERMAID = """graph TD
-    U[Stakeholder] --> DA[Diagnostic Agent]
-    DA --> RI[Agentification Readiness Index]
-    RI --> MA[Mapping Agent]
-    MA --> RA[Recommendation Agent]
-    RA --> ROI[ROI Engine]
-    ROI --> GOV[Governance Agent]
-    GOV -->|auto-approved| OUT[Blueprint + Scaffold]
-    GOV -->|review required| P[Provisional Blueprint]
-    GOV -->|rejected| ALT[Non-agentic Alternative]
-    P --> H[Human Reviewer]
-    H -->|approve recommendation| OUT
-    H -->|reject recommendation| ALT"""
+_SCAFFOLD = '''from fastapi import FastAPI, HTTPException
 
-_MOCK_SCAFFOLD = """from fastapi import FastAPI
-from langgraph.graph import StateGraph, END
+app = FastAPI(title=WORKFLOW_NAME)
 
-app = FastAPI(title="Generated Agentic Service")
-
-# TODO: implement nodes for each recommended pattern
-def supervisor(state): ...
-def worker(state): ...
-def hitl_gate(state): ...
-
-graph = StateGraph(dict)
-graph.add_node("supervisor", supervisor)
-graph.add_node("worker", worker)
-graph.add_node("hitl_gate", hitl_gate)
-graph.set_entry_point("supervisor")
-graph.add_edge("supervisor", "worker")
-graph.add_edge("worker", "hitl_gate")
-graph.add_edge("hitl_gate", END)
-runtime = graph.compile()
-"""
+@app.post("/cases")
+def submit_case(payload: dict):
+    raise HTTPException(
+        status_code=501,
+        detail="Scaffold only: implement validated integrations, authorization, audit, and required approval gates.",
+    )
+'''
 
 
 class BlueprintAgent:
     def __init__(self):
         self.use_mock = demo_mode()
 
-    def generate_blueprint(self, score: AgentSuitabilityScore, recommendation: dict) -> dict:
+    def generate_blueprint(self, score: AgentSuitabilityScore, recommendation: dict, *,
+                           intelligence: WorkflowIntelligence, context: EnterpriseContext,
+                           mapping: dict, governance: dict, roi: dict, diagnosis: WorkflowDiagnosis) -> dict:
+        if governance["decision"] == "REJECT" or diagnosis.missing_facts:
+            raise ValueError("A rejected or incomplete workflow cannot receive a blueprint.")
+        payload = {
+            "workflow": intelligence.model_dump(), "context": context.model_dump(), "score": score.model_dump(),
+            "recommendation": recommendation, "azure_mapping": mapping, "governance": governance,
+            "roi": roi, "diagnosis": diagnosis.model_dump(),
+        }
         if self.use_mock:
-            return Blueprint(
+            citations = "\n".join(f"- {p['id']}: {p['name']} ({p['source_ref']}; SHA256 {p['content_sha256']})"
+                                  for p in recommendation["pattern_references"])
+            gate = "Mandatory human approval" if score.requires_hitl else "Bounded action policy and exception review"
+            diagram = (f'graph TD\n    I[Customer workflow input] --> P["{score.recommended_pattern}"]\n'
+                       f'    P --> G["{gate}"]\n    G --> S[Existing systems]\n    G --> A[Audit record]')
+            result = Blueprint(
+                design_family=recommendation["design_family"], autonomy_level=score.autonomy_level,
+                requires_hitl=score.requires_hitl, pattern_ids=recommendation["pattern_ids"],
+                governance_decision=governance["decision"],
                 architecture_doc=(
-                    "# Agentic Architecture Blueprint\n\n"
-                    f"**Recommended pattern:** {score.recommended_pattern}\n\n"
-                    "A Supervisor/Worker multi-agent system fronted by a conversational diagnostic agent. "
-                    "Retrieval grounds recommendations in vetted patterns; a Human-in-the-Loop gate guards "
-                    "high-value, compliance-sensitive actions; an audit trail records every decision.\n\n"
-                    "## Components\n- **Orchestrator** (Azure AI Foundry + LangGraph)\n"
-                    "- **Specialist agents** (Azure OpenAI GPT-4o, function calling)\n"
-                    "- **Knowledge** (Azure AI Search RAG)\n- **State/Memory** (Azure Cosmos DB)\n"
-                    "- **Governance** (ordered policies + advisory human review + audit trace)\n"
+                    f"# {intelligence.workflow_name}\n\n{intelligence.summary}\n\n"
+                    f"**Fictional demo fixture, not extracted customer facts.**\n\n"
+                    f"**Design:** {score.recommended_pattern}; autonomy {score.autonomy_level}.\n"
+                    f"**Policy:** {governance['decision']}. {gate}.\n\n"
+                    f"**Systems:** {', '.join(intelligence.systems) or 'None'}.\n"
+                    f"**Workload:** {intelligence.volume_per_day}/day, {intelligence.steps} steps, "
+                    f"{intelligence.decision_points} decisions, {intelligence.exceptions_per_week} exceptions/week.\n"
+                    f"**Hosting:** {mapping['compute']}; state: {mapping['database']}; "
+                    f"AI: {mapping['ai']}; orchestration: {mapping['orchestration']}.\n\n"
+                    f"## Grounding (keyword lookup + required design IDs)\n{citations}\n\n"
+                    f"## Estimate limitations\n{roi['assumptions']}\n"
+                    "Validate handling time, labor rates, data access, quality thresholds and integration permissions "
+                    "with the workflow owner before implementation. Labor effort is not guaranteed cash savings."
                 ),
-                mermaid_diagram=_MOCK_MERMAID,
-                cost_estimate="~$180–$320/month at low volume: App Service B1 (~$13), Cosmos DB serverless "
-                              "(~$25), AI Search Basic (~$75), Azure OpenAI usage (~$60–$200 by traffic).",
-                roadmap="**0–30 days:** MVP — diagnostic + scoring + single-agent copilot in staging.\n"
-                        "**31–60 days:** Add RAG grounding, validation agent, HITL gate, audit trail.\n"
-                        "**61–90 days:** Scale to supervisor/worker, add evals + feedback loop, production rollout.",
-                code_scaffold=_MOCK_SCAFFOLD,
-            ).model_dump()
-
-        payload = json.dumps({"score": score.model_dump(), "recommendation": recommendation})
-        result = structured_call(get_chat_llm(temperature=0.2), _SYSTEM, payload, Blueprint)
-        return result.model_dump()
+                mermaid_diagram=diagram,
+                cost_estimate="Unpriced cost drivers: hosting, model tokens, search, state storage, monitoring and integration. "
+                              "No live Azure pricing was queried. " +
+                              (f"Operating budget assumption: ${roi['assumption_inputs']['annual_operating_cost']:,}/year; "
+                               "a supplied assumption, not an Azure quote." if roi["operating_costs_included"] else
+                               "Annual operating cost is unknown; net savings are unavailable."),
+                roadmap=f"**0-30 days:** Measure {intelligence.workflow_name} baseline and validate data and tool access.\n"
+                        f"**31-60 days:** Pilot {score.recommended_pattern} in staging; implement {gate.lower()} and audit.\n"
+                        "**61-90 days:** Run quality, failure and approval-gate tests; obtain owner sign-off; "
+                        "roll out gradually without increasing the prescribed autonomy.",
+                code_scaffold=(
+                    f"WORKFLOW_NAME = {intelligence.workflow_name!r}\n"
+                    f"DESIGN_FAMILY = {recommendation['design_family']!r}\n"
+                    f"AUTONOMY = {score.autonomy_level!r}\n"
+                    f"REQUIRES_HUMAN_APPROVAL = {score.requires_hitl!r}\n"
+                    f"PATTERN_IDS = {recommendation['pattern_ids']!r}\n\n" + _SCAFFOLD
+                ),
+            )
+        else:
+            result = structured_call(get_chat_llm(temperature=0.2), _SYSTEM, json.dumps(payload), Blueprint)
+        if (result.design_family != recommendation["design_family"]
+                or result.autonomy_level != score.autonomy_level
+                or result.requires_hitl != score.requires_hitl
+                or set(result.pattern_ids) != set(recommendation["pattern_ids"])
+                or len(result.pattern_ids) != len(set(result.pattern_ids))
+                or result.governance_decision != governance["decision"]):
+            logger.error("Blueprint contradicted the prescribed design, sources, autonomy, or policy outcome.")
+            raise InvalidDependencyResponse("openai")
+        out = result.model_dump()
+        out["scaffold_status"] = "illustrative_untested"
+        out["code_scaffold"] = "# Illustrative, untested scaffold. Not deployment-ready.\n" + out["code_scaffold"]
+        out["design_constraints"] = {
+            "workflow_name": intelligence.workflow_name, "design_family": recommendation["design_family"],
+            "autonomy_level": score.autonomy_level, "requires_hitl": score.requires_hitl,
+            "pattern_ids": recommendation["pattern_ids"], "policy_decision": governance["decision"],
+        }
+        return out
 
 
 blueprint_agent = BlueprintAgent()

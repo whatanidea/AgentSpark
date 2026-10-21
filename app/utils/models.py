@@ -1,12 +1,14 @@
-from pydantic import BaseModel, Field, PrivateAttr, StringConstraints
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, StringConstraints, computed_field
 from typing import List, Optional, Dict, Any, Literal, Annotated
 from datetime import datetime
 
 
 AutonomyLevel = Literal["Autonomous", "Supervised", "Assisted", "Manual"]
+DesignFamily = Literal["supervisor_worker", "rag_copilot", "rpa_triage", "standard_software"]
 GovernanceDecision = Literal["AUTO_APPROVE", "HUMAN_REVIEW_REQUIRED", "REJECT"]
 RiskLevel = Literal["Low", "Medium", "High", "Critical"]
-WorkflowStatus = Literal["init", "processing", "awaiting_human_review", "completed", "rejected"]
+WorkflowStatus = Literal["init", "processing", "needs_clarification", "awaiting_human_review", "completed", "rejected"]
+DemoScenario = Literal["invoice", "support", "claims", "payroll"]
 SignalLevel = Literal["High", "Medium", "Low"]
 SessionId = Annotated[str, StringConstraints(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$")]
 WorkflowLabel = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
@@ -32,6 +34,58 @@ class WorkflowIntelligence(BaseModel):
     human_judgment: SignalLevel = "Medium"
     unstructured_content: SignalLevel = "Medium"
     error_cost: SignalLevel = "Medium"
+
+
+ESSENTIAL_FACTS = {
+    "workflow_name": "What is the workflow called?",
+    "summary": "What does this workflow do, from input to outcome?",
+    "steps": "How many discrete steps does each item pass through?",
+    "departments": "Which departments participate? Explicitly say none if there are no departments.",
+    "decision_points": "How many human decision points are there per item? Zero is valid.",
+    "systems": "Which systems does it touch? Explicitly say none if there are no integrations.",
+    "exceptions_per_week": "How many exceptions need intervention per week? Zero is valid.",
+    "volume_per_day": "How many items are processed per day? Zero is valid.",
+    "compliance_sensitivity": "Is compliance sensitivity Low, Medium, or High?",
+    "data_availability": "Is usable data availability Low, Medium, or High?",
+    "rule_stability": "Are the rules Stable, Evolving, or Volatile?",
+    "human_judgment": "Is the need for human judgment Low, Medium, or High?",
+    "unstructured_content": "Is the proportion of unstructured content Low, Medium, or High?",
+    "error_cost": "Is the impact of an incorrect outcome Low, Medium, or High?",
+}
+
+
+class FactEvidence(BaseModel):
+    status: Literal["supplied", "inferred", "missing"] = "missing"
+    source: Literal["interview", "intake", "demo_fixture", "none"] = "none"
+    quote: str = Field(default="", max_length=2000)
+
+
+class WorkflowDiagnosis(BaseModel):
+    intelligence: Optional[WorkflowIntelligence] = None
+    evidence: Dict[str, FactEvidence] = Field(default_factory=lambda: {key: FactEvidence() for key in ESSENTIAL_FACTS})
+    demo_scenario_required: bool = False
+
+    @computed_field
+    @property
+    def missing_facts(self) -> List[str]:
+        return [
+            key for key in ESSENTIAL_FACTS
+            if self.intelligence is None or self.evidence.get(key, FactEvidence()).status != "supplied"
+            or (isinstance(getattr(self.intelligence, key), str) and not getattr(self.intelligence, key).strip())
+        ]
+
+    @computed_field
+    @property
+    def data_completeness(self) -> float:
+        return round(1 - len(self.missing_facts) / len(ESSENTIAL_FACTS), 2)
+
+    @computed_field
+    @property
+    def follow_up_questions(self) -> List[str]:
+        if self.demo_scenario_required:
+            return ["Select an explicit demo sample in Enterprise Context, or use the invoice sample in Diagnostic. "
+                    "Demo mode does not extract facts from arbitrary interview text."]
+        return [ESSENTIAL_FACTS[key] for key in self.missing_facts[:3]]
 
 
 # ──────────────────────────────────────────────────────────────
@@ -102,14 +156,49 @@ class GovernanceResult(BaseModel):
     rejection_package: Optional[Dict[str, Any]] = None
 
 
+class ROIAssumptions(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    working_days_per_year: int = Field(default=250, ge=1, le=366, strict=True)
+    loaded_hourly_rate: float = Field(default=45, ge=1, le=1000, allow_inf_nan=False, strict=True)
+    minutes_per_step: float = Field(default=1.5, ge=0, le=60, allow_inf_nan=False, strict=True)
+    minutes_per_decision: float = Field(default=2, ge=0, le=240, allow_inf_nan=False, strict=True)
+    implementation_cost_per_agent: int = Field(default=12000, ge=1, le=1000000, strict=True)
+    annual_operating_cost: Optional[int] = Field(default=None, ge=0, le=1000000000, strict=True)
+
+
+class ROIScenario(BaseModel):
+    name: Literal["conservative", "base", "optimistic"]
+    automation_multiplier: float
+    automatable_fraction: float
+    hours_saved_per_year: int
+    cost_saved_per_year: int
+    implementation_cost: int
+    annual_net_savings: Optional[int]
+    payback_months: Optional[float]
+    roi_multiple: Optional[float]
+
+
 class ROIEstimate(BaseModel):
     automatable_fraction: float = Field(default=0.0, description="Share of effort agents can absorb, 0-1")
     hours_saved_per_year: int = 0
     cost_saved_per_year: int = 0
     implementation_cost: int = 0
-    payback_months: float = 0.0
-    roi_multiple: float = Field(default=0.0, description="Annual savings ÷ implementation cost")
+    payback_months: Optional[float] = None
+    roi_multiple: Optional[float] = Field(default=None, description="Annual savings ÷ implementation cost")
     assumptions: str = ""
+    assumption_inputs: ROIAssumptions = Field(default_factory=ROIAssumptions)
+    scenarios: List[ROIScenario] = Field(default_factory=list)
+    estimate_basis: str = "Illustrative gross labor effort; not guaranteed cash savings. Operating costs excluded unless supplied."
+
+    @computed_field
+    @property
+    def operating_costs_included(self) -> bool:
+        return self.assumption_inputs.annual_operating_cost is not None
+
+    @computed_field
+    @property
+    def first_year_balance(self) -> int:
+        return self.cost_saved_per_year - self.implementation_cost - (self.assumption_inputs.annual_operating_cost or 0)
 
 
 class GuardrailFlag(BaseModel):
@@ -172,6 +261,9 @@ class WorkflowState(BaseModel):
     session_id: SessionId
     enterprise_context: EnterpriseContext = Field(default_factory=EnterpriseContext)
     chat_history: List[Dict[str, str]] = Field(default_factory=list)
+    demo_scenario: Optional[DemoScenario] = None
+    diagnosis: Optional[WorkflowDiagnosis] = None
+    roi_assumptions: ROIAssumptions = Field(default_factory=ROIAssumptions)
     workflow_intelligence: Optional[WorkflowIntelligence] = None
     suitability_score: Optional[AgentSuitabilityScore] = None
     azure_mapping: Optional[Dict[str, Any]] = None
@@ -189,6 +281,7 @@ class WorkflowState(BaseModel):
     human_review: Optional[HumanReview] = None
 
     def invalidate_analysis(self) -> None:
+        self.diagnosis = None
         self.workflow_intelligence = None
         self.suitability_score = None
         self.azure_mapping = None

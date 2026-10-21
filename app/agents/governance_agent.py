@@ -60,7 +60,8 @@ class GovernanceAgent:
         )
 
         # 2. Confidence
-        conf_val = int((recommendation.get("confidence", 0.0)) * 100)
+        # Retain the legacy policy input name for existing rules; it measures completeness, not accuracy.
+        conf_val = int(recommendation.get("data_completeness", recommendation.get("confidence", 0.0)) * 100)
         if conf_val >= 90:
             c_level = "Low"
             c_status = "pass"
@@ -109,14 +110,16 @@ class GovernanceAgent:
         )
 
         # 7. Cost Governance
-        first_year_net_savings = roi.cost_saved_per_year - roi.implementation_cost
+        first_year_net_savings = roi.first_year_balance
         cost_status = "PASS" if first_year_net_savings >= 0 else "FAIL"
         assessments["Cost Governance"] = GovernanceAssessment(
             score=cost_status, status="pass" if cost_status == "PASS" else "fail",
             risk_level="Low" if cost_status == "PASS" else "High",
             reason=f"First-year gross labor savings ${roi.cost_saved_per_year:,} versus "
                    f"one-time build cost ${roi.implementation_cost:,}; "
-                   f"net ${first_year_net_savings:,}, before operating costs.",
+                   f"balance ${first_year_net_savings:,}; "
+                   + (f"annual operating costs ${roi.assumption_inputs.annual_operating_cost:,} included."
+                      if roi.operating_costs_included else "operating costs excluded, net savings unknown."),
             recommendation="Validate labor assumptions and budget operating costs separately."
         )
 

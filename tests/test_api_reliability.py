@@ -134,7 +134,8 @@ class APIValidationTests(unittest.TestCase):
 
     def test_failed_live_analysis_does_not_persist_partial_results(self):
         session_id = str(uuid4())
-        initial = WorkflowState(session_id=session_id, chat_history=[{"role": "user", "content": "Workflow"}])
+        initial = WorkflowState(session_id=session_id, demo_scenario="invoice",
+                                chat_history=[{"role": "user", "content": "Workflow"}])
         db_client.save_workflow_state(initial)
         try:
             with patch.object(flow.mapping_agent, "map_services", side_effect=DependencyUnavailable("openai")):
@@ -167,7 +168,7 @@ class ConcurrentRequestTests(unittest.TestCase):
         session_id = str(uuid4())
         client = TestClient(app)
         db_client.save_workflow_state(WorkflowState(
-            session_id=session_id, chat_history=[{"role": "user", "content": "Workflow"}],
+            session_id=session_id, demo_scenario="invoice", chat_history=[{"role": "user", "content": "Workflow"}],
         ))
         analysis = client.post(f"/api/v1/analyze/{session_id}").json()
         original_read = db_client.get_workflow_state

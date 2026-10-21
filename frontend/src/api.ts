@@ -10,6 +10,22 @@ export type ReviewRequest = {
 };
 
 export type RuntimeHealth = { status: string; live: boolean; mode: "demo" | "live" };
+export type DemoScenario = "invoice" | "support" | "claims" | "payroll";
+export type ROIAssumptions = {
+  working_days_per_year: number;
+  loaded_hourly_rate: number;
+  minutes_per_step: number;
+  minutes_per_decision: number;
+  implementation_cost_per_agent: number;
+  annual_operating_cost: number | null;
+};
+export type Diagnosis = {
+  intelligence: Record<string, unknown> | null;
+  evidence: Record<string, { status: "supplied" | "inferred" | "missing"; source: string; quote: string }>;
+  missing_facts: string[];
+  follow_up_questions: string[];
+  data_completeness: number;
+};
 export type Readiness = {
   status: "ready" | "degraded";
   ready: boolean;
@@ -57,8 +73,8 @@ export const api = {
     return response.json();
   },
   intake: (body: any) => post("/intake", body),
-  chat: (session_id: string, message: string) => post("/chat", { session_id, message }),
-  analyze: (session_id: string) => post(`/analyze/${session_id}`, {}),
+  chat: (session_id: string, message: string, demo_scenario?: DemoScenario) => post("/chat", { session_id, message, demo_scenario }),
+  analyze: (session_id: string, roi_assumptions?: ROIAssumptions) => post(`/analyze/${session_id}`, { roi_assumptions }),
   blueprint: (session_id: string) => get(`/blueprint/${session_id}`),
   review: (session_id: string) => get(`/review/${session_id}`),
   submitReview: (session_id: string, body: ReviewRequest) => post(`/review/${session_id}`, body),

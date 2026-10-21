@@ -2,12 +2,13 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime, timezone
 from typing import Literal, Annotated
-from app.utils.models import HumanReview, SessionId, SignalLevel
+from app.utils.models import HumanReview, SessionId, SignalLevel, DemoScenario, ROIAssumptions
+from app.utils.runtime import demo_mode
 
 from app.database.cosmos_client import db_client
 from app.orchestration.langgraph_flow import run_orchestration
 from app.agents.diagnostic_agent import diagnostic_agent
-from app.rag.retrieval import retrieve_patterns
+from app.rag.retrieval import retrieve_patterns, get_pattern
 from app.security.guardrails import scan_input, redact_pii
 
 router = APIRouter()
@@ -24,11 +25,17 @@ class IntakeRequest(RequestModel):
     existing_systems: str = Field(max_length=4000)
     pain_points: str = Field(max_length=8000)
     compliance_requirements: SignalLevel
+    demo_scenario: DemoScenario | None = None
 
 
 class ChatRequest(RequestModel):
     session_id: SessionId
     message: str = Field(min_length=1, max_length=8000)
+    demo_scenario: DemoScenario | None = None
+
+
+class AnalyzeRequest(RequestModel):
+    roi_assumptions: ROIAssumptions | None = None
 
 
 class ReviewRequest(RequestModel):
@@ -41,8 +48,11 @@ class ReviewRequest(RequestModel):
 
 @router.post("/intake")
 def save_intake(req: IntakeRequest):
+    if req.demo_scenario is not None and not demo_mode():
+        raise HTTPException(status_code=422, detail="Demo fixtures cannot be selected in live mode.")
     state = db_client.get_workflow_state(req.session_id, create_if_missing=True)
     state.invalidate_analysis()
+    state.demo_scenario = req.demo_scenario
     state.enterprise_context.business_domain = req.business_domain
     state.enterprise_context.team_size = req.team_size
     state.enterprise_context.existing_systems = req.existing_systems
@@ -54,6 +64,8 @@ def save_intake(req: IntakeRequest):
 
 @router.post("/chat")
 def chat_interaction(req: ChatRequest):
+    if req.demo_scenario is not None and not demo_mode():
+        raise HTTPException(status_code=422, detail="Demo fixtures cannot be selected in live mode.")
     state = db_client.get_workflow_state(req.session_id, create_if_missing=True)
 
     # Security gate: screen every inbound message before it reaches the LLM.
@@ -72,8 +84,10 @@ def chat_interaction(req: ChatRequest):
         return {"status": "blocked", "response": warning, "guardrail": guard.model_dump()}
 
     # Diagnostic Agent answers grounded in the intake context. PII is redacted before storage.
-    response_text = diagnostic_agent.chat(req.message, state.chat_history, state.enterprise_context)
+    scenario = req.demo_scenario or state.demo_scenario
+    response_text = diagnostic_agent.chat(req.message, state.chat_history, state.enterprise_context, scenario)
     state.invalidate_analysis()
+    state.demo_scenario = scenario
     state.chat_history.append({"role": "user", "content": redact_pii(req.message)})
     state.chat_history.append({"role": "assistant", "content": response_text})
     db_client.save_workflow_state(state)
@@ -81,8 +95,9 @@ def chat_interaction(req: ChatRequest):
 
 
 @router.post("/analyze/{session_id}")
-def analyze_workflow(session_id: SessionId):
-    s = run_orchestration(session_id)
+def analyze_workflow(session_id: SessionId, req: AnalyzeRequest | None = None):
+    s = (run_orchestration(session_id, roi_assumptions=req.roi_assumptions)
+         if req and req.roi_assumptions is not None else run_orchestration(session_id))
     return {
         "status": s.status,
         "score": s.suitability_score.model_dump() if s.suitability_score else None,
@@ -92,6 +107,8 @@ def analyze_workflow(session_id: SessionId):
         "patterns": s.retrieved_patterns,
         "trace": s.trace,
         "analysis_id": s.analysis_id,
+        "diagnosis": s.diagnosis.model_dump() if s.diagnosis else None,
+        "demo_scenario": s.demo_scenario,
     }
 
 
@@ -106,6 +123,8 @@ def get_blueprint(session_id: SessionId):
     res["analysis_id"] = state.analysis_id
     res["provisional"] = state.status == "awaiting_human_review"
     res["human_review"] = state.human_review.model_dump(mode="json") if state.human_review else None
+    res["diagnosis"] = state.diagnosis.model_dump() if state.diagnosis else None
+    res["demo_scenario"] = state.demo_scenario
     if state.status == "rejected":
         res["alternative"] = (
             (state.governance or {}).get("rejection_package") or {}
@@ -148,6 +167,8 @@ def submit_review(session_id: SessionId, req: ReviewRequest):
         raise HTTPException(status_code=404, detail="No current analysis to review.")
     if state.analysis_id != req.analysis_id:
         raise HTTPException(status_code=409, detail="Analysis changed; fetch the current recommendation before reviewing.")
+    if state.diagnosis is None or state.diagnosis.missing_facts:
+        raise HTTPException(status_code=409, detail="Analysis has no complete fact provenance; rerun analysis before reviewing.")
     if (state.status != "awaiting_human_review"
             or not state.blueprint
             or (state.governance or {}).get("decision") != "HUMAN_REVIEW_REQUIRED"):
@@ -176,7 +197,15 @@ def search_patterns(
     k: Annotated[int, Query(ge=1, le=50)] = 6,
 ):
     """Expose the RAG pattern library so judges can probe retrieval directly."""
-    return {"query": q, "results": retrieve_patterns(q, top_k=k)}
+    return {"query": q, "retrieval_method": "keyword", "results": retrieve_patterns(q, top_k=k)}
+
+
+@router.get("/patterns/{pattern_id}")
+def pattern_source(pattern_id: SessionId):
+    document = get_pattern(pattern_id)
+    if document is None:
+        raise HTTPException(status_code=404, detail="Pattern not found in the configured source.")
+    return document
 
 
 @router.get("/portfolio")

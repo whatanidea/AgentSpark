@@ -23,11 +23,11 @@ A seven-stage pipeline orchestrated with **LangGraph**:
 
 | # | Stage | Agent / Component | Output |
 |---|-------|-------------------|--------|
-| 1 | Diagnose | **Diagnostic Agent** | Structured `WorkflowIntelligence` from a guided interview (input guardrails screen every message) |
+| 1 | Diagnose | **Diagnostic Agent** | Workflow facts with supplied/inferred/missing evidence; incomplete inputs return follow-up questions and stop |
 | 2 | Score | **Scoring Engine** | Agentification Readiness Index — 12 weighted, explained criteria |
 | 3 | Map | **Mapping Agent** | Recommended Microsoft Azure service stack |
-| 4 | Recommend | **Recommendation Agent** | RAG-grounded design from a 50-pattern library, with confidence + self-critique |
-| 5 | Estimate | **ROI Engine** | Hours/$ saved per year, payback period, ROI multiple |
+| 4 | Recommend | **Recommendation Agent** | Readiness-constrained design with pattern IDs, source snapshots, completeness and self-critique |
+| 5 | Estimate | **ROI Engine** | Explicit assumptions and conservative/base/optimistic labor-effort scenarios |
 | 6 | Govern | **Governance Agent** | Validated, ordered policies over risk, completeness, autonomy, and actual first-year ROI |
 | 7 | Outcome | **Blueprint Agent** or rejection outcome | Approved/provisional blueprint, or a non-agentic alternative without generating a blueprint |
 
@@ -58,7 +58,8 @@ Review API:
    decided/non-reviewable recommendations return `409`; no current analysis returns
    `404`; malformed review requests return `422`.
 
-Every successful reanalysis gets a new analysis ID and clears the previous review.
+Every complete reanalysis gets a new analysis ID and clears the previous review.
+Clarification-only results clear all prior outputs, approval, and analysis ID.
 Accepted chat or intake changes invalidate the current analysis and review; blocked
 chat does not. Only the **current analysis's** review is retained, not a historical
 ledger. Blueprint responses and Markdown exports identify provisional/rejected
@@ -78,8 +79,10 @@ Each policy contains `conditions` with `field`, `operator` (`eq`, `lt`, `gt`), a
 Python expressions or `eval`. If no policy matches, `default_decision` is honored.
 
 Cost governance compares **annual gross labor savings** with the **one-time build
-cost** over a first-year horizon. Negative first-year net savings reject the
-recommendation; operating costs are not included and require separate budgeting.
+cost** over a first-year horizon, subtracting annual operating costs when supplied.
+A negative base-case first-year balance rejects the recommendation. When operating
+costs are unknown, the balance, payback and multiple are explicitly **before**
+operating costs, not a claim of net cash savings.
 The security dimension is a limited text policy check, not a security audit.
 
 ### Differentiators
@@ -91,7 +94,7 @@ The security dimension is a limited text policy check, not a security audit.
 - **🔭 Observable** — a live agent trace records each of the 7 stages with timing and a summary,
   making the "audit trail" a real artifact.
 - **📊 Portfolio Planner** — scores a whole backlog so you know *what to build first*.
-- **🧠 Honest by design** — confidence is grounded in data completeness; the Recommendation Agent
+- **🧠 Honest by design** — data completeness is separate from confidence in correctness; the Recommendation Agent
   states its own biggest risk; low-value workflows are told to *not* use agents.
 
 ### Why it's credible, not just generated
@@ -102,7 +105,7 @@ The security dimension is a limited text policy check, not a security audit.
   autonomous — they are routed through a mandatory human-in-the-loop gate. A fixed-rule
   payroll task is correctly flagged *Not suitable for agents → use standard software/RPA*.
 - The **Recommendation Agent retrieves real patterns** (via Azure AI Search in live
-  mode or the local library in demo mode) and composes them by name.
+  mode or the local library in demo mode) and cites their IDs, source records and content hashes.
 
 ---
 
@@ -128,6 +131,108 @@ React SPA  ──/api/v1──►  FastAPI  ──►  LangGraph Orchestrator
 > **Demo mode:** `AGENTSENSE_MODE=demo` runs end-to-end on deterministic mock data,
 > process-local storage, and the local pattern library. Local development defaults
 > to demo even if Azure credentials are present. Live mode must be selected explicitly.
+> Select a named fictional sample explicitly; arbitrary demo chat no longer becomes Invoice Approval.
+
+## Trustworthy recommendations (Phase 3)
+
+### Clarification before scoring
+
+`POST /api/v1/analyze/{session_id}` returns `status: "needs_clarification"` when any
+essential fact is missing or inferred. Score, recommendation, ROI, governance,
+blueprint and analysis ID are withheld. `diagnosis` contains `intelligence`,
+per-field `evidence`, `missing_facts`, `data_completeness`, and up to three focused
+`follow_up_questions`. Answer in Diagnostic and rerun; no downstream stages run
+until the essential fields are supplied.
+
+The 14 essential facts are workflow name, summary, steps, departments, decision
+points, systems, weekly exceptions, daily volume, compliance sensitivity, data
+availability, rule stability, human judgment, unstructured content, and error cost.
+Explicit zero counts and explicitly empty systems/departments are valid; omitted
+defaults are not. Supplied live facts require a verbatim quote in user interview
+input or intake context. Assistant statements and demo sources cannot ground live
+extraction. Unverifiable supplied quotations fail explicitly (`502`).
+**Supplied means reported, not independently verified**: quote matching does not
+prove the model interpreted the statement correctly. Review the evidence and
+validate actual workload baselines before relying on a recommendation.
+
+Demo requests explicitly select `demo_scenario: "invoice" | "support" | "claims" |
+"payroll"` on intake or chat. The UI's sample actions set this in demo mode.
+Fixtures are labeled fictional and **do not adapt to interview text or edits to
+intake**. Clear the selection for an unselected demo session, or restart in live
+mode to analyze your own input. Live requests cannot select fixtures (`422`);
+live sample buttons only populate intake templates.
+
+### Grounded and consistent designs
+
+The readiness score prescribes the design and autonomy: High uses supervisor/worker,
+Medium uses a grounded copilot, Low uses deterministic RPA plus AI exception triage,
+and Not Suitable uses standard software. Required human gates are preserved.
+Generation must match those structured constraints and cite the required retrieved
+pattern IDs; invented, duplicate, missing or incompatible citations and conflicting
+design assertions fail explicitly rather than falling back to a plausible answer.
+Free-form model explanations remain advisory and need human review.
+
+Retrieval is **keyword search plus exact-ID lookups for required design patterns**,
+not vector or hybrid search. Both lookups use the configured live index in live
+mode; missing required records and outages never fall back to local patterns.
+Sources expose IDs, `source_ref`, `source_url`, and `content_sha256` fingerprints.
+`GET /api/v1/patterns/{pattern_id}` resolves the current source; saved results retain
+the cited snapshot and hash even if that source later changes.
+
+`strategy.data_completeness` replaces the misleading strategy confidence value.
+For compatibility, governance rule input `confidence`, assessment key `Confidence`,
+and `overall_confidence` retain their old names but mean **data completeness only**,
+never model accuracy or statistical certainty. The UI labels that distinction.
+
+### Estimates, not guaranteed savings
+
+The analysis request optionally accepts `{"roi_assumptions": {...}}`; validated
+inputs are persisted and reused by later requests without overrides. The Workflow
+Analysis screen exposes the same inputs. USD defaults:
+
+| Input | Default | Valid range |
+|---|---:|---|
+| `working_days_per_year` | 250 | integer 1-366 |
+| `loaded_hourly_rate` | 45 | 1-1,000 |
+| `minutes_per_step` | 1.5 | 0-60 |
+| `minutes_per_decision` | 2 | 0-240 |
+| `implementation_cost_per_agent` | 12,000 | integer 1-1,000,000 |
+| `annual_operating_cost` | null (unknown) | null or integer 0-1,000,000,000 |
+
+Manual minutes/item = steps x minutes/step + decisions x additional minutes/decision.
+Gross saved hours = daily volume x working days x minutes/item x automation / 60;
+gross labor savings = saved hours x loaded hourly rate. Tier automation heuristics
+are High 0.70, Medium 0.45, Low 0.20, Not Suitable 0; required HITL multiplies by 0.8.
+Illustrative build units are 4/2/1/0 respectively, multiplied by the input build
+cost. These are **cost heuristics, not promises about actual agent counts**; the
+legacy API input name `implementation_cost_per_agent` is retained.
+
+Conservative/base/optimistic scenarios vary automation by 0.75x/1x/1.15x (capped at
+100%); all other inputs stay fixed. These are what-if sensitivity cases, not
+confidence intervals. The base case drives governance; a positive base case does
+not imply the conservative case passes policy. Known operating cost is subtracted
+for net annual savings, payback, multiple, and the first-year balance. Unknown
+operating cost stays null, with unknown net savings. Zero savings means no payback
+(`null`), not zero months; a no-agent estimate has no artificial $1 build cost.
+
+Labor effort is not necessarily cash released or headcount reduced. No staffing
+capacity cap, measured task times, integration quote, Azure price lookup, or
+probabilistic forecast is implied. Validate assumptions and budgets with owners.
+
+### Workflow-specific blueprints and migration
+
+Blueprint generation receives workflow/intake, evidence, score, mapping, grounded
+references, policy result and ROI assumptions/scenarios. The diagram represents the
+customer workflow rather than AgentSense's internal agents. Generated code is
+labeled **illustrative, untested, not deployment-ready**, including in Markdown
+exports; demo endpoints deliberately return `501` until integrations, authorization,
+audit and approval enforcement are implemented. Azure costs are unpriced cost
+drivers, not a fabricated monthly quote.
+
+Existing stored results remain readable. Legacy estimates without scenarios are
+marked for reanalysis, not relabeled as audited estimates. A new approval of an old
+analysis without complete provenance is refused (`409`); rerun analysis first.
+Reanalysis/input invalidation and ETag concurrency behavior remain in effect.
 
 ## Runtime reliability (Phase 2)
 
@@ -268,7 +373,7 @@ Here is how AI was used in building and running AgentSense:
 
 AI techniques implemented: **structured output / function calling**, **RAG**, **multi-agent
 orchestration**, **agentic memory** (Cosmos-persisted state), a **rule-based governance gate**,
-**input guardrails** (prompt-injection + PII), **self-critique + confidence**, and **agent-trace
+**input guardrails** (prompt-injection + PII), **self-critique + fact completeness**, and **agent-trace
 observability**.
 
 ---

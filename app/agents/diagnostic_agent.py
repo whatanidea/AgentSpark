@@ -2,7 +2,8 @@ import logging
 
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
-from app.utils.models import WorkflowIntelligence, EnterpriseContext
+from app.utils.models import WorkflowDiagnosis, EnterpriseContext, DemoScenario, ESSENTIAL_FACTS, FactEvidence
+from app.agents.demo_scenarios import demo_diagnosis
 from app.utils.llm import get_chat_llm, structured_call, invoke_llm
 from app.utils.runtime import demo_mode
 from app.utils.errors import InvalidDependencyResponse
@@ -19,9 +20,16 @@ of the work is unstructured text/documents. Ask ONE sharp, professional question
 replies under 60 words. Do not give recommendations yet — you are only gathering intelligence."""
 
 _EXTRACT_SYSTEM = """You are AgentSense's Diagnostic Agent. From the enterprise context and interview
-transcript, extract a single structured WorkflowIntelligence record. Infer reasonable values where the
-user was vague, but stay faithful to what was said. Categorical fields must be one of their allowed
-values (High/Medium/Low, or Stable/Evolving/Volatile for rule_stability)."""
+transcript, extract a WorkflowDiagnosis with intelligence and evidence for EVERY essential field:
+workflow_name, summary, steps, departments, decision_points, systems, exceptions_per_week, volume_per_day,
+compliance_sensitivity, data_availability, rule_stability, human_judgment, unstructured_content, error_cost.
+Mark each fact supplied, inferred, or missing. Supplied facts MUST have an exact verbatim quote
+from INTERVIEW USER INPUT or ENTERPRISE CONTEXT, and source interview or intake respectively.
+Never treat assistant messages, defaults, or plausible guesses as supplied facts. Explicit zero counts
+and explicitly empty system lists are valid supplied facts. Inferences must be marked inferred and
+cannot substitute for essential facts. Leave absent values at schema defaults and mark missing;
+if no workflow can be identified, return intelligence null. Do not manufacture evidence.
+Categorical values must be High/Medium/Low, or Stable/Evolving/Volatile for rule_stability."""
 
 
 class DiagnosticAgent:
@@ -43,11 +51,15 @@ class DiagnosticAgent:
             f"- Compliance requirements: {context.compliance_requirements or 'n/a'}\n"
         )
 
-    def chat(self, user_message: str, chat_history: list, context: EnterpriseContext | None = None) -> str:
+    def chat(self, user_message: str, chat_history: list, context: EnterpriseContext | None = None,
+             demo_scenario: DemoScenario | None = None) -> str:
         """Handle one turn of the diagnostic interview, grounded in the intake context."""
         if self.use_mock:
-            return ("**[Mock mode]** Thanks. To gauge agent suitability: how many *decision points* "
-                    "need human judgement in this workflow, and which systems does it touch?")
+            if demo_scenario is None:
+                return WorkflowDiagnosis(demo_scenario_required=True).follow_up_questions[0]
+            return (f"**[Demo fixture: {demo_scenario}]** Analysis uses the selected fictional scenario, "
+                    "not facts extracted from your messages. Change the sample in Enterprise Context "
+                    "to explore a different workflow; use live mode to analyze your own interview.")
 
         system = _INTERVIEW_SYSTEM
         ctx = self._context_block(context)
@@ -68,22 +80,30 @@ class DiagnosticAgent:
             raise InvalidDependencyResponse("openai")
         return content
 
-    def analyze_chat_history(self, chat_history, context: EnterpriseContext | None = None) -> WorkflowIntelligence:
-        """Extract a structured WorkflowIntelligence record from the conversation + intake context."""
+    def analyze_chat_history(self, chat_history, context: EnterpriseContext | None = None,
+                             demo_scenario: DemoScenario | None = None) -> WorkflowDiagnosis:
+        """Extract facts with verifiable provenance; unknown facts block downstream analysis."""
         if self.use_mock:
-            return WorkflowIntelligence(
-                workflow_name="Invoice Approval",
-                summary="Multi-department invoice approval with finance and legal sign-off.",
-                steps=8, departments=["Finance", "Legal"], decision_points=6,
-                systems=["SAP", "Email", "DocuSign"], exceptions_per_week=25, volume_per_day=500,
-                compliance_sensitivity="High", data_availability="High", rule_stability="Evolving",
-                human_judgment="Medium", unstructured_content="High", error_cost="High",
-            )
+            return demo_diagnosis(demo_scenario) if demo_scenario else WorkflowDiagnosis(demo_scenario_required=True)
 
-        transcript = self._context_block(context) + "\nINTERVIEW TRANSCRIPT:\n" + "\n".join(
-            f"{m.get('role')}: {m.get('content','')}" for m in chat_history
-        )
-        return structured_call(get_chat_llm(temperature=0.2), _EXTRACT_SYSTEM, transcript, WorkflowIntelligence)
+        sources = {
+            "intake": self._context_block(context),
+            "interview": "\n".join(m.get("content", "") for m in chat_history if m.get("role") == "user"),
+        }
+        transcript = sources["intake"] + "\nINTERVIEW USER INPUT:\n" + sources["interview"]
+        diagnosis = structured_call(get_chat_llm(temperature=0.2), _EXTRACT_SYSTEM, transcript, WorkflowDiagnosis)
+        diagnosis.demo_scenario_required = False
+        diagnosis.evidence = {key: diagnosis.evidence.get(key, FactEvidence()) for key in ESSENTIAL_FACTS}
+        for key in ESSENTIAL_FACTS:
+            evidence = diagnosis.evidence.setdefault(key, FactEvidence())
+            if evidence.status == "supplied" and (
+                not evidence.quote.strip() or evidence.source not in sources
+                or evidence.quote not in sources[evidence.source]
+                or diagnosis.intelligence is None or key not in diagnosis.intelligence.model_fields_set
+            ):
+                logger.error("Diagnostic extraction supplied unverifiable evidence for %s.", key)
+                raise InvalidDependencyResponse("openai")
+        return diagnosis
 
 
 diagnostic_agent = DiagnosticAgent()

@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { api, uid } from "../api";
+import { api, uid, type DemoScenario } from "../api";
 import { Card, Button } from "./ui";
 
 type Msg = { role: "user" | "assistant"; content: string; blocked?: boolean };
@@ -26,12 +26,12 @@ export default function Diagnose({ sessionId, setSessionId, context, goNext }: a
   // When intake context arrives, open the interview with a context-aware greeting
   // (display-only — not sent to the server, so it never pollutes the transcript).
   useEffect(() => {
-    if (context && history.length === 0) {
-      setHistory([{ role: "assistant", content: greeting(context) }]);
-    }
+    setHistory(context ? [{ role: "assistant", content: greeting(context) }] : []);
+    setAnalyzable(false);
+    setText("");
   }, [context]);
 
-  async function send(message?: string) {
+  async function send(message?: string, scenario?: DemoScenario) {
     const m = (message ?? text).trim();
     if (!m || busy) return;
     // Auto-create a session if the user jumped straight here (Intake is optional context).
@@ -44,7 +44,7 @@ export default function Diagnose({ sessionId, setSessionId, context, goNext }: a
     setText("");
     setBusy(true);
     try {
-      const res = await api.chat(sid, m);
+      const res = await api.chat(sid, m, scenario);
       const blocked = res.status === "blocked";
       setHistory((h) => [...h, { role: "assistant", content: res.response, blocked }]);
       // Only a genuine (non-blocked) exchange makes the workflow analyzable.
@@ -53,6 +53,15 @@ export default function Diagnose({ sessionId, setSessionId, context, goNext }: a
       setHistory((h) => [...h, { role: "assistant", content: `Error: ${e.message}` }]);
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function useSample() {
+    try {
+      const health = await api.health();
+      await send(SUGGESTION, health.mode === "demo" ? "invoice" : undefined);
+    } catch (e: unknown) {
+      setHistory((h) => [...h, { role: "assistant", content: e instanceof Error ? e.message : "Cannot determine runtime mode." }]);
     }
   }
 
@@ -88,8 +97,8 @@ export default function Diagnose({ sessionId, setSessionId, context, goNext }: a
           {!history.some((m) => m.role === "user") && (
             <div className="text-slate-500 text-sm">
               {history.length === 0 ? "No messages yet. " : ""}
-              <button className="text-violet-300 underline hover:text-violet-200" onClick={() => send(SUGGESTION)}>
-                Use a sample answer →
+              <button className="text-violet-300 underline hover:text-violet-200" onClick={useSample} disabled={busy}>
+                Use invoice sample (selects fictional fixture in demo) →
               </button>
             </div>
           )}
