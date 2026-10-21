@@ -196,7 +196,7 @@ resource group (`rg-<env>`). It contains:
   `directory` (`/organization_id`, no TTL)
 - AI Search Free, Azure OpenAI `gpt-5-mini` (Global Standard). Because it's a
   reasoning model, the app is configured with `AZURE_OPENAI_REASONING_EFFORT=low`
-  (which omits `temperature`), `AZURE_OPENAI_TIMEOUT_SECONDS=60` and API version
+  (which omits `temperature`), `AZURE_OPENAI_TIMEOUT_SECONDS=120` (blueprint generation can exceed 60 seconds) and API version
   `2025-04-01-preview`. Leave the effort unset for non-reasoning deployments.
 - Key Vault (RBAC) and Log Analytics (1 GB/day cap)
 

@@ -68,7 +68,7 @@ def invoke_llm(llm, messages):
     try:
         return llm.invoke(messages)
     except (OpenAIError, httpx.HTTPError, TimeoutError, OSError) as exc:
-        logger.error("OpenAI request failed; request and exception content withheld.")
+        logger.error("OpenAI request failed (%s); request and exception content withheld.", type(exc).__name__)
         raise DependencyUnavailable("openai") from exc
 
 
