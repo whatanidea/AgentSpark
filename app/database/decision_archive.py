@@ -33,6 +33,8 @@ class HomeItem(BaseModel):
     expires_at: str
     sort_key: str
     legacy: bool = False
+    organization_id: SessionId | None = None
+    team_id: SessionId | None = None
 
     @field_validator("expires_at", "updated_at")
     @classmethod
@@ -51,6 +53,8 @@ class DecisionRecord(BaseModel):
     schema_version: Literal[1] = 1
     session_id: SessionId
     owner_id: str
+    organization_id: SessionId | None = None
+    team_id: SessionId | None = None
     home: HomeItem
     details: dict[str, Any]
     ttl: int
@@ -61,7 +65,9 @@ class DecisionRecord(BaseModel):
         if (not self.owner_id or self.home.kind != "decision" or not self.home.analysis_id
                 or self.home.status not in ("approved", "rejected")
                 or self.id != f"decision-{self.home.analysis_id}"
-                or self.session_id != self.home.session_id or self.ttl <= 0):
+                or self.session_id != self.home.session_id or self.ttl <= 0
+                or bool(self.organization_id) != bool(self.team_id)
+                or self.organization_id != self.home.organization_id or self.team_id != self.home.team_id):
             raise ValueError("Decision snapshot metadata is inconsistent.")
         return self
 
@@ -80,6 +86,7 @@ def summary(state: WorkflowState, now: datetime, *, archived: bool = False,
         updated_at=timestamp(now), expires_at=timestamp(expires_at or state.expires_at),
         sort_key=f"{timestamp(now)}_{state.session_id}_{state.analysis_id or 'draft'}",
         legacy=legacy,
+        organization_id=state.organization_id, team_id=state.team_id,
     )
 
 
@@ -87,6 +94,7 @@ def decision_record(state: WorkflowState, now: datetime, retention_days: int) ->
     blueprint = state.blueprint or {}
     return DecisionRecord(
         id=f"decision-{state.analysis_id}", session_id=state.session_id, owner_id=state.owner_id,
+        organization_id=state.organization_id, team_id=state.team_id,
         home=summary(state, now, archived=True, expires_at=now + timedelta(days=retention_days)),
         details={
             "workflow_intelligence": state.workflow_intelligence.model_dump(mode="json") if state.workflow_intelligence else None,
@@ -116,6 +124,10 @@ def stored_record(value: str) -> DecisionRecord:
     except json.JSONDecodeError as exc:
         logger.error("Stored decision JSON is invalid; payload withheld.")
         raise InvalidDependencyResponse("decision_archive") from exc
+
+
+def archive_scope(owner: str, organization: str | None = None, team: str | None = None) -> str:
+    return f"team:{organization}:{team}" if organization and team else owner
 
 
 class LocalDecisionArchive:
@@ -164,7 +176,8 @@ class LocalDecisionArchive:
     def put(self, record: DecisionRecord):
         with self.connection() as connection:
             connection.execute("INSERT INTO decisions VALUES (?, ?, ?, ?, ?, ?, ?)", (
-                record.owner_id, record.session_id, record.home.analysis_id, record.home.sort_key,
+                archive_scope(record.owner_id, record.organization_id, record.team_id),
+                record.session_id, record.home.analysis_id, record.home.sort_key,
                 record.home.expires_at, record.home.status, record.model_dump_json(),
             ))
 

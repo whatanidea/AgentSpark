@@ -261,6 +261,8 @@ class WorkflowState(BaseModel):
     _etag: Optional[str] = PrivateAttr(default=None)
     session_id: SessionId
     owner_id: str = "local-demo"
+    organization_id: Optional[SessionId] = None
+    team_id: Optional[SessionId] = None
     expires_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc) + timedelta(
         hours=int(os.getenv("SESSION_RETENTION_HOURS", "24"))))
     enterprise_context: EnterpriseContext = Field(default_factory=EnterpriseContext)

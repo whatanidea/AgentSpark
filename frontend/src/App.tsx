@@ -1,27 +1,31 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, ApiError, AuthConfig, Identity, Readiness, SessionSnapshot, setAccessToken } from "./api";
+import { api, ApiError, AuthConfig, Identity, Readiness, SessionSnapshot, setAccessToken, setWorkspace, type WorkspaceSelection } from "./api";
 import Intake from "./components/Intake";
 import Diagnose from "./components/Diagnose";
 import Analyze from "./components/Analyze";
 import Blueprint from "./components/Blueprint";
 import Portfolio from "./components/Portfolio";
 import Home from "./components/Home";
+import Workspaces from "./components/Workspaces";
 import Icon from "./components/Icon";
 import { Button } from "./components/ui";
 
-type View = "home" | "intake" | "diagnose" | "analyze" | "blueprint" | "portfolio";
+type View = "home" | "intake" | "diagnose" | "analyze" | "blueprint" | "workspaces" | "portfolio";
 const NAV: { id: View; label: string }[] = [
   { id: "home", label: "Home" },
   { id: "intake", label: "1 · Enterprise Intake" },
   { id: "diagnose", label: "2 · Diagnostic Interview" },
   { id: "analyze", label: "3 · Workflow Analysis" },
   { id: "blueprint", label: "4 · Blueprint & Review" },
+  { id: "workspaces", label: "Organizations & teams" },
   { id: "portfolio", label: "Sample Portfolio" },
 ];
 const POINTER = "agentsense.session.v1";
-function readPointer(): { session: string; identity: string; view: View } | null {
+function readPointer(): { session: string; identity: string; view: View; workspace?: { organization_id: string; team_id: string } } | null {
   try {
     const p = JSON.parse(sessionStorage.getItem(POINTER) || "null");
+    if (p?.workspace && (!/^[A-Za-z0-9_-]{1,100}$/.test(p.workspace.organization_id)
+      || !/^[A-Za-z0-9_-]{1,100}$/.test(p.workspace.team_id))) return null;
     return p && typeof p.session === "string" && /^[A-Za-z0-9_-]{1,100}$/.test(p.session)
       && typeof p.identity === "string" && NAV.some((n) => n.id === p.view) ? p : null;
   } catch { return null; }
@@ -40,19 +44,30 @@ export default function App() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [runtime, setRuntime] = useState<Readiness | null>(null);
   const [runtimeError, setRuntimeError] = useState("");
+  const [workspace, selectWorkspace] = useState<WorkspaceSelection | null>(null);
   const sessionId = snapshot?.session_id || "";
+  const canWrite = snapshot ? snapshot.permissions.write : workspace?.permissions.write !== false;
+  const canDelete = snapshot ? snapshot.permissions.delete : workspace?.permissions.delete !== false;
 
   const connect = useCallback(async () => {
+    setWorkspace(null); selectWorkspace(null);
     const who = await api.me();
     setIdentity(who);
     const pointer = readPointer();
     if (pointer?.identity === who.identity) {
       try {
+        setWorkspace(pointer.workspace ?? null);
         const state = await api.session(pointer.session);
         setSnapshot(state);
+        if (state.organization_id && state.team_id) selectWorkspace({
+          organization_id: state.organization_id, team_id: state.team_id,
+          organization_name: state.workspace?.organization_name || state.organization_id,
+          team_name: state.workspace?.team_name || state.team_id, permissions: state.permissions,
+        });
         setView(pointer.view);
         setMessage("Workflow restored from the server.");
       } catch (e) {
+        setWorkspace(null); selectWorkspace(null);
         if (e instanceof ApiError && e.status === 404) forgetPointer();
         setMessage(e instanceof Error ? e.message : "Could not restore workflow. Retry signing in.");
       }
@@ -84,7 +99,7 @@ export default function App() {
     }
     void refresh();
     const interval = window.setInterval(refresh, 30000);
-    const expire = () => { setAccessToken(""); setIdentity(null); setSnapshot(null); setView("intake"); setMessage("Access expired. Sign in again; tokens are never saved in browser storage."); };
+    const expire = () => { setAccessToken(""); setWorkspace(null); selectWorkspace(null); setIdentity(null); setSnapshot(null); setView("intake"); setMessage("Access expired. Sign in again; tokens are never saved in browser storage."); };
     window.addEventListener("agentsense-auth-expired", expire);
     return () => { alive = false; clearInterval(interval); window.removeEventListener("agentsense-auth-expired", expire); };
   }, []);
@@ -92,7 +107,9 @@ export default function App() {
   useEffect(() => {
     if (!snapshot || !identity) return;
     try {
-      sessionStorage.setItem(POINTER, JSON.stringify({ session: snapshot.session_id, identity: identity.identity, view }));
+      sessionStorage.setItem(POINTER, JSON.stringify({ session: snapshot.session_id, identity: identity.identity, view,
+        ...(snapshot.organization_id && snapshot.team_id ? { workspace: {
+          organization_id: snapshot.organization_id, team_id: snapshot.team_id } } : {}) }));
     } catch { setMessage("Browser storage is unavailable. Keep this tab open to retain your workflow pointer."); }
   }, [snapshot, identity, view]);
 
@@ -104,7 +121,7 @@ export default function App() {
     if (next === view) return;
     setBusy(true);
     try {
-      if (sessionId) await refreshSession();
+      if (sessionId && next !== "workspaces") await refreshSession();
       setView(next); setConfirmDelete(false);
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
@@ -131,6 +148,10 @@ export default function App() {
   function newWorkflow() {
     forgetPointer(); setSnapshot(null); setView("intake"); setConfirmDelete(false);
     setMessage("New workflow. The previous server session remains until expiry unless deleted.");
+  }
+  function changeWorkspace(value: WorkspaceSelection | null) {
+    setWorkspace(value); selectWorkspace(value); forgetPointer(); setSnapshot(null);
+    setView("home"); setConfirmDelete(false); setMessage("");
   }
   async function openWorkflow(id: string) {
     const state = await api.session(id);
@@ -160,10 +181,12 @@ export default function App() {
           {NAV.map((n, index) => (
             <div key={n.id} className={`shrink-0 ${n.id === "portfolio" ? "md:mt-6 md:pt-5 md:border-t border-slate-200" : ""}`}>
               {n.id === "portfolio" && <p className="hidden md:block px-3 pb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Explore</p>}
-              <button disabled={busy || !identity || starting || (!sessionId && !["home", "intake", "portfolio"].includes(n.id))}
+              <button disabled={busy || !identity || starting || (!sessionId && !["home", "intake", "portfolio", "workspaces"].includes(n.id))
+                || (n.id === "intake" && !sessionId && !canWrite)}
                 aria-label={n.label} aria-current={view === n.id ? "step" : undefined} onClick={() => void changeView(n.id)}
                 className="nav-item">
-                <span className="nav-number" aria-hidden="true">{n.id === "home" || n.id === "portfolio" ? <Icon name={n.id} className="h-4 w-4" /> : String(index).padStart(2, "0")}</span>
+                <span className="nav-number" aria-hidden="true">{n.id === "home" || n.id === "portfolio" || n.id === "workspaces"
+                  ? <Icon name={n.id === "workspaces" ? "portfolio" : n.id} className="h-4 w-4" /> : String(index).padStart(2, "0")}</span>
                 <span>{n.label.replace(/^\d · /, "")}</span>
                 {view === n.id && <span aria-hidden="true" className="ml-auto text-teal-700">›</span>}
               </button>
@@ -186,19 +209,19 @@ export default function App() {
             <p>Workflow: {sessionId.slice(0, 8)} · {snapshot?.status.replace(/_/g, " ")}</p>
             <p>Expires: {new Date(snapshot!.expires_at).toLocaleString()}</p>
             <div className="flex flex-wrap gap-2">
-              <Button variant="ghost" disabled={busy} onClick={newWorkflow}>New workflow</Button>
-              <Button variant="ghost" disabled={busy} onClick={() => setConfirmDelete(true)}>Delete workflow</Button>
+              <Button variant="ghost" disabled={busy || !canWrite} onClick={newWorkflow}>New workflow</Button>
+              <Button variant="ghost" disabled={busy || !canDelete} onClick={() => setConfirmDelete(true)}>Delete workflow</Button>
             </div>
           </>}
           {identity && auth?.mode === "oidc" && <Button variant="ghost" disabled={busy} onClick={() => {
-            setAccessToken(""); setIdentity(null); setSnapshot(null); setView("intake"); forgetPointer();
+            setAccessToken(""); setWorkspace(null); selectWorkspace(null); setIdentity(null); setSnapshot(null); setView("intake"); forgetPointer();
           }}>Sign out</Button>}
         </div>
       </aside>
       <main id="main-content" className="flex-1 min-w-0 bg-white" aria-busy={busy}>
         <div className="min-h-16 border-b border-slate-200 flex items-center justify-between flex-wrap gap-3 px-5 md:px-10 py-4">
           <p className="text-xs text-slate-500">Workspace <span className="mx-2 text-slate-300">/</span> <span className="font-medium text-slate-700">{NAV.find((n) => n.id === view)?.label.replace(/^\d · /, "")}</span></p>
-          <span className="text-[11px] font-medium text-teal-800 bg-teal-50 border border-teal-100 rounded-full px-3 py-1">Personal workspace</span>
+          <span className="text-[11px] font-medium text-teal-800 bg-teal-50 border border-teal-100 rounded-full px-3 py-1">{workspace ? `${workspace.organization_name} / ${workspace.team_name}` : "Personal workspace"}</span>
         </div>
         <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-10 py-7 md:py-9 space-y-6">
           <div className="notice">
@@ -208,7 +231,7 @@ export default function App() {
               <details className="mt-0.5">
                 <summary className="text-slate-500">Privacy, access & retention details</summary>
                 <p className="mt-2">Pattern-based redaction is best-effort, not anonymization.
-                  {" "}{auth?.mode === "local-demo" ? "Local demo is unauthenticated and shared; do not expose it publicly." : "Workflows are private to the authenticated owner; review also requires a reviewer role."}
+                  {" "}{auth?.mode === "local-demo" ? "Local demo is unauthenticated and shared; do not expose it publicly." : "Personal workflows are owner-private. Team workflows require active membership and scoped permissions; review also requires the configured token role and cannot be performed by the creator."}
                   {" "}Session retention: {auth?.retention_hours ?? "…"} hours; decision snapshots: {auth?.archive_retention_days ?? "…"} days.
                   {" "}Deleting a workflow also deletes its decision archive. Only an opaque session pointer is kept in this tab.
                 </p>
@@ -243,21 +266,26 @@ export default function App() {
               {!auth && <p role="alert">Access configuration unavailable. Reload to retry.</p>}
             </section>
           ) : <div key={sessionId || "new"}>
+            {view === "workspaces" && <Workspaces identity={identity.identity} demo={auth?.mode === "local-demo"}
+              onSelect={changeWorkspace} onBusyChange={setBusy} />}
             {view === "home" && <Home demo={auth?.mode === "local-demo"} retentionDays={auth?.archive_retention_days ?? 30}
+              workspaceName={workspace ? `${workspace.organization_name} / ${workspace.team_name}` : undefined}
+              canCreate={workspace?.permissions.write !== false} canDelete={workspace?.permissions.delete !== false}
               onCreate={newWorkflow} onOpen={openWorkflow} onBusyChange={setBusy}
               onDeleted={(id) => {
                 if (id === sessionId) { forgetPointer(); setSnapshot(null); }
                 setMessage("Workflow and all retained decision snapshots deleted.");
               }} />}
-            {view === "intake" && <Intake sessionId={sessionId} initialContext={snapshot ? { ...snapshot.enterprise_context, demo_scenario: snapshot.demo_scenario } : undefined}
+            {snapshot && !canWrite && ["intake", "diagnose", "analyze"].includes(view) && <p className="notice">Read-only access: your current team permissions do not allow workflow changes.</p>}
+            {view === "intake" && <fieldset disabled={!canWrite} className="min-w-0"><Intake sessionId={sessionId} initialContext={snapshot ? { ...snapshot.enterprise_context, demo_scenario: snapshot.demo_scenario } : undefined}
               onSaved={async (id: string) => { await refreshSession(id); setView("diagnose"); }}
-              onBusyChange={setBusy} />}
-            {view === "diagnose" && <Diagnose sessionId={sessionId} context={snapshot?.enterprise_context}
+              onBusyChange={setBusy} /></fieldset>}
+            {view === "diagnose" && <fieldset disabled={!canWrite} className="min-w-0"><Diagnose sessionId={sessionId} context={snapshot?.enterprise_context}
               demoMode={runtime?.mode === "demo"}
-              initialHistory={snapshot?.chat_history} onRefresh={refreshSession} onBusyChange={setBusy} goNext={() => void changeView("analyze")} />}
-            {view === "analyze" && <Analyze sessionId={sessionId} active initialSnapshot={snapshot}
-              onRefresh={refreshSession} onBusyChange={setBusy} goNext={() => void changeView("blueprint")} />}
-            {view === "blueprint" && <Blueprint sessionId={sessionId} active canReview={identity.can_review}
+              initialHistory={snapshot?.chat_history} onRefresh={refreshSession} onBusyChange={setBusy} goNext={() => void changeView("analyze")} /></fieldset>}
+            {view === "analyze" && <fieldset disabled={!canWrite} className="min-w-0"><Analyze sessionId={sessionId} active initialSnapshot={snapshot}
+              onRefresh={refreshSession} onBusyChange={setBusy} goNext={() => void changeView("blueprint")} /></fieldset>}
+            {view === "blueprint" && <Blueprint sessionId={sessionId} active canReview={identity.can_review && snapshot?.permissions.review}
               secureReview={auth?.mode === "oidc"} onRefresh={refreshSession} onBusyChange={setBusy} />}
             {view === "portfolio" && <Portfolio />}
           </div>}

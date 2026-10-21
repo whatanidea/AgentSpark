@@ -131,9 +131,46 @@ logs, telemetry and user exports require separate retention controls.
 
 These are minimized, deletable decision snapshots, not an immutable audit log.
 They omit complete transcripts and code scaffolds. Current live access is personal
-and owner-isolated; organizations, team memberships and shared permissions are
-not implemented. Future enterprise rollout requires a deliberate tenant/partition
-and RBAC design rather than merely adding organization filters to the UI.
+and owner-isolated in personal scope; selected team workspaces use active
+organization membership and server-checked team permissions.
+
+### Organization directory and team access
+
+Before upgrading a live deployment, provision a `directory` container in the
+configured Cosmos database with partition key `/organization_id`. Disable
+automatic expiry (`defaultTtl` absent or `-1`), and retain range indexing on
+`directory_key` for bounded keyset listings. The application does not create or
+migrate containers. `/ready` reports `tenant_directory` unavailable if the
+container cannot be read, has the wrong partition key, or expires directory records.
+Organization creation writes the organization and founding-owner membership in
+one same-partition transaction. Membership/grant changes use ETag preconditions;
+409 requires fetching the current version before resubmitting.
+
+Workflows and decisions remain in the `/session_id` container; new team records
+carry organization/team IDs. Existing personal records remain personal and are
+not backfilled or transferred. Home uses scoped cross-partition queries; review
+their indexing, RU costs, latency, and organization size/load limits against real
+Cosmos infrastructure before rollout. Offline contracts are not cloud validation.
+
+Local demo stores the directory next to its archive, deriving
+`decisions.tenants.sqlite3` from `decisions.sqlite3` (or the configured archive
+stem). The Compose archive volume preserves both files. Protect and back up both;
+session restart still loses process-local active workflows. Directory membership
+does not expire with session or decision retention. There is no organization
+deletion/ownership-transfer API in this phase; plan directory retention and
+administrative cleanup separately. Demo remains one shared unauthenticated identity.
+
+Acceptance-test separate verified identities for owner, administrator,
+contributor, reviewer, viewer and outsider. Verify personal/organization/team
+isolation on reads, writes, model-triggering operations, Home, archives and
+deletion. Owners/admins read/edit/delete across their organization's teams;
+contributors read/edit, reviewers read/review, and viewers only read.
+Review always requires an explicit team reviewer grant, the configured token
+role, and an identity other than the creator. Revocation must deny subsequent
+requests; rejoining must not restore grants from the previous membership.
+The SPA's opaque identity IDs are used to add members; email invitations and SSO
+provisioning are not supplied. Do not interpret workspace headers or disabled UI
+buttons as authorization.
 
 Browser/backend gates use isolated temporary archives and remove their own files.
 The CI container smoke uses a disposable writable tmpfs archive mount for UID/GID
@@ -199,13 +236,15 @@ image or dependency changes.
 2. Provision/configure existing infrastructure separately: HTTPS, identity
    provider/API audience/reviewer role, secret injection, network/rate limits,
    Azure endpoints and policies. Never bake `.env` or tokens into images.
-3. Enable Cosmos per-document TTL, confirm partition `/session_id`, approve
+3. Enable Cosmos per-document TTL, confirm workflows partition `/session_id` and
+   non-expiring directory partition `/organization_id`, approve
    retention and legacy-data migration. Backups and external log retention require
    separate approval; active-document deletion is not backup erasure.
 4. Confirm model deployment, seeded Search patterns (including required IDs),
    resource permissions, capacity and budget. `/ready` must report the intended
    live mode and ready dependencies.
-5. Validate signed-in owner isolation and reviewer access using approved test
+5. Validate signed-in personal/team isolation, role permissions, revocation and
+   independent reviewer access using approved test
    identities in a staging environment. Offline CI does **not** verify a real
    provider, Azure service or production network.
 6. Stage the exact image with the host's deployment/rollback mechanism. Run
@@ -231,6 +270,7 @@ image or dependency changes.
   using the hosting platform's change controls. Restore its compatible
   configuration/secret references, then check liveness, readiness, assets and
   approved authenticated acceptance. Keep rollback evidence and incident timing.
-- This phase makes **no database/schema migration**. A future incompatible data
+- The directory container is an additive prerequisite; there is no automated
+  database migration or reassignment of existing personal data. A future incompatible data
   change requires its own backup/migration/rollback plan; replacing the image does
   not roll back data, external effects, approvals, exports or retention deletions.

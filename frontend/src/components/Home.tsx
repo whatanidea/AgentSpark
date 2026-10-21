@@ -13,8 +13,9 @@ const STATUS: Record<HomeStatus, { label: string; tone: "green" | "red" | "amber
 };
 const date = (value: string) => value ? new Date(value).toLocaleString() : "Time unavailable";
 
-export default function Home({ demo, retentionDays, onCreate, onOpen, onDeleted, onBusyChange }: {
+export default function Home({ demo, retentionDays, workspaceName, canCreate, canDelete, onCreate, onOpen, onDeleted, onBusyChange }: {
   demo: boolean; retentionDays: number; onCreate: () => void;
+  workspaceName?: string; canCreate: boolean; canDelete: boolean;
   onOpen: (session: string) => Promise<void>; onDeleted: (session: string) => void;
   onBusyChange: (busy: boolean) => void;
 }) {
@@ -77,16 +78,18 @@ export default function Home({ demo, retentionDays, onCreate, onOpen, onDeleted,
   return <div className="space-y-6">
     <header className="page-header flex items-end justify-between flex-wrap gap-4">
       <div>
-        <div className="eyebrow mb-2">Personal workspace</div>
+        <div className="eyebrow mb-2">{workspaceName || "Personal workspace"}</div>
         <h1>{decision ? "Decision details" : "Home"}</h1>
         <p className="mt-2">{decision ? "A retained, read-only snapshot of this analysis and its decision." : "Your workflow assessments, review decisions, and next steps in one place."}</p>
       </div>
       {decision ? <Button variant="ghost" disabled={busy} onClick={() => { setDecision(null); setError(""); }}>Back to Home</Button>
-        : <Button disabled={busy} onClick={onCreate}>Create workflow <span aria-hidden="true">+</span></Button>}
+        : <Button disabled={busy || !canCreate} onClick={onCreate}>Create workflow <span aria-hidden="true">+</span></Button>}
     </header>
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       {[
-        [demo ? "Shared local demo" : "Owner-isolated access", demo ? "Fictional data; not a private organization workspace." : "Only your signed-in identity's records are listed."],
+        [demo ? "Shared local demo" : workspaceName ? "Team-scoped access" : "Owner-isolated access",
+          demo ? "Fictional data; not a private organization workspace." : workspaceName
+            ? "Active membership and team permissions control access." : "Only your signed-in identity's records are listed."],
         [`${page?.archive_retention_days ?? retentionDays}-day decision archive`, "Final decisions survive session expiry and app restarts."],
         ["Human accountability", "Approval is advisory, never execution authority."],
       ].map(([title, detail]) => <div key={title} className="rounded-xl border border-slate-200 bg-slate-50/60 p-4">
@@ -110,7 +113,7 @@ export default function Home({ demo, retentionDays, onCreate, onOpen, onDeleted,
             <h2 className="text-xl font-semibold text-slate-900 mt-3">{decision.summary.title}</h2>
             <p className="text-sm text-slate-500 mt-1">{decision.summary.domain}</p>
           </div>
-          <Button variant="ghost" disabled={busy} onClick={() => setDeleting(decision.summary)}>Delete workflow & history</Button>
+          <Button variant="ghost" disabled={busy || !canDelete} onClick={() => setDeleting(decision.summary)}>Delete workflow & history</Button>
         </div>
         <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-5 pt-5 border-t border-slate-100 text-xs">
           <div><dt className="text-slate-500">Record saved</dt><dd className="text-slate-700 mt-1">{date(decision.summary.updated_at)}</dd></div>
@@ -169,7 +172,7 @@ export default function Home({ demo, retentionDays, onCreate, onOpen, onDeleted,
               <td><Pill tone={STATUS[item.status].tone}>{STATUS[item.status].label}</Pill></td>
               <td className="whitespace-nowrap">{item.kind === "decision" ? "Decision snapshot" : item.legacy ? "Legacy session" : "Active session"}</td>
               <td className="whitespace-nowrap">{date(item.updated_at)}</td><td className="whitespace-nowrap">{date(item.expires_at)}</td>
-              <td><button disabled={busy} className="text-rose-700 hover:underline text-xs whitespace-nowrap"
+              <td><button disabled={busy || !canDelete} className="text-rose-700 hover:underline text-xs whitespace-nowrap"
                 aria-label={`Delete ${item.title} and history`} onClick={() => setDeleting(item)}>Delete</button></td>
             </tr>)}</tbody>
           </table>

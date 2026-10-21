@@ -3,7 +3,9 @@ from starlette.types import ASGIApp, Scope, Receive, Send
 from starlette.concurrency import run_in_threadpool
 from fastapi import HTTPException
 from app.security.auth import authenticate, principal_context
+from app.database.tenant_directory import Workspace, workspace_context
 import logging
+import re
 
 logger = logging.getLogger(__name__)
 
@@ -39,10 +41,20 @@ class SecurityBoundary:
             if len(headers) > 1:
                 raise HTTPException(401, "Ambiguous authorization header.")
             principal = await run_in_threadpool(authenticate, headers[0] if headers else "")
+            selected = []
+            for name in (b"x-organization-id", b"x-team-id"):
+                values = [v.decode("latin1") for k, v in scope["headers"] if k.lower() == name]
+                if len(values) > 1 or (values and not re.fullmatch(r"[A-Za-z0-9_-]{1,100}", values[0])):
+                    raise HTTPException(400, "Invalid or ambiguous workspace headers.")
+                selected.append(values[0] if values else "")
+            if bool(selected[0]) != bool(selected[1]):
+                raise HTTPException(400, "Organization and team must be selected together.")
+            workspace = Workspace(*selected)
         except HTTPException as exc:
             return await JSONResponse(status_code=exc.status_code, content={"detail": exc.detail},
                                       headers=exc.headers)(scope, receive, secured_send)
         context = principal_context.set(principal)
+        workspace_token = workspace_context.set(workspace)
         try:
             await self.app(scope, receive, secured_send)
         except Exception as exc:
@@ -52,6 +64,7 @@ class SecurityBoundary:
                 "detail": "An internal error occurred.", "code": "internal_error",
             })(scope, receive, secured_send)
         finally:
+            workspace_context.reset(workspace_token)
             principal_context.reset(context)
 
 

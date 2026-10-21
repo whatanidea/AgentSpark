@@ -122,7 +122,8 @@ class APIValidationTests(unittest.TestCase):
 
     def test_no_raw_exception_details_leak(self):
         client = TestClient(app, raise_server_exceptions=False)
-        with patch.object(routes, "run_orchestration", side_effect=RuntimeError("secret-internal-value")):
+        with patch.object(db_client, "get_workflow_state", return_value=WorkflowState(session_id="session")), \
+                patch.object(routes, "run_orchestration", side_effect=RuntimeError("secret-internal-value")):
             with self.assertLogs("app.api.middleware", level="ERROR") as captured:
                 response = client.post("/api/v1/analyze/session")
         self.assertEqual(response.status_code, 500)
@@ -249,7 +250,8 @@ class AsyncAPIResponsivenessTests(unittest.IsolatedAsyncioTestCase):
             return WorkflowState(session_id=session_id)
 
         async with httpx.AsyncClient(transport=httpx.ASGITransport(app=app), base_url="http://testserver") as client:
-            with patch.object(routes, "run_orchestration", side_effect=blocking_analysis):
+            with patch.object(db_client, "get_workflow_state", return_value=WorkflowState(session_id="responsiveness")), \
+                    patch.object(routes, "run_orchestration", side_effect=blocking_analysis):
                 task = asyncio.create_task(client.post("/api/v1/analyze/responsiveness"))
                 try:
                     self.assertTrue(await asyncio.to_thread(started.wait, 1))

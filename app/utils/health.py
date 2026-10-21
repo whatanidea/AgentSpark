@@ -4,6 +4,7 @@ from azure.core.exceptions import AzureError
 from langchain_core.messages import HumanMessage
 
 from app.database.cosmos_client import db_client
+from app.database.tenant_directory import tenant_directory
 from app.rag.search_client import get_search_client
 from app.utils.errors import DependencyUnavailable
 from app.utils.llm import get_chat_llm, invoke_llm
@@ -38,9 +39,15 @@ def readiness() -> tuple[bool, dict[str, str]]:
             dependencies["decision_archive"] = "ready"
         except DependencyUnavailable:
             dependencies["decision_archive"] = "unavailable"
-        return dependencies["decision_archive"] == "ready", dependencies
+        try:
+            tenant_directory.check_ready()
+            dependencies["tenant_directory"] = "ready"
+        except DependencyUnavailable:
+            dependencies["tenant_directory"] = "unavailable"
+        return all(value != "unavailable" for value in dependencies.values()), dependencies
     dependencies = {}
-    for name, check in (("openai", check_openai), ("search", check_search), ("cosmos", db_client.check_ready)):
+    for name, check in (("openai", check_openai), ("search", check_search), ("cosmos", db_client.check_ready),
+                        ("tenant_directory", tenant_directory.check_ready)):
         try:
             check()
             dependencies[name] = "ready"
