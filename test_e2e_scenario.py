@@ -34,6 +34,7 @@ def run_tests():
     print("=== 2. Intake (high-compliance healthcare) ===")
     r = client.post("/api/v1/intake", json={
         "session_id": session_id,
+        "demo_scenario": "claims",
         "business_domain": "Healthcare Claims Processing",
         "team_size": "201-1000",
         "existing_systems": "Salesforce, Epic EHR, legacy SQL, Outlook",

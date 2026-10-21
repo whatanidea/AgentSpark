@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api, uid } from "../api";
 import { Card, Button } from "./ui";
 
 const SAMPLES: Record<string, any> = {
   "🧾 Invoice Approval (Finance)": {
+    demo_scenario: "invoice",
     business_domain: "Financial Services — Accounts Payable",
     team_size: "201-1000",
     existing_systems: "SAP, DocuSign, Outlook, internal SQL ledger",
@@ -11,6 +12,7 @@ const SAMPLES: Record<string, any> = {
     compliance_requirements: "High",
   },
   "🎧 Customer Support Triage": {
+    demo_scenario: "support",
     business_domain: "SaaS Customer Support",
     team_size: "51-200",
     existing_systems: "Zendesk, Salesforce, internal KB, Slack",
@@ -18,10 +20,16 @@ const SAMPLES: Record<string, any> = {
     compliance_requirements: "Low",
   },
   "🏥 Claims Verification (Healthcare)": {
+    demo_scenario: "claims",
     business_domain: "Healthcare Claims",
     team_size: "201-1000",
     existing_systems: "Epic EHR, legacy SQL, Salesforce, Outlook",
     pain_points: "Manual claim verification takes 5 days; high error cost; HIPAA compliance checks are slow.",
+    compliance_requirements: "High",
+  },
+  "Payroll Calculation (standard software)": {
+    demo_scenario: "payroll", business_domain: "Payroll", team_size: "1-50",
+    existing_systems: "Payroll", pain_points: "Apply fixed rules to structured timesheets.",
     compliance_requirements: "High",
   },
 };
@@ -32,6 +40,11 @@ export default function Intake({ sessionId, setSessionId, setContext, goNext }: 
   const [form, setForm] = useState<any>(EMPTY);
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
+  const [mode, setMode] = useState<"demo" | "live" | null>(null);
+
+  useEffect(() => {
+    api.health().then((health) => setMode(health.mode)).catch((e: Error) => setMsg(e.message));
+  }, []);
 
   const set = (k: string) => (e: any) => setForm({ ...form, [k]: e.target.value });
 
@@ -61,11 +74,18 @@ export default function Intake({ sessionId, setSessionId, setContext, goNext }: 
       <Card title="Quick start">
         <div className="flex flex-wrap gap-2">
           {Object.keys(SAMPLES).map((k) => (
-            <Button key={k} variant="ghost" onClick={() => setForm({ ...EMPTY, ...SAMPLES[k] })}>
+            <Button key={k} variant="ghost" disabled={!mode} onClick={() => setForm({
+              ...EMPTY, ...SAMPLES[k], demo_scenario: mode === "demo" ? SAMPLES[k].demo_scenario : null,
+            })}>
               {k}
             </Button>
           ))}
         </div>
+        {form.demo_scenario && <p className="text-sm text-amber-200 mt-3">
+          Selected fictional demo: {form.demo_scenario}. Fixed fixture facts drive analysis, not your edits or interview text.
+          {" "}<button className="underline" onClick={() => setForm({ ...form, demo_scenario: null })}>Clear sample selection</button>
+        </p>}
+        {mode === "live" && <p className="text-xs text-slate-400 mt-3">Samples load intake templates only in live mode; missing facts require clarification.</p>}
       </Card>
 
       <Card title="Workflow details">

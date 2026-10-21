@@ -1,11 +1,14 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import { Card, Button, Bar, Pill, Spinner, classColor } from "./ui";
+import AnalysisEvidence from "./AnalysisEvidence";
+import ROIReport, { DEFAULT_ROI_ASSUMPTIONS, ROIAssumptionForm } from "./ROIReport";
 
 export default function Analyze({ sessionId, active, goNext }: any) {
   const [data, setData] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [assumptions, setAssumptions] = useState(DEFAULT_ROI_ASSUMPTIONS);
 
   useEffect(() => {
     if (!active || !sessionId || !data?.analysis_id) return;
@@ -24,7 +27,7 @@ export default function Analyze({ sessionId, active, goNext }: any) {
     if (!sessionId) return;
     setBusy(true); setErr(""); setData(null);
     try {
-      setData(await api.analyze(sessionId));
+      setData(await api.analyze(sessionId, assumptions));
     } catch (e: any) { setErr(e.message); }
     finally { setBusy(false); }
   }
@@ -49,6 +52,8 @@ export default function Analyze({ sessionId, active, goNext }: any) {
       {!sessionId && <Card><p className="text-amber-300 text-sm">⚠️ Chat with the Diagnostic Agent first to describe a workflow.</p></Card>}
       {busy && <Card><Spinner label="Running the 7-stage agent flow…" /></Card>}
       {err && <Card><p className="text-rose-300 text-sm">❌ {err}</p></Card>}
+      <ROIAssumptionForm value={assumptions} onChange={setAssumptions} disabled={busy} />
+      <AnalysisEvidence diagnosis={data?.diagnosis} scenario={data?.demo_scenario} />
       {data?.status && score && (
         <Card title="Recommendation status">
           <p className="text-sm">
@@ -60,7 +65,7 @@ export default function Analyze({ sessionId, active, goNext }: any) {
           <p className="text-xs text-slate-500 mt-1">Approval is advisory; it does not execute or deploy a business workflow.</p>
         </Card>
       )}
-      {data && !score && !busy && !err && (
+      {data && !score && data.status !== "needs_clarification" && !busy && !err && (
         <Card><p className="text-amber-300 text-sm">
           ⚠️ No workflow captured yet. Open the <b>Diagnostic Agent</b>, describe a real workflow
           (or click “Use a sample answer”), then run the analysis.
@@ -88,13 +93,7 @@ export default function Analyze({ sessionId, active, goNext }: any) {
             <Card title="Estimated ROI" className="lg:col-span-2">
               {roi ? (
                 <>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                    <Metric label="Cost saved / yr" value={`$${(roi.cost_saved_per_year || 0).toLocaleString()}`} color="#10b981" />
-                    <Metric label="Hours saved / yr" value={(roi.hours_saved_per_year || 0).toLocaleString()} color="#a78bfa" />
-                    <Metric label="ROI multiple" value={`${roi.roi_multiple}×`} color="#60a5fa" />
-                    <Metric label="Payback" value={`${roi.payback_months} mo`} color="#f59e0b" />
-                  </div>
-                  <p className="text-[11px] text-slate-500 mt-3">Assumptions: {roi.assumptions}</p>
+                  <ROIReport roi={roi} />
                 </>
               ) : <p className="text-slate-500 text-sm">—</p>}
             </Card>
@@ -123,7 +122,7 @@ export default function Analyze({ sessionId, active, goNext }: any) {
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {(strategy.recommended_patterns || []).map((p: string) => <Pill key={p}>{p}</Pill>)}
               </div>
-              {strategy.confidence != null && <p className="text-xs text-slate-500 mt-2">Confidence: {Math.round(strategy.confidence * 100)}%</p>}
+              {strategy.data_completeness != null && <p className="text-xs text-slate-500 mt-2">Data completeness: {Math.round(strategy.data_completeness * 100)}% — not model confidence.</p>}
               <div className="text-xs text-slate-400 mt-3 space-y-1">
                 <p><b className="text-slate-300">Memory:</b> {strategy.memory_strategy}</p>
                 <p><b className="text-slate-300">Governance:</b> {strategy.governance}</p>
@@ -168,7 +167,7 @@ export default function Analyze({ sessionId, active, goNext }: any) {
                         <div key={name} className="text-xs bg-white/[0.02] p-2 rounded">
                           <div className="flex justify-between items-start mb-1">
                             <span className="font-bold text-slate-200">
-                              {a.status === "pass" ? "✅" : a.status === "warn" ? "⚠️" : "❌"} {name}
+                              {a.status === "pass" ? "✅" : a.status === "warn" ? "⚠️" : "❌"} {name === "Confidence" ? "Data Completeness (legacy policy key: Confidence)" : name}
                             </span>
                             <span className="text-[10px] text-slate-500 uppercase">{a.risk_level} Risk</span>
                           </div>
@@ -184,13 +183,15 @@ export default function Analyze({ sessionId, active, goNext }: any) {
           </div>
 
           {/* Patterns + Trace */}
-          <Card title="Retrieved Design Patterns (RAG)">
+          <Card title="Grounded Design Patterns · Keyword retrieval + required design IDs">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {patterns.map((p: any) => (
                 <div key={p.id || p.name} className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
                   <div className="text-sm font-bold text-violet-300">{p.name} <span className="text-[10px] text-slate-500">· {p.category}</span></div>
                   <p className="text-xs text-slate-400 mt-0.5">{p.description}</p>
                   <p className="text-[11px] text-slate-500 mt-1"><i>When:</i> {p.when_to_use}</p>
+                  <a className="text-xs text-violet-300 underline" href={p.source_url} target="_blank" rel="noreferrer">{p.id} · {p.source_ref}</a>
+                  <p className="text-[10px] text-slate-500 break-all">Snapshot SHA256: {p.content_sha256}</p>
                 </div>
               ))}
             </div>

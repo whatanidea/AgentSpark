@@ -14,6 +14,7 @@ from app.database.cosmos_client import db_client
 from app.main import app
 from app.orchestration import langgraph_flow as flow
 from app.utils.models import WorkflowIntelligence, ROIEstimate, WorkflowState
+from app.agents.demo_scenarios import demo_diagnosis
 
 
 class GovernanceFlowTests(unittest.TestCase):
@@ -22,6 +23,7 @@ class GovernanceFlowTests(unittest.TestCase):
         self.session_id = str(uuid4())
         db_client.save_workflow_state(WorkflowState(
             session_id=self.session_id,
+            demo_scenario="invoice",
             chat_history=[{"role": "user", "content": "Describe invoice approval."}],
         ))
 
@@ -114,7 +116,9 @@ class GovernanceFlowTests(unittest.TestCase):
             data_availability="High", rule_stability="Volatile",
             unstructured_content="High",
         )
-        with patch.object(flow.diagnostic_agent, "analyze_chat_history", return_value=intelligence):
+        diagnosis = demo_diagnosis("support")
+        diagnosis.intelligence = intelligence
+        with patch.object(flow.diagnostic_agent, "analyze_chat_history", return_value=diagnosis):
             result = self.analyze()
         self.assertEqual(result["status"], "completed")
         self.assertEqual(result["governance"]["decision"], "AUTO_APPROVE")

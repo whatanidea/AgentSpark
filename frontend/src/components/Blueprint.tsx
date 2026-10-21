@@ -3,6 +3,8 @@ import { api } from "../api";
 import { Card, Button, Spinner } from "./ui";
 import Markdown from "./Markdown";
 import ArchitectureDiagram from "./ArchitectureDiagram";
+import AnalysisEvidence from "./AnalysisEvidence";
+import ROIReport, { roiMarkdown } from "./ROIReport";
 
 export default function Blueprint({ sessionId, active }: any) {
   const [bp, setBp] = useState<any>(null);
@@ -55,7 +57,6 @@ export default function Blueprint({ sessionId, active }: any) {
   function download() {
     if (!bp) return;
     const s = bp.suitability_score || {};
-    const roi = bp.roi || {};
     const heading = `# AgentSense ${bp.status === "rejected" ? "Rejected Recommendation" : "Blueprint"}
 
 **Status:** ${bp.status}${bp.provisional ? " — PROVISIONAL: NOT APPROVED" : ""}
@@ -63,6 +64,20 @@ export default function Blueprint({ sessionId, active }: any) {
 ${bp.human_review ? `**Human review:** ${bp.human_review.decision} by ${bp.human_review.reviewer} at ${bp.human_review.reviewed_at}\n**Review note:** ${bp.human_review.note}` : ""}
 
 Advisory recommendation only; approval does not execute or deploy a business workflow.
+${bp.demo_scenario ? `Fictional demo fixture: ${bp.demo_scenario}; not extracted customer facts.` : ""}
+
+## Evidence and provenance
+\`\`\`json
+${JSON.stringify(bp.diagnosis, null, 2)}
+\`\`\`
+
+## Grounded pattern sources (keyword retrieval + required design IDs)
+${(bp.retrieved_patterns || []).map((p: { id: string; name: string; source_ref?: string; content_sha256?: string }) =>
+  `- ${p.id}: ${p.name} — ${p.source_ref && p.content_sha256
+    ? `${p.source_ref}; SHA256 ${p.content_sha256}` : "Legacy source unavailable; rerun analysis."}`).join("\n")}
+
+## ROI assumptions and sensitivity
+${roiMarkdown(bp.roi)}
 `;
     const md = bp.status === "rejected" ? `${heading}
 
@@ -74,10 +89,6 @@ ${bp.alternative || ""}
 ` : `${heading}
 
 **Readiness:** ${s.agent_score ?? "-"}/100 (${s.classification ?? "-"}) · Pattern: ${s.recommended_pattern ?? "-"}
-
-## ROI
-- Cost saved/yr: $${(roi.cost_saved_per_year || 0).toLocaleString()}
-- ROI multiple: ${roi.roi_multiple || 0}x · Payback: ${roi.payback_months || 0} months
 
 ## Architecture
 ${bp.architecture_doc || ""}
@@ -99,7 +110,7 @@ ${bp.governance?.decision === "REJECT" ? `**Rejection Alternative**: ${bp.govern
 ## Roadmap
 ${bp.roadmap || ""}
 
-## Code Scaffold
+## Illustrative, untested scaffold — not deployment-ready
 \`\`\`python
 ${bp.code_scaffold || ""}
 \`\`\`
@@ -128,6 +139,9 @@ ${bp.code_scaffold || ""}
       {!sessionId && <Card><p className="text-amber-300 text-sm">⚠️ Run the analysis first.</p></Card>}
       {busy && <Card><Spinner label="Fetching blueprint…" /></Card>}
       {err && <Card><p className="text-rose-300 text-sm">❌ {err}</p></Card>}
+      {bp && !bp.diagnosis && <Card><p className="text-amber-200 text-sm">Legacy analysis has no fact provenance. Rerun analysis before reviewing it.</p></Card>}
+      <AnalysisEvidence diagnosis={bp?.diagnosis} scenario={bp?.demo_scenario} />
+      {bp?.roi && <Card title="ROI assumptions and sensitivity"><ROIReport roi={bp.roi} /></Card>}
 
       {bp && (
         <Card title="Recommendation disposition">
@@ -209,7 +223,7 @@ ${bp.code_scaffold || ""}
             <Card title="Cost Estimate"><Markdown>{bp.cost_estimate || ""}</Markdown></Card>
             <Card title="Roadmap"><Markdown>{bp.roadmap || ""}</Markdown></Card>
           </div>
-          <Card title="Code Scaffold">
+          <Card title="Illustrative, untested scaffold — not deployment-ready">
             <pre className="text-xs text-slate-200 bg-black/40 rounded-xl p-4 overflow-x-auto">{bp.code_scaffold}</pre>
           </Card>
           {bp.mermaid_diagram && (

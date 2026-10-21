@@ -117,7 +117,11 @@ class RuntimeTests(unittest.TestCase):
                 structured_call(llm, "system", "input", AzureServiceMapping)
 
     def test_live_agents_propagate_errors_instead_of_placeholder_outputs(self):
-        intel = WorkflowIntelligence(workflow_name="Workflow")
+        from app.agents.demo_scenarios import demo_diagnosis
+        from app.utils.models import EnterpriseContext
+        from app.rag.pattern_library import PATTERNS
+        diagnosis = demo_diagnosis("invoice")
+        intel = diagnosis.intelligence
         score = scoring_engine.evaluate(intel)
         calls = [
             ("app.agents.diagnostic_agent.get_chat_llm",
@@ -127,9 +131,11 @@ class RuntimeTests(unittest.TestCase):
             ("app.agents.mapping_agent.get_chat_llm",
              lambda: MappingAgent().map_services(intel)),
             ("app.agents.recommendation_agent.get_chat_llm",
-             lambda: RecommendationAgent().generate_recommendation(score, {}, intel, patterns=[])),
+             lambda: RecommendationAgent().generate_recommendation(score, {}, intel, patterns=PATTERNS)),
             ("app.agents.blueprint_agent.get_chat_llm",
-             lambda: BlueprintAgent().generate_blueprint(score, {})),
+             lambda: BlueprintAgent().generate_blueprint(
+                 score, {}, intelligence=intel, context=EnterpriseContext(), mapping={},
+                 governance={"decision": "HUMAN_REVIEW_REQUIRED"}, roi={}, diagnosis=diagnosis)),
         ]
         with patch.object(runtime.settings, "mode", "live"):
             for target, call in calls:
