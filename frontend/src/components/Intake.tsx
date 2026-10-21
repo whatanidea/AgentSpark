@@ -36,8 +36,8 @@ const SAMPLES: Record<string, any> = {
 
 const EMPTY = { business_domain: "", team_size: "201-1000", existing_systems: "", pain_points: "", compliance_requirements: "Medium" };
 
-export default function Intake({ sessionId, setSessionId, setContext, goNext }: any) {
-  const [form, setForm] = useState<any>(EMPTY);
+export default function Intake({ sessionId, initialContext, onSaved, onBusyChange }: any) {
+  const [form, setForm] = useState<any>({ ...EMPTY, ...initialContext });
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<"demo" | "live" | null>(null);
@@ -49,18 +49,17 @@ export default function Intake({ sessionId, setSessionId, setContext, goNext }: 
   const set = (k: string) => (e: any) => setForm({ ...form, [k]: e.target.value });
 
   async function submit() {
-    setBusy(true);
+    setBusy(true); onBusyChange(true);
     setMsg("");
     try {
-      const sid = uid();
-      await api.intake({ session_id: sid, ...form });
-      setSessionId(sid);
-      setContext?.({ ...form });   // share intake context with the Diagnostic Agent
-      setMsg(`✅ Intake saved. Session ${sid.slice(0, 8)}… — continue to the Diagnostic Agent.`);
+      const sid = sessionId || uid();
+      const saved = await api.intake({ session_id: sid, ...form });
+      setForm({ ...saved.enterprise_context, demo_scenario: form.demo_scenario });
+      await onSaved(sid);
     } catch (e: any) {
       setMsg(`❌ ${e.message}`);
     } finally {
-      setBusy(false);
+      setBusy(false); onBusyChange(false);
     }
   }
 
@@ -74,7 +73,7 @@ export default function Intake({ sessionId, setSessionId, setContext, goNext }: 
       <Card title="Quick start">
         <div className="flex flex-wrap gap-2">
           {Object.keys(SAMPLES).map((k) => (
-            <Button key={k} variant="ghost" disabled={!mode} onClick={() => setForm({
+            <Button key={k} variant="ghost" disabled={!mode || busy} onClick={() => setForm({
               ...EMPTY, ...SAMPLES[k], demo_scenario: mode === "demo" ? SAMPLES[k].demo_scenario : null,
             })}>
               {k}
@@ -89,7 +88,7 @@ export default function Intake({ sessionId, setSessionId, setContext, goNext }: 
       </Card>
 
       <Card title="Workflow details">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <fieldset disabled={busy} className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Field label="Business Domain"><input className={inp} value={form.business_domain} onChange={set("business_domain")} placeholder="e.g. Financial Services" /></Field>
           <Field label="Team Size">
             <select className={inp} value={form.team_size} onChange={set("team_size")}>
@@ -103,12 +102,11 @@ export default function Intake({ sessionId, setSessionId, setContext, goNext }: 
               {["Low", "Medium", "High"].map((o) => <option key={o} className="bg-slate-900">{o}</option>)}
             </select>
           </Field>
-        </div>
+        </fieldset>
         <div className="flex items-center gap-4 mt-5">
           <Button onClick={submit} disabled={busy || !form.business_domain}>{busy ? "Saving…" : "Submit Intake"}</Button>
-          {sessionId && <Button variant="ghost" onClick={goNext}>Go to Diagnostic →</Button>}
         </div>
-        {msg && <p className="mt-3 text-sm text-slate-300">{msg}</p>}
+        {msg && <p role="alert" className="mt-3 text-sm text-slate-300">{msg}</p>}
       </Card>
     </div>
   );
@@ -117,9 +115,9 @@ export default function Intake({ sessionId, setSessionId, setContext, goNext }: 
 const inp = "w-full rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-sm text-slate-100 outline-none focus:border-violet-500/60";
 function Field({ label, children, full }: any) {
   return (
-    <div className={full ? "md:col-span-2" : ""}>
-      <label className="block text-xs font-semibold text-slate-400 mb-1.5">{label}</label>
+    <label className={full ? "md:col-span-2" : ""}>
+      <span className="block text-xs font-semibold text-slate-400 mb-1.5">{label}</span>
       {children}
-    </div>
+    </label>
   );
 }

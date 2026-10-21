@@ -1,6 +1,7 @@
 from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, StringConstraints, computed_field
 from typing import List, Optional, Dict, Any, Literal, Annotated
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+import os
 
 
 AutonomyLevel = Literal["Autonomous", "Supervised", "Assisted", "Manual"]
@@ -259,6 +260,9 @@ class HumanReview(BaseModel):
 class WorkflowState(BaseModel):
     _etag: Optional[str] = PrivateAttr(default=None)
     session_id: SessionId
+    owner_id: str = "local-demo"
+    expires_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc) + timedelta(
+        hours=int(os.getenv("SESSION_RETENTION_HOURS", "24"))))
     enterprise_context: EnterpriseContext = Field(default_factory=EnterpriseContext)
     chat_history: List[Dict[str, str]] = Field(default_factory=list)
     demo_scenario: Optional[DemoScenario] = None

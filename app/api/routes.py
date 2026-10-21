@@ -9,9 +9,35 @@ from app.database.cosmos_client import db_client
 from app.orchestration.langgraph_flow import run_orchestration
 from app.agents.diagnostic_agent import diagnostic_agent
 from app.rag.retrieval import retrieve_patterns, get_pattern
-from app.security.guardrails import scan_input, redact_pii
+from app.security.guardrails import scan_input, redact_pii, redact_data
+from app.security.auth import auth_settings, principal_context, require_reviewer
+import os
 
 router = APIRouter()
+
+
+@router.get("/auth/config")
+def auth_config():
+    return {"mode": auth_settings.mode, "retention_hours": int(os.getenv("SESSION_RETENTION_HOURS", "24"))}
+
+
+@router.get("/auth/me")
+def auth_me():
+    principal = principal_context.get()
+    return {"identity": principal.owner_id,
+            "can_review": auth_settings.mode == "local-demo" or auth_settings.reviewer_role in principal.roles}
+
+
+@router.get("/sessions/{session_id}")
+def restore_session(session_id: SessionId):
+    state = db_client.get_workflow_state(session_id)
+    return state.model_dump(mode="json", exclude={"owner_id"})
+
+
+@router.delete("/sessions/{session_id}")
+def delete_session(session_id: SessionId):
+    db_client.delete_workflow_state(session_id)
+    return {"status": "deleted"}
 
 
 class RequestModel(BaseModel):
@@ -50,16 +76,20 @@ class ReviewRequest(RequestModel):
 def save_intake(req: IntakeRequest):
     if req.demo_scenario is not None and not demo_mode():
         raise HTTPException(status_code=422, detail="Demo fixtures cannot be selected in live mode.")
+    for text in (req.business_domain, req.existing_systems, req.pain_points):
+        if not scan_input(text).safe:
+            raise HTTPException(status_code=422, detail="Intake contains instruction-override content. Please rephrase.")
     state = db_client.get_workflow_state(req.session_id, create_if_missing=True)
     state.invalidate_analysis()
     state.demo_scenario = req.demo_scenario
-    state.enterprise_context.business_domain = req.business_domain
+    state.enterprise_context.business_domain = redact_pii(req.business_domain)
     state.enterprise_context.team_size = req.team_size
-    state.enterprise_context.existing_systems = req.existing_systems
-    state.enterprise_context.pain_points = req.pain_points
+    state.enterprise_context.existing_systems = redact_pii(req.existing_systems)
+    state.enterprise_context.pain_points = redact_pii(req.pain_points)
     state.enterprise_context.compliance_requirements = req.compliance_requirements
     db_client.save_workflow_state(state)
-    return {"status": "success", "session_id": req.session_id}
+    return {"status": "success", "session_id": req.session_id,
+            "enterprise_context": state.enterprise_context.model_dump()}
 
 
 @router.post("/chat")
@@ -71,7 +101,7 @@ def chat_interaction(req: ChatRequest):
     # Security gate: screen every inbound message before it reaches the LLM.
     guard = scan_input(req.message)
     if guard.flags:
-        state.guardrail_events.append({"message": req.message[:120], "result": guard.model_dump()})
+        state.guardrail_events = (state.guardrail_events + [{"result": guard.model_dump()}])[-100:]
 
     if not guard.safe:
         warning = ("🛡️ **Guardrail triggered.** Your message looks like a prompt-injection attempt, "
@@ -84,21 +114,24 @@ def chat_interaction(req: ChatRequest):
         return {"status": "blocked", "response": warning, "guardrail": guard.model_dump()}
 
     # Diagnostic Agent answers grounded in the intake context. PII is redacted before storage.
+    if len(state.chat_history) + 2 > 100:
+        raise HTTPException(status_code=409, detail="Session interview limit reached. Start a new workflow.")
     scenario = req.demo_scenario or state.demo_scenario
-    response_text = diagnostic_agent.chat(req.message, state.chat_history, state.enterprise_context, scenario)
+    message = redact_pii(req.message)
+    response_text = redact_pii(diagnostic_agent.chat(message, state.chat_history, state.enterprise_context, scenario))
     state.invalidate_analysis()
     state.demo_scenario = scenario
     state.chat_history.append({"role": "user", "content": redact_pii(req.message)})
     state.chat_history.append({"role": "assistant", "content": response_text})
     db_client.save_workflow_state(state)
-    return {"status": "success", "response": response_text, "guardrail": guard.model_dump()}
+    return {"status": "success", "response": response_text, "message": message, "guardrail": guard.model_dump()}
 
 
 @router.post("/analyze/{session_id}")
 def analyze_workflow(session_id: SessionId, req: AnalyzeRequest | None = None):
     s = (run_orchestration(session_id, roi_assumptions=req.roi_assumptions)
          if req and req.roi_assumptions is not None else run_orchestration(session_id))
-    return {
+    return redact_data({
         "status": s.status,
         "score": s.suitability_score.model_dump() if s.suitability_score else None,
         "recommendation": s.architecture_recommendation,
@@ -109,7 +142,7 @@ def analyze_workflow(session_id: SessionId, req: AnalyzeRequest | None = None):
         "analysis_id": s.analysis_id,
         "diagnosis": s.diagnosis.model_dump() if s.diagnosis else None,
         "demo_scenario": s.demo_scenario,
-    }
+    })
 
 
 @router.get("/blueprint/{session_id}")
@@ -144,7 +177,7 @@ def get_blueprint(session_id: SessionId):
         res["retrieved_patterns"] = state.retrieved_patterns
     if state.token_usage:
         res["token_usage"] = state.token_usage.model_dump() if hasattr(state.token_usage, "model_dump") else state.token_usage
-    return res
+    return redact_data(res)
 
 
 @router.get("/review/{session_id}")
@@ -162,6 +195,7 @@ def get_review(session_id: SessionId):
 
 @router.post("/review/{session_id}")
 def submit_review(session_id: SessionId, req: ReviewRequest):
+    reviewer = require_reviewer()
     state = db_client.get_workflow_state(session_id)
     if not state.analysis_id:
         raise HTTPException(status_code=404, detail="No current analysis to review.")
@@ -173,7 +207,10 @@ def submit_review(session_id: SessionId, req: ReviewRequest):
             or not state.blueprint
             or (state.governance or {}).get("decision") != "HUMAN_REVIEW_REQUIRED"):
         raise HTTPException(status_code=409, detail="Only a pending human review can be decided.")
-    state.human_review = HumanReview(**req.model_dump(), reviewed_at=datetime.now(timezone.utc))
+    review = req.model_dump()
+    review["reviewer"] = reviewer or redact_pii(req.reviewer)
+    review["note"] = redact_pii(req.note)
+    state.human_review = HumanReview(**review, reviewed_at=datetime.now(timezone.utc))
     state.status = "completed" if req.decision == "approve" else "rejected"
     if req.decision == "reject":
         state.blueprint = None
@@ -197,6 +234,7 @@ def search_patterns(
     k: Annotated[int, Query(ge=1, le=50)] = 6,
 ):
     """Expose the RAG pattern library so judges can probe retrieval directly."""
+    q = redact_pii(q)
     return {"query": q, "retrieval_method": "keyword", "results": retrieve_patterns(q, top_k=k)}
 
 

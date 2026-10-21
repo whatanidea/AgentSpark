@@ -28,6 +28,7 @@ _INJECTION_PATTERNS = [
 ]
 
 _PII_PATTERNS = {
+    "credential": r"(?i)\b(?:bearer\s+[A-Za-z0-9._~+/-]+=*|(?:api[_-]?key|password|secret|access[_-]?token)\s*[:=]\s*[\"']?[^\s,\"'}]+)",
     "email": r"\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b",
     "phone": r"\b(?:\+?\d{1,3}[\s-]?)?(?:\(?\d{3}\)?[\s-]?)\d{3}[\s-]?\d{4}\b",
     "credit_card": r"\b(?:\d[ -]?){13,16}\b",
@@ -66,6 +67,20 @@ def scan_input(text: str) -> GuardrailResult:
 def redact_pii(text: str) -> str:
     """Mask PII so it is never persisted or echoed back verbatim."""
     text = text or ""
+    # Canonical opaque UUIDs are identifiers, not phone numbers; preserve review IDs.
+    if re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", text):
+        return text
     for label, pat in _PII_PATTERNS.items():
         text = re.sub(pat, f"[REDACTED-{label}]", text)
     return text
+
+
+def redact_data(value):
+    """Apply the same privacy boundary to nested model output and stored data."""
+    if isinstance(value, str):
+        return redact_pii(value)
+    if isinstance(value, list):
+        return [redact_data(item) for item in value]
+    if isinstance(value, dict):
+        return {redact_pii(key) if isinstance(key, str) else key: redact_data(item) for key, item in value.items()}
+    return value

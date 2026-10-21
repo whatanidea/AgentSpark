@@ -65,12 +65,13 @@ chat does not. Only the **current analysis's** review is retained, not a histori
 ledger. Blueprint responses and Markdown exports identify provisional/rejected
 outcomes. The Blueprint screen contains the review controls.
 
-**Demo boundary:** review endpoints are unauthenticated and reviewer names are
-self-reported. Conditional version checks reject conflicting writes, but neither
-an analysis ID nor an ETag is an access control. Do not expose these controls as
-production approval authority; authenticated ownership checks are required before
-a multi-user production release. In-memory reviews last only for
-the process lifetime; durable retention requires configured Cosmos DB.
+**Access boundary:** local demo remains shared and unauthenticated, with
+self-reported reviewers; never expose it publicly. Live/production requires
+validated OIDC bearer tokens and isolates every session read/write/delete to its
+owner. Reviewing requires that same owner to hold the configured reviewer role;
+the verified subject replaces the submitted reviewer name. ETags and analysis IDs
+provide concurrency protection, not authorization. Reviews remain advisory rather
+than an execution authority or an immutable compliance ledger.
 
 Policies are validated at startup from `governance_rules.yaml`. Unknown fields,
 operators, values, decisions, and duplicate IDs fail startup with a logged error.
@@ -132,6 +133,101 @@ React SPA  ──/api/v1──►  FastAPI  ──►  LangGraph Orchestrator
 > process-local storage, and the local pattern library. Local development defaults
 > to demo even if Azure credentials are present. Live mode must be selected explicitly.
 > Select a named fictional sample explicitly; arbitrary demo chat no longer becomes Invoice Approval.
+
+## Privacy and access controls (Phase 4)
+
+`AGENTSENSE_MODE=live` **or** `ENVIRONMENT=production` requires OIDC;
+missing/invalid configuration or selecting `local-demo` fails startup.
+Configure these values before upgrading a deployment:
+
+| Setting | Contract |
+|---|---|
+| `AGENTSENSE_AUTH_MODE` | `oidc` for live/production; local development defaults to `local-demo` |
+| `AUTH_ISSUER` | Exact trusted HTTPS issuer, including any tenant/version/trailing-slash convention |
+| `AUTH_AUDIENCE` | Audience for access tokens issued specifically for this API |
+| `AUTH_JWKS_URL` | Trusted issuer's HTTPS signing-key endpoint; keys are cached for five minutes |
+| `AUTH_REVIEWER_ROLE` | Role claim required to review; default `AgentSense.Reviewer` |
+| `SESSION_RETENTION_HOURS` | Absolute lifetime for new sessions, integer 1–720; default 24 |
+
+Bearer validation allows **RS256 only**, validates issuer/audience/signature and
+expiry, requires `sub`, `iss`, `aud`, `iat`, `exp`, and checks `nbf` when present.
+Identity headers are not trusted. Use an API-specific access-token audience:
+do not configure a shared browser-client/ID-token audience. Owners are opaque
+hashes of issuer and subject; knowing a session ID grants no access. Foreign,
+expired, and missing sessions return indistinguishable 404 responses.
+`GET /api/v1/auth/config`, `/health`, `/ready`, and static assets are public;
+all other `/api/` requests require authentication in OIDC mode. Review requires
+both ownership and role (there is no separate reviewer sharing/delegation model).
+
+**Identity-provider integration is deliberately configuration-only:** no tenant,
+app registration, hosting resource, or OAuth callback is provisioned. The initial
+SPA integration accepts a user-supplied organization API access token in a password
+field and keeps it **only in memory**; reload/expiry requires signing in again.
+Deployers must select and configure their identity provider and approve retention
+before release. The 24-hour default is not an approved organizational policy.
+Use HTTPS and a trusted deployment proxy, restrict origins/network ingress,
+configure perimeter request/rate limits and appropriate provider permissions, and
+complete provider-specific integration testing before exposing a multi-user app.
+Never paste credentials into intake/chat. Do not treat this integration as a
+complete interactive SSO experience.
+
+### Retention, deletion, and upgrade behavior
+
+- New sessions receive an absolute UTC `expires_at`. Reads, chat, reanalysis, and
+  reviews do not extend it; changing the configured lifetime affects new sessions only.
+- Cosmos writes carry a per-document TTL for the remaining lifetime. Configure the
+  existing `workflows` container with partition key `/session_id` and TTL enabled
+  (`defaultTtl=-1`, or a positive container default). `/ready` reports Cosmos
+  unavailable when TTL is disabled. Application expiry is enforced independently;
+  Cosmos physical deletion is asynchronous. No infrastructure is changed automatically.
+- `DELETE /api/v1/sessions/{session_id}` conditionally deletes the owning user's
+  current document with its ETag. Concurrent deletion/update returns 409.
+  Deletion does **not** erase external logs, provider telemetry, exports or backups;
+  those require separate organizational retention controls.
+- Legacy documents without an owner remain anonymous and cannot be claimed by an
+  authenticated user. Undated legacy documents are expired, not given a sliding
+  lifetime. Review/migrate or purge legacy data administratively before release.
+- Demo data is process-local and shared; it disappears on restart. Expired demo
+  documents become inaccessible but may remain in process memory until restart.
+
+### Privacy scope
+
+Intake and diagnostic messages are screened, and recognized email/phone/card/SSN
+and credential patterns are redacted **before model calls**, storage, and API
+echoes. Nested recommendation content is sanitized on save/read; blocked prompts
+are not saved in the interview or event preview. Events retain only scanner
+findings (last 100); interviews are capped at 100 stored messages. API validation
+errors omit input values, operational API/dependency errors withhold raw exception
+content, and API responses set `Cache-Control: no-store`.
+
+This is **best-effort pattern redaction, not anonymization or a DLP guarantee**:
+names, novel secret formats and other confidential business information can remain.
+Do not submit real customer/regulated data without an approved data-handling
+assessment. Configure platform access logs, tracing, backups, model-provider data
+policies and retention separately; no end-to-end privacy certification is claimed.
+
+## Guided workflow and restoration (Phase 5)
+
+The SPA guides intake → interview → analysis → blueprint/review, mounting only the
+active step. Navigation, reset, sign-out and deletion are locked during requests;
+restored state comes from the server rather than fabricated progress. The sidebar
+shows actual workflow status/expiry and dependency readiness refreshed every 30
+seconds, distinguishing fictional demo data from live/degraded operation.
+
+Only an opaque session pointer, opaque owner identity and active step are stored
+in **tab-scoped sessionStorage**—not transcripts, intake, recommendations or access
+tokens. Reload restores the matching owner's server session after authentication;
+a different identity or missing/expired session discards the pointer. Browser
+storage is convenience state, never an authorization boundary. New workflow drops
+the pointer without deleting the old server document; Delete workflow asks for
+confirmation and waits for server deletion. Blueprint export rechecks the current
+analysis ID/status and blocks a stale export until the refreshed version is reviewed.
+
+Workflow controls have labels, keyboard focus indicators, status/error regions,
+disabled/loading states and a skip link. Reload restoration covers saved content,
+not unsent text or a browser/process crash during an in-flight operation. A 409
+requires refreshing/reloading the authoritative session rather than silently
+retrying a stale change. Exported Markdown remains a local sensitive artifact.
 
 ## Trustworthy recommendations (Phase 3)
 
@@ -391,7 +487,7 @@ app/
   orchestration/ langgraph_flow.py        (7-stage state graph + agent trace)
   scoring/       scoring_engine.py (12 criteria) · roi.py · portfolio.py
   rag/           pattern_library.py (50 patterns) · retrieval.py · ingestion.py · embeddings.py
-  security/      guardrails.py             (prompt-injection + PII screening)
+  security/      auth.py · guardrails.py   (OIDC access + prompt/PII screening)
   database/      cosmos_client.py          (Cosmos + in-memory mock)
   api/           routes.py                 (FastAPI endpoints)
   utils/         models.py · llm.py · env.py

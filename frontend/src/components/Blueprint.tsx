@@ -6,7 +6,7 @@ import ArchitectureDiagram from "./ArchitectureDiagram";
 import AnalysisEvidence from "./AnalysisEvidence";
 import ROIReport, { roiMarkdown } from "./ROIReport";
 
-export default function Blueprint({ sessionId, active }: any) {
+export default function Blueprint({ sessionId, active, canReview, secureReview, onRefresh, onBusyChange }: any) {
   const [bp, setBp] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
@@ -16,46 +16,64 @@ export default function Blueprint({ sessionId, active }: any) {
   useEffect(() => {
     if (!active || !sessionId) return;
     let cancelled = false;
-    setBp(null); setErr(""); setBusy(true);
+    setBp(null); setErr(""); setBusy(true); onBusyChange(true);
     api.blueprint(sessionId).then((result) => {
       if (!cancelled) setBp(result);
     }).catch((e: Error) => {
       if (!cancelled) setErr(e.message);
     }).finally(() => {
-      if (!cancelled) setBusy(false);
+      if (!cancelled) { setBusy(false); onBusyChange(false); }
     });
-    return () => { cancelled = true; };
+    return () => { cancelled = true; onBusyChange(false); };
   }, [active, sessionId]);
 
   async function load() {
     if (!sessionId) return;
-    setBusy(true); setErr(""); setBp(null);
+    setBusy(true); onBusyChange(true); setErr(""); setBp(null);
     try { setBp(await api.blueprint(sessionId)); }
     catch (e: any) {
       setErr(/404/.test(e.message)
         ? "Run the Workflow Analysis first — the blueprint is generated from it."
         : e.message);
     }
-    finally { setBusy(false); }
+    finally { setBusy(false); onBusyChange(false); }
   }
 
   async function review(decision: "approve" | "reject") {
-    if (!bp?.analysis_id || !reviewer.trim() || !note.trim()) return;
-    setBusy(true); setErr("");
+    if (!bp?.analysis_id || (!secureReview && !reviewer.trim()) || !note.trim() || !canReview) return;
+    setBusy(true); onBusyChange(true); setErr("");
     try {
       await api.submitReview(sessionId, {
-        analysis_id: bp.analysis_id, decision, reviewer: reviewer.trim(), note: note.trim(),
+        analysis_id: bp.analysis_id, decision, reviewer: secureReview ? "authenticated" : reviewer.trim(), note: note.trim(),
       });
       setBp(await api.blueprint(sessionId));
+      await onRefresh();
       setReviewer(""); setNote("");
     } catch (e: unknown) {
       setBp(null);
       setErr(e instanceof Error ? e.message : "Review failed. Fetch the current recommendation before retrying.");
-    } finally { setBusy(false); }
+    } finally { setBusy(false); onBusyChange(false); }
   }
 
-  function download() {
+  async function download() {
     if (!bp) return;
+    setBusy(true); onBusyChange(true); setErr("");
+    try {
+      const current = await api.blueprint(sessionId);
+      if (current.analysis_id !== bp.analysis_id || current.status !== bp.status) {
+        setBp(current);
+        await onRefresh();
+        setErr("Recommendation changed. Review the refreshed version before exporting.");
+        return;
+      }
+      exportMarkdown(current);
+    } catch (e) {
+      setBp(null);
+      setErr(e instanceof Error ? e.message : "Cannot verify the current blueprint.");
+    } finally { setBusy(false); onBusyChange(false); }
+  }
+
+  function exportMarkdown(bp: any) {
     const s = bp.suitability_score || {};
     const heading = `# AgentSense ${bp.status === "rejected" ? "Rejected Recommendation" : "Blueprint"}
 
@@ -138,7 +156,7 @@ ${bp.code_scaffold || ""}
 
       {!sessionId && <Card><p className="text-amber-300 text-sm">⚠️ Run the analysis first.</p></Card>}
       {busy && <Card><Spinner label="Fetching blueprint…" /></Card>}
-      {err && <Card><p className="text-rose-300 text-sm">❌ {err}</p></Card>}
+      {err && <Card><p role="alert" className="text-rose-300 text-sm">❌ {err}</p></Card>}
       {bp && !bp.diagnosis && <Card><p className="text-amber-200 text-sm">Legacy analysis has no fact provenance. Rerun analysis before reviewing it.</p></Card>}
       <AnalysisEvidence diagnosis={bp?.diagnosis} scenario={bp?.demo_scenario} />
       {bp?.roi && <Card title="ROI assumptions and sensitivity"><ROIReport roi={bp.roi} /></Card>}
@@ -159,20 +177,22 @@ ${bp.code_scaffold || ""}
               <p className="text-sm mt-2"><b>Non-agentic alternative:</b> {bp.alternative}</p>
             </div>
           )}
-          {bp.provisional && (
+          {bp.provisional && !canReview && <p role="status" className="mt-3 text-amber-200">Your identity does not have the reviewer role.</p>}
+          {bp.provisional && canReview && (
             <div className="mt-4 space-y-3">
-              <p className="text-xs text-amber-300">Demo review controls: reviewer names are self-reported. Version checks prevent lost writes, but authentication and ownership checks are not implemented; do not expose these controls as production approval authority.</p>
-              <label className="block text-sm">
+              <p className="text-xs text-amber-300">{secureReview ? "Review is attributed to the verified token identity; owner and role checks are enforced by the API."
+                : "Local demo only: reviewer names are self-reported, not production approval authority."}</p>
+              {!secureReview && <label className="block text-sm">
                 Reviewer
                 <input className="block w-full mt-1 rounded bg-white/5 border border-white/10 p-2" value={reviewer} onChange={(e) => setReviewer(e.target.value)} maxLength={200} disabled={busy} />
-              </label>
+              </label>}
               <label className="block text-sm">
                 Review rationale
                 <textarea className="block w-full mt-1 rounded bg-white/5 border border-white/10 p-2" value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} disabled={busy} />
               </label>
               <div className="flex gap-2">
-                <Button onClick={() => review("approve")} disabled={busy || !reviewer.trim() || !note.trim()}>Approve recommendation</Button>
-                <Button variant="ghost" onClick={() => review("reject")} disabled={busy || !reviewer.trim() || !note.trim()}>Reject recommendation</Button>
+                <Button onClick={() => review("approve")} disabled={busy || (!secureReview && !reviewer.trim()) || !note.trim()}>Approve recommendation</Button>
+                <Button variant="ghost" onClick={() => review("reject")} disabled={busy || (!secureReview && !reviewer.trim()) || !note.trim()}>Reject recommendation</Button>
               </div>
             </div>
           )}

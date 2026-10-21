@@ -43,7 +43,7 @@ def invoke_llm(llm, messages):
     try:
         return llm.invoke(messages)
     except (OpenAIError, httpx.HTTPError, TimeoutError, OSError) as exc:
-        logger.exception("OpenAI request failed.")
+        logger.error("OpenAI request failed; request and exception content withheld.")
         raise DependencyUnavailable("openai") from exc
 
 
@@ -70,7 +70,7 @@ def structured_call(llm, system_prompt: str, user_content: str, schema: Type[T])
             raw = raw.strip("` \n")
         return _validate_output(json.loads(raw), schema)
     except (ValueError, IndexError, OutputParserException) as exc:
-        logger.exception("OpenAI did not produce valid structured output.")
+        logger.error("OpenAI did not produce valid structured output; completion withheld.")
         raise InvalidDependencyResponse("openai") from exc
 
 

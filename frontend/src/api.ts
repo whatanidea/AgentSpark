@@ -1,6 +1,24 @@
 // Same-origin API client. In dev, Vite proxies /api → :8000; in prod FastAPI
 // serves this SPA and the API from the same origin, so relative URLs just work.
 const BASE = "/api/v1";
+let accessToken = "";
+export function setAccessToken(token: string) { accessToken = token; }
+export type AuthConfig = { mode: "local-demo" | "oidc"; retention_hours: number };
+export type Identity = { identity: string; can_review: boolean };
+export type SessionSnapshot = {
+  session_id: string;
+  enterprise_context: Record<string, string>;
+  chat_history: { role: "user" | "assistant"; content: string }[];
+  status: string;
+  expires_at: string;
+  demo_scenario: DemoScenario | null;
+  analysis_id: string | null;
+  [key: string]: any;
+};
+
+export class ApiError extends Error {
+  constructor(public status: number, message: string) { super(message); }
+}
 
 export type ReviewRequest = {
   analysis_id: string;
@@ -45,23 +63,31 @@ export function uid(): string {
   });
 }
 
-async function post(path: string, body: any) {
+async function request(path: string, method = "GET", body?: unknown) {
   const r = await fetch(`${BASE}${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    method, cache: "no-store",
+    headers: { ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
+    body: body === undefined ? undefined : JSON.stringify(body),
   });
-  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+  if (!r.ok) {
+    const error = await r.json().catch(() => null);
+    const detail = typeof error?.detail === "string" ? error.detail
+      : Array.isArray(error?.detail) ? error.detail.map((e: any) => `${e.loc?.slice(1).join(".")}: ${e.msg}`).join("; ")
+      : "Request failed. Please retry.";
+    if (r.status === 401) window.dispatchEvent(new Event("agentsense-auth-expired"));
+    throw new ApiError(r.status, `${r.status}: ${detail}`);
+  }
   return r.json();
 }
-
-async function get(path: string) {
-  const r = await fetch(`${BASE}${path}`);
-  if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
-  return r.json();
-}
+const get = (path: string) => request(path);
+const post = (path: string, body: unknown) => request(path, "POST", body);
 
 export const api = {
+  authConfig: (): Promise<AuthConfig> => get("/auth/config"),
+  me: (): Promise<Identity> => get("/auth/me"),
+  session: (id: string): Promise<SessionSnapshot> => get(`/sessions/${encodeURIComponent(id)}`),
+  deleteSession: (id: string) => request(`/sessions/${encodeURIComponent(id)}`, "DELETE"),
   health: async (): Promise<RuntimeHealth> => {
     const response = await fetch("/health");
     if (!response.ok) throw new Error(`Health check failed (${response.status})`);
