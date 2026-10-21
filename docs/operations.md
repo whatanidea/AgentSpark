@@ -168,8 +168,15 @@ contributors read/edit, reviewers read/review, and viewers only read.
 Review always requires an explicit team reviewer grant, the configured token
 role, and an identity other than the creator. Revocation must deny subsequent
 requests; rejoining must not restore grants from the previous membership.
-The SPA's opaque identity IDs are used to add members; email invitations and SSO
-provisioning are not supplied. Do not interpret workspace headers or disabled UI
+Invite people with single-purpose invite links (Organizations & teams > Invite
+links): pick role/team roles, expiry and maximum uses, send the link out of band,
+and revoke unused links when no longer needed. Links carry a 256-bit secret in the
+URL fragment; only its SHA-256 is stored, redemption requires an authenticated
+identity, is atomic against `max_uses`, never downgrades access, and only owners
+can issue administrator invites. For Entra staging, first add the person to the
+tenant (B2B guest invitation) so they can obtain a token, then send the invite
+link. Adding members by opaque identity ID remains available; email delivery and
+SSO provisioning are not supplied. Do not interpret workspace headers or disabled UI
 buttons as authorization.
 
 Browser/backend gates use isolated temporary archives and remove their own files.

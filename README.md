@@ -171,9 +171,22 @@ the independent-review rules below.
 ### Organizations and team workspaces
 
 Use **Organizations & teams** to create an organization, manage membership and
-select a team workspace. New organizations have a founding owner. Share the opaque
-identity ID shown on that page with an administrator to request membership;
-email invitations and identity-provider directory lookup are not implemented.
+select a team workspace. New organizations have a founding owner.
+
+**Inviting people (invite links).** An owner/administrator opens **Invite links**,
+optionally picks a team and team roles, an expiry (1, 7 or 30 days) and a maximum
+number of uses (default 1), then selects **Create invite link** and sends the link
+(shown once) through any channel. The invitee opens the link, signs in, and selects
+**Join organization** (or pastes the link/code into **Join with an invite link**).
+Redemption grants the invited role/team roles, never downgrades existing access,
+and does not consume a use when nothing changes. Only owners create administrator
+invites; owner invites are impossible. Administrators can revoke unused links.
+The secret travels in the URL fragment (never sent in HTTP requests) and only its
+SHA-256 is stored; invalid, expired, revoked and exhausted codes return the same
+generic 404. The invitee must still be able to sign in to the configured identity
+provider (for Entra, a member or B2B guest of the tenant). Adding a member directly
+by the opaque identity ID shown on that page remains available; email delivery and
+identity-provider directory lookup are not implemented.
 
 | Membership or team role | Team workflow permissions |
 |---|---|
@@ -199,6 +212,8 @@ team access. Organization deletion and ownership transfer are deferred.
 `POST/GET /api/v1/organizations/{organization_id}/teams` creates/lists teams.
 Organization and team membership administration uses the respective
 `/members` listing endpoints and `PUT /members/{identity_id}`.
+Invite links use `POST/GET /api/v1/organizations/{organization_id}/invites`,
+`DELETE .../invites/{invite_id}` and `POST /api/v1/invites/redeem` with `{"code": ...}`.
 Listings return bounded `items` and `next_cursor` pages.
 
 Workflow requests select a team using **both** `X-Organization-ID` and `X-Team-ID`;

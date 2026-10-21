@@ -17,6 +17,26 @@ export type DirectoryMember = {
   identity_id: string; role: "owner" | "admin" | "member"; roles: TeamRole[];
   active: boolean; version: string; effective_active?: boolean;
 };
+export type InviteRequest = {
+  role: "admin" | "member"; team_id?: string; team_roles?: TeamRole[]; expires_in_hours: number; max_uses: number;
+};
+export type Invite = {
+  invite_id: string; role: "admin" | "member"; team_id: string | null; team_roles: TeamRole[]; expires_at: string;
+  max_uses: number; uses: number; created_by: string; status: "active" | "used" | "expired" | "revoked";
+};
+export type InviteRedemption = {
+  organization_id: string; name: string; role: Organization["role"]; team_id: string | null;
+  status: "joined" | "already_member";
+};
+/** Accepts a full invite link (…#invite=CODE) or a bare code. */
+export function parseInviteCode(value: string): string {
+  const text = value.trim();
+  const match = text.match(/[#?&]invite=([A-Za-z0-9_.-]+)/);
+  return match ? match[1] : text;
+}
+export function inviteLink(code: string): string {
+  return `${window.location.origin}${window.location.pathname}#invite=${code}`;
+}
 export type AuthConfig = { mode: "local-demo" | "oidc"; retention_hours: number; archive_retention_days: number };
 export type HomeStatus = "draft" | "pending_review" | "approved" | "rejected";
 export type HomeItem = {
@@ -138,6 +158,13 @@ export const api = {
   setTeamMember: (organization: string, team: string, identity: string, roles: TeamRole[], active: boolean, version?: string) =>
     request(`/organizations/${encodeURIComponent(organization)}/teams/${encodeURIComponent(team)}/members/${encodeURIComponent(identity)}`,
       "PUT", { roles, active, version }),
+  invites: (organization: string, cursor = ""): Promise<DirectoryPage<Invite>> =>
+    get(`/organizations/${encodeURIComponent(organization)}/invites?${new URLSearchParams({ cursor })}`),
+  createInvite: (organization: string, body: InviteRequest): Promise<Invite & { code: string }> =>
+    post(`/organizations/${encodeURIComponent(organization)}/invites`, body),
+  revokeInvite: (organization: string, invite: string) =>
+    request(`/organizations/${encodeURIComponent(organization)}/invites/${encodeURIComponent(invite)}`, "DELETE"),
+  redeemInvite: (code: string): Promise<InviteRedemption> => post("/invites/redeem", { code }),
   authConfig: (): Promise<AuthConfig> => get("/auth/config"),
   me: (): Promise<Identity> => get("/auth/me"),
   session: (id: string): Promise<SessionSnapshot> => get(`/sessions/${encodeURIComponent(id)}`),

@@ -272,3 +272,35 @@ test("team workspace restores its scope, prevents self-review and stays separate
   await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Open Invoice Approval Pending review", exact: true })).toHaveCount(0);
 });
+
+test("invite links join a team without exchanging identity IDs and are single-use", async ({ page }) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Organizations & teams", exact: true }).click();
+  await page.getByLabel("Organization name", { exact: true }).fill("Fictional invite organization");
+  await page.getByRole("button", { name: "Create organization", exact: true }).click();
+  await page.getByLabel("Team name", { exact: true }).fill("Invite claims");
+  await page.getByRole("button", { name: "Create team", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Use Invite claims", exact: true })).toBeVisible();
+  await page.getByRole("combobox", { name: "Team access", exact: true }).selectOption({ label: "Invite claims" });
+  await page.getByRole("checkbox", { name: "contributor", exact: true }).last().uncheck();
+  await page.getByRole("checkbox", { name: "reviewer", exact: true }).last().check();
+  await page.getByRole("button", { name: "Create invite link", exact: true }).click();
+  const linkField = page.getByLabel("New invite link (copy it now; it is not shown again)", { exact: true });
+  await expect(linkField).toHaveValue(/#invite=[A-Za-z0-9_-]+\.[A-Za-z0-9_-]{43}$/);
+  const link = await linkField.inputValue();
+  await expect(page.getByText("Used 0/1", { exact: false })).toBeVisible();
+
+  await page.goto(link);
+  await expect(page.getByText("You opened an invite link.", { exact: false })).toBeVisible();
+  expect(new URL(page.url()).hash).toBe("");
+  await expect(page.getByLabel("Invite link or code", { exact: true })).not.toHaveValue("");
+  await page.getByRole("button", { name: "Join organization", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Joined Fictional invite organization as owner with team access." })).toBeVisible();
+  await expect(page.getByText("Used 1/1", { exact: false })).toBeVisible();
+  await expect(page.getByText("used", { exact: true })).toBeVisible();
+
+  await page.getByLabel("Invite link or code", { exact: true }).fill(link);
+  await page.getByRole("button", { name: "Join organization", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("invalid, expired, revoked, or already used");
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
