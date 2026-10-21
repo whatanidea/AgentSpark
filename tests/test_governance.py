@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import Mock
 
+os.environ["AGENTSENSE_MODE"] = "demo"
 for key in ("AZURE_OPENAI_API_KEY", "AZURE_OPENAI_ENDPOINT", "AZURE_SEARCH_KEY",
             "AZURE_SEARCH_ENDPOINT", "COSMOS_DB_KEY", "COSMOS_DB_ENDPOINT"):
     os.environ[key] = "your_placeholder"
@@ -19,6 +20,8 @@ from app.scoring.portfolio import score_backlog
 from app.scoring.roi import estimate_roi
 from app.scoring.scoring_engine import scoring_engine
 from app.utils.models import WorkflowIntelligence, ROIEstimate, WorkflowState
+from app.utils.errors import DependencyUnavailable
+from azure.core.exceptions import ServiceRequestError
 
 
 class GovernanceTests(unittest.TestCase):
@@ -186,12 +189,12 @@ class PolicyConfigurationTests(unittest.TestCase):
                     GovernanceAgent(str(Path(directory) / "missing.yaml"))
 
     def test_failed_database_save_propagates(self):
-        database = DatabaseClient.__new__(DatabaseClient)
+        database = DatabaseClient()
         database.use_mock = False
         database.container = Mock()
-        database.container.upsert_item.side_effect = RuntimeError("storage unavailable")
+        database.container.create_item.side_effect = ServiceRequestError("storage unavailable")
         with self.assertLogs("app.database.cosmos_client", level=logging.ERROR):
-            with self.assertRaisesRegex(RuntimeError, "storage unavailable"):
+            with self.assertRaises(DependencyUnavailable):
                 database.save_workflow_state(WorkflowState(session_id="save-failure"))
 
 

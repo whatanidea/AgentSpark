@@ -5,7 +5,8 @@ from typing import List
 from pydantic import BaseModel, Field
 
 from app.utils.models import AgentSuitabilityScore, WorkflowIntelligence
-from app.utils.llm import get_chat_llm, structured_call, azure_is_configured
+from app.utils.llm import get_chat_llm, structured_call
+from app.utils.runtime import demo_mode
 from app.rag.retrieval import retrieve_patterns
 
 logger = logging.getLogger(__name__)
@@ -18,7 +19,8 @@ class Recommendation(BaseModel):
     governance: str = ""
     justification: str = Field(..., description="Why this is the right design for this workflow")
     critique: str = Field(default="", description="Self-critique: the biggest risk or weakness in this recommendation")
-    confidence: float = Field(default=0.0, description="0-1 confidence, recomputed from data completeness")
+    confidence: float = Field(default=0.0, ge=0, le=1, allow_inf_nan=False,
+                              description="0-1 confidence, recomputed from data completeness")
 
 
 def _data_completeness(intel) -> float:
@@ -44,8 +46,7 @@ own recommendation (a good architect names the failure mode)."""
 
 class RecommendationAgent:
     def __init__(self):
-        self.use_mock = not azure_is_configured()
-        self.llm = get_chat_llm(temperature=0.3)
+        self.use_mock = demo_mode()
 
     def build_query(self, intel: WorkflowIntelligence, score: AgentSuitabilityScore) -> str:
         return (
@@ -87,11 +88,8 @@ class RecommendationAgent:
             "workflow": intel.model_dump(),
             "retrieved_patterns": patterns,
         })
-        result = structured_call(self.llm, _SYSTEM, payload, Recommendation)
-        out = result.model_dump() if result else {
-            "automation_strategy": "Unavailable", "recommended_patterns": pattern_names,
-            "memory_strategy": "", "governance": "", "justification": "LLM unavailable.", "critique": "",
-        }
+        result = structured_call(get_chat_llm(temperature=0.3), _SYSTEM, payload, Recommendation)
+        out = result.model_dump()
         # Confidence is grounded in data completeness, not the model's own optimism.
         out["confidence"] = _data_completeness(intel)
         out["_retrieved_patterns"] = patterns

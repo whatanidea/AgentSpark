@@ -1,38 +1,21 @@
-import os
 import logging
 from typing import List, Dict, Any
 
-from app.utils.env import get_valid_env
+from azure.core.exceptions import AzureError
+from app.utils.errors import DependencyUnavailable
+from app.rag.search_client import get_search_client
 from app.rag.pattern_library import keyword_rank
 
 logger = logging.getLogger(__name__)
 
 
-def _search_configured() -> bool:
-    return bool(get_valid_env("AZURE_SEARCH_ENDPOINT") and get_valid_env("AZURE_SEARCH_KEY"))
-
-
 def retrieve_patterns(query: str, top_k: int = 4) -> List[Dict[str, Any]]:
-    """
-    Retrieve the most relevant agentic design patterns for a workflow.
-
-    Uses Azure AI Search (hybrid keyword + vector) when configured; otherwise
-    falls back to lexical ranking over the in-code curated pattern library so
-    recommendations are always grounded in real, named patterns.
-    """
-    if not _search_configured():
-        logger.info("Azure AI Search not configured — ranking over local pattern library.")
+    """Keyword retrieval from Azure in live mode, or the local library in demo mode."""
+    client, _ = get_search_client()
+    if client is None:
         return keyword_rank(query, top_k=top_k)
 
     try:
-        from azure.core.credentials import AzureKeyCredential
-        from azure.search.documents import SearchClient
-
-        endpoint = get_valid_env("AZURE_SEARCH_ENDPOINT")
-        key = get_valid_env("AZURE_SEARCH_KEY")
-        index_name = os.environ.get("AZURE_SEARCH_INDEX_NAME", "patterns-index")
-        client = SearchClient(endpoint=endpoint, index_name=index_name, credential=AzureKeyCredential(key))
-
         results = client.search(search_text=query, top=top_k)
         docs = []
         for r in results:
@@ -45,11 +28,13 @@ def retrieve_patterns(query: str, top_k: int = 4) -> List[Dict[str, Any]]:
                 "azure_services": r.get("azure_services", []),
                 "score": r.get("@search.score", 0),
             })
-        # If the index is empty/unseeded, degrade to the local library.
-        return docs or keyword_rank(query, top_k=top_k)
-    except Exception as e:
-        logger.error(f"Azure AI Search failed ({e}); using local pattern library.")
-        return keyword_rank(query, top_k=top_k)
+        if not docs:
+            logger.error("Live pattern retrieval returned no grounding documents.")
+            raise DependencyUnavailable("search")
+        return docs
+    except (AzureError, OSError) as exc:
+        logger.exception("Azure AI Search retrieval failed.")
+        raise DependencyUnavailable("search") from exc
 
 
 # Backwards-compatible alias for older callers/tests.

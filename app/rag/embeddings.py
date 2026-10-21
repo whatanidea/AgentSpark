@@ -1,22 +1,20 @@
 import os
 import logging
 
-from app.utils.env import get_valid_env
+from app.utils.runtime import demo_mode, require_config
 
 logger = logging.getLogger(__name__)
 
 
 def get_embeddings_model():
     """
-    Returns an AzureOpenAIEmbeddings instance if configured,
-    otherwise a deterministic mock so ingestion/retrieval still run offline.
+    Return Azure embeddings in live mode or deterministic zero vectors in demo.
+    This helper is not wired into the current keyword retrieval path.
     """
-    api_key = get_valid_env("AZURE_OPENAI_API_KEY")
-    endpoint = get_valid_env("AZURE_OPENAI_ENDPOINT")
     deployment = os.environ.get("AZURE_OPENAI_EMBEDDING_DEPLOYMENT", "text-embedding-3-small")
 
-    if not (api_key and endpoint):
-        logger.warning("Azure OpenAI Embeddings not configured. Using deterministic mock embeddings.")
+    if demo_mode():
+        logger.info("Explicit demo mode: using mock embeddings.")
 
         class MockEmbeddings:
             def embed_documents(self, texts):
@@ -28,10 +26,13 @@ def get_embeddings_model():
         return MockEmbeddings()
 
     from langchain_openai import AzureOpenAIEmbeddings
+    api_key, endpoint = require_config("openai", "AZURE_OPENAI_API_KEY", "AZURE_OPENAI_ENDPOINT")
 
     return AzureOpenAIEmbeddings(
         azure_deployment=deployment,
         openai_api_version=os.environ.get("AZURE_OPENAI_API_VERSION", "2024-08-01-preview"),
         azure_endpoint=endpoint,
         api_key=api_key,
+        request_timeout=15,
+        max_retries=0,
     )

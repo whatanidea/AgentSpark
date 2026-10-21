@@ -1,7 +1,8 @@
 import logging
 
 from app.utils.models import WorkflowIntelligence, AzureServiceMapping
-from app.utils.llm import get_chat_llm, structured_call, azure_is_configured
+from app.utils.llm import get_chat_llm, structured_call
+from app.utils.runtime import demo_mode
 
 logger = logging.getLogger(__name__)
 
@@ -13,8 +14,7 @@ rationale tying the choices to the workflow's characteristics."""
 
 class MappingAgent:
     def __init__(self):
-        self.use_mock = not azure_is_configured()
-        self.llm = get_chat_llm(temperature=0.1)
+        self.use_mock = demo_mode()
 
     def map_services(self, intel: WorkflowIntelligence) -> dict:
         if self.use_mock:
@@ -23,9 +23,7 @@ class MappingAgent:
                           "grounded retrieval, and an auditable orchestration layer."
             ).model_dump()
 
-        result = structured_call(self.llm, _SYSTEM, intel.model_dump_json(), AzureServiceMapping)
-        if result is None:
-            return AzureServiceMapping(rationale="Default mapping (LLM unavailable).").model_dump()
+        result = structured_call(get_chat_llm(temperature=0.1), _SYSTEM, intel.model_dump_json(), AzureServiceMapping)
         return result.model_dump()
 
 

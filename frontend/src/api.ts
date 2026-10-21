@@ -9,6 +9,14 @@ export type ReviewRequest = {
   note: string;
 };
 
+export type RuntimeHealth = { status: string; live: boolean; mode: "demo" | "live" };
+export type Readiness = {
+  status: "ready" | "degraded";
+  ready: boolean;
+  mode: "demo" | "live";
+  dependencies: Record<string, "demo" | "ready" | "unavailable">;
+};
+
 // Safe UUID: crypto.randomUUID() is only defined in secure contexts (https or
 // localhost). Fall back so sessions still work if ever served over plain http.
 export function uid(): string {
@@ -38,7 +46,16 @@ async function get(path: string) {
 }
 
 export const api = {
-  health: () => fetch("/health").then((r) => r.json()),
+  health: async (): Promise<RuntimeHealth> => {
+    const response = await fetch("/health");
+    if (!response.ok) throw new Error(`Health check failed (${response.status})`);
+    return response.json();
+  },
+  readiness: async (): Promise<Readiness> => {
+    const response = await fetch("/ready");
+    if (!response.ok && response.status !== 503) throw new Error(`Readiness check failed (${response.status})`);
+    return response.json();
+  },
   intake: (body: any) => post("/intake", body),
   chat: (session_id: string, message: string) => post("/chat", { session_id, message }),
   analyze: (session_id: string) => post(`/analyze/${session_id}`, {}),

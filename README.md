@@ -64,12 +64,11 @@ chat does not. Only the **current analysis's** review is retained, not a histori
 ledger. Blueprint responses and Markdown exports identify provisional/rejected
 outcomes. The Blueprint screen contains the review controls.
 
-**Demo boundary:** review endpoints are unauthenticated, reviewer names are
-self-reported, and simultaneous writes do not yet have optimistic concurrency
-protection. An analysis ID rejects sequential stale requests but is not an access
-control or transactional lock. Do not expose these controls as production approval
-authority; authenticated ownership checks and concurrent-write protection are
-required before a multi-user production release. In-memory reviews last only for
+**Demo boundary:** review endpoints are unauthenticated and reviewer names are
+self-reported. Conditional version checks reject conflicting writes, but neither
+an analysis ID nor an ETag is an access control. Do not expose these controls as
+production approval authority; authenticated ownership checks are required before
+a multi-user production release. In-memory reviews last only for
 the process lifetime; durable retention requires configured Cosmos DB.
 
 Policies are validated at startup from `governance_rules.yaml`. Unknown fields,
@@ -102,8 +101,8 @@ The security dimension is a limited text policy check, not a security audit.
 - It is **honest**: high-compliance / high-error-cost workflows are never marked fully
   autonomous — they are routed through a mandatory human-in-the-loop gate. A fixed-rule
   payroll task is correctly flagged *Not suitable for agents → use standard software/RPA*.
-- The **Recommendation Agent retrieves real patterns** (via Azure AI Search, with a local
-  fallback) and composes them by name — no hand-wavy "use a multi-agent system."
+- The **Recommendation Agent retrieves real patterns** (via Azure AI Search in live
+  mode or the local library in demo mode) and composes them by name.
 
 ---
 
@@ -126,16 +125,88 @@ React SPA  ──/api/v1──►  FastAPI  ──►  LangGraph Orchestrator
 - **State / Memory:** Azure Cosmos DB (per-session `WorkflowState`)
 - **Deploy:** Docker → Azure App Service (GitHub Actions in `.github/workflows/deploy.yml`)
 
-> **Mock mode:** with no Azure credentials the entire product still runs end-to-end on
-> deterministic mock data and a local pattern-library fallback — so it always demos.
+> **Demo mode:** `AGENTSENSE_MODE=demo` runs end-to-end on deterministic mock data,
+> process-local storage, and the local pattern library. Local development defaults
+> to demo even if Azure credentials are present. Live mode must be selected explicitly.
+
+## Runtime reliability (Phase 2)
+
+### Explicit modes and migration
+
+Set `AGENTSENSE_MODE=demo` or `live` before starting the process. Local development
+defaults to `demo`; when `ENVIRONMENT=production`, the mode must be explicitly set
+or startup fails. Invalid mode values also fail startup. Settings and clients are
+process-scoped: restart after configuration changes.
+
+**Migration:** credentials no longer automatically activate live mode. Existing
+Azure deployments must set `AGENTSENSE_MODE=live`. Live mode never falls back to
+mock agents, an in-memory database, or local pattern retrieval when a service fails
+or the live index is empty. Structured generation retries malformed output once as
+a real JSON completion; transport/authentication failures do not take that retry.
+Invalid final output is an error, not a placeholder blueprint or mapping.
+
+Before live use, provision the Cosmos database (default `agentsense_db`) and its
+`workflows` container with partition key `/session_id`. The application no longer
+creates databases/containers during startup or readiness checks. Provision and seed
+the Azure AI Search index separately. Demo ingestion reports that no live write
+occurred; partial live ingestion is an error.
+
+### Persistence and API error contracts
+
+All session writes use optimistic concurrency. Existing Cosmos documents are
+replaced with their ETag and `IfNotModified`; new documents use create, never
+upsert. Demo storage performs the same compare-and-swap under a process-local lock.
+Updates to chat, intake, analysis and reviews cannot silently overwrite a newer
+session version. Do not automatically retry stale decisions: fetch the current
+state, reconcile changes, then resubmit. Demo storage is not shared across workers.
+
+| Response | Meaning |
+|---|---|
+| `404`, `session_not_found` | No persisted session; only intake/chat may create one |
+| `409`, `session_conflict` | Another request changed the session before this write |
+| `422` | Invalid request field/category/identifier or out-of-range value |
+| `413` | Request body exceeds 65,536 bytes, including streamed/chunked bodies |
+| `502`, `invalid_dependency_response` | An upstream result or stored document was invalid |
+| `503`, `dependency_unavailable` | Required configuration is missing or a live dependency failed |
+| `500`, `internal_error` | Unexpected failure; internal details are logged, not returned |
+
+Existing review-specific `404`/`409` responses still apply. Failed persistence never
+returns a successful update, and failed analysis does not save partial results.
+Synchronous SDK calls and graph execution run in FastAPI's worker thread pool, not
+on the async event loop. Analysis still uses a synchronous HTTP response; there is
+no background-job infrastructure or automatic retry of graph runs.
+
+Session IDs are 1-100 ASCII letters/digits/underscores/hyphens, starting with a
+letter/digit; UUIDs remain supported. Intake domain is 1-200 characters, systems
+up to 4,000, pain points up to 8,000; chat is 1-8,000 nonblank characters. Team size
+and compliance are fixed categories. Pattern search accepts a nonblank query up
+to 2,000 characters and `k` from 1 to 50. Workflow signals enforce nonnegative
+integer counts (steps/decisions <=1,000; weekly exceptions <=1,000,000; daily
+volume <=10,000,000), bounded labels/lists, and valid categorical values.
+
+### Liveness versus readiness
+
+- `GET /health` is dependency-free liveness. It reports the selected `mode`; its
+  compatibility `live` flag means **mode selected**, not Azure connectivity.
+- `GET /ready` returns `200` with `ready: true`, or `503` with `ready: false` and
+  per-dependency status for OpenAI, Search, and Cosmos. Demo dependencies are marked
+  `demo`; this is not a claim that Azure was tested.
+- Live readiness performs a one-token OpenAI inference on the configured deployment,
+  verifies the Search index has documents, and reads Cosmos container metadata.
+  **The OpenAI probe consumes tokens and can be rate-limited.** Poll conservatively;
+  use `/health` for high-frequency liveness checks. Readiness is a point-in-time
+  check, not a guarantee that the next write will succeed.
+- Network calls have bounded SDK timeouts; retries are disabled where configured.
+  The frontend displays live dependency failures or an unreachable backend rather
+  than relabeling them as demo mode.
 
 ---
 
 ## Setup
 
 ```bash
-# 1. Configure (optional — runs in mock mode without this)
-cp .env          # then fill in your Azure keys
+# 1. Configure (optional locally — defaults to demo)
+cp .env.example .env  # keep demo, or select live and fill in your Azure settings
 
 # 2. Backend deps
 pip install -r requirements.txt
@@ -185,9 +256,9 @@ Here is how AI was used in building and running AgentSense:
 **In the product (runtime):**
 - **Azure OpenAI — GPT-4o**: powers the Diagnostic, Mapping, Recommendation, and Blueprint
   agents via LangChain structured-output (function-calling) bindings.
-- **Azure OpenAI Embeddings (`text-embedding-3-small`)**: vectorizes the pattern library for
-  Azure AI Search retrieval.
-- **Azure AI Search**: hybrid retrieval over the curated agentic-pattern knowledge base (RAG).
+- **Azure OpenAI Embeddings (`text-embedding-3-small`)**: an embeddings helper is
+  available; it is not wired into the current keyword ingestion/retrieval path.
+- **Azure AI Search**: keyword retrieval over the curated agentic-pattern knowledge base (RAG).
 - **LangGraph**: deterministic multi-agent orchestration.
 
 **During development (tooling):**

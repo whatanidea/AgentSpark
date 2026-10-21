@@ -1,8 +1,8 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime, timezone
-from typing import Literal
-from app.utils.models import HumanReview
+from typing import Literal, Annotated
+from app.utils.models import HumanReview, SessionId, SignalLevel
 
 from app.database.cosmos_client import db_client
 from app.orchestration.langgraph_flow import run_orchestration
@@ -13,32 +13,35 @@ from app.security.guardrails import scan_input, redact_pii
 router = APIRouter()
 
 
-class IntakeRequest(BaseModel):
-    session_id: str
-    business_domain: str
-    team_size: str
-    existing_systems: str
-    pain_points: str
-    compliance_requirements: str
-
-
-class ChatRequest(BaseModel):
-    session_id: str
-    message: str
-
-
-class ReviewRequest(BaseModel):
+class RequestModel(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
 
-    analysis_id: str = Field(min_length=1)
+
+class IntakeRequest(RequestModel):
+    session_id: SessionId
+    business_domain: str = Field(min_length=1, max_length=200)
+    team_size: Literal["1-50", "51-200", "201-1000", "1000+"]
+    existing_systems: str = Field(max_length=4000)
+    pain_points: str = Field(max_length=8000)
+    compliance_requirements: SignalLevel
+
+
+class ChatRequest(RequestModel):
+    session_id: SessionId
+    message: str = Field(min_length=1, max_length=8000)
+
+
+class ReviewRequest(RequestModel):
+
+    analysis_id: SessionId
     decision: Literal["approve", "reject"]
     reviewer: str = Field(min_length=1, max_length=200)
     note: str = Field(min_length=1, max_length=2000)
 
 
 @router.post("/intake")
-async def save_intake(req: IntakeRequest):
-    state = db_client.get_workflow_state(req.session_id)
+def save_intake(req: IntakeRequest):
+    state = db_client.get_workflow_state(req.session_id, create_if_missing=True)
     state.invalidate_analysis()
     state.enterprise_context.business_domain = req.business_domain
     state.enterprise_context.team_size = req.team_size
@@ -50,8 +53,8 @@ async def save_intake(req: IntakeRequest):
 
 
 @router.post("/chat")
-async def chat_interaction(req: ChatRequest):
-    state = db_client.get_workflow_state(req.session_id)
+def chat_interaction(req: ChatRequest):
+    state = db_client.get_workflow_state(req.session_id, create_if_missing=True)
 
     # Security gate: screen every inbound message before it reaches the LLM.
     guard = scan_input(req.message)
@@ -78,25 +81,22 @@ async def chat_interaction(req: ChatRequest):
 
 
 @router.post("/analyze/{session_id}")
-async def analyze_workflow(session_id: str):
-    try:
-        s = run_orchestration(session_id)
-        return {
-            "status": s.status,
-            "score": s.suitability_score.model_dump() if s.suitability_score else None,
-            "recommendation": s.architecture_recommendation,
-            "governance": s.governance,
-            "roi": s.roi,
-            "patterns": s.retrieved_patterns,
-            "trace": s.trace,
-            "analysis_id": s.analysis_id,
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+def analyze_workflow(session_id: SessionId):
+    s = run_orchestration(session_id)
+    return {
+        "status": s.status,
+        "score": s.suitability_score.model_dump() if s.suitability_score else None,
+        "recommendation": s.architecture_recommendation,
+        "governance": s.governance,
+        "roi": s.roi,
+        "patterns": s.retrieved_patterns,
+        "trace": s.trace,
+        "analysis_id": s.analysis_id,
+    }
 
 
 @router.get("/blueprint/{session_id}")
-async def get_blueprint(session_id: str):
+def get_blueprint(session_id: SessionId):
     state = db_client.get_workflow_state(session_id)
     if not state.blueprint and state.status != "rejected":
         raise HTTPException(status_code=404, detail="Blueprint not generated yet.")
@@ -129,7 +129,7 @@ async def get_blueprint(session_id: str):
 
 
 @router.get("/review/{session_id}")
-async def get_review(session_id: str):
+def get_review(session_id: SessionId):
     state = db_client.get_workflow_state(session_id)
     if not state.analysis_id:
         raise HTTPException(status_code=404, detail="No current analysis to review.")
@@ -142,7 +142,7 @@ async def get_review(session_id: str):
 
 
 @router.post("/review/{session_id}")
-async def submit_review(session_id: str, req: ReviewRequest):
+def submit_review(session_id: SessionId, req: ReviewRequest):
     state = db_client.get_workflow_state(session_id)
     if not state.analysis_id:
         raise HTTPException(status_code=404, detail="No current analysis to review.")
@@ -165,19 +165,22 @@ async def submit_review(session_id: str, req: ReviewRequest):
 
 
 @router.post("/guardrail-check")
-async def guardrail_check(req: ChatRequest):
+def guardrail_check(req: ChatRequest):
     """Live security demo: screen arbitrary text for injection/PII without storing it."""
     return scan_input(req.message).model_dump()
 
 
 @router.get("/patterns")
-async def search_patterns(q: str = "agentic enterprise workflow", k: int = 6):
+def search_patterns(
+    q: Annotated[str, Query(min_length=1, max_length=2000, pattern=r"\S")] = "agentic enterprise workflow",
+    k: Annotated[int, Query(ge=1, le=50)] = 6,
+):
     """Expose the RAG pattern library so judges can probe retrieval directly."""
     return {"query": q, "results": retrieve_patterns(q, top_k=k)}
 
 
 @router.get("/portfolio")
-async def portfolio():
+def portfolio():
     """Rank a backlog of candidate workflows by agentification readiness."""
     from app.scoring.portfolio import score_backlog
     return {"portfolio": [e.model_dump() for e in score_backlog()]}

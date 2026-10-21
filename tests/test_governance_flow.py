@@ -3,6 +3,7 @@ import unittest
 from unittest.mock import patch
 from uuid import uuid4
 
+os.environ["AGENTSENSE_MODE"] = "demo"
 for key in ("AZURE_OPENAI_API_KEY", "AZURE_OPENAI_ENDPOINT", "AZURE_SEARCH_KEY",
             "AZURE_SEARCH_ENDPOINT", "COSMOS_DB_KEY", "COSMOS_DB_ENDPOINT"):
     os.environ[key] = "your_placeholder"
@@ -181,9 +182,9 @@ class GovernanceFlowTests(unittest.TestCase):
     def test_no_analysis_is_not_reviewable(self):
         self.assertEqual(self.submit("missing").status_code, 404)
         self.assertEqual(self.client.get(f"/api/v1/review/{self.session_id}").status_code, 404)
-        result = self.client.post("/api/v1/analyze/empty-session").json()
-        self.assertIsNone(result["analysis_id"])
-        self.assertEqual(result["status"], "init")
+        response = self.client.post("/api/v1/analyze/empty-session")
+        self.assertEqual(response.status_code, 404)
+        self.assertEqual(response.json()["code"], "session_not_found")
 
     def test_failed_save_never_returns_successful_review(self):
         analysis = self.analyze()

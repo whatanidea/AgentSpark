@@ -147,7 +147,7 @@ ${bp.code_scaffold || ""}
           )}
           {bp.provisional && (
             <div className="mt-4 space-y-3">
-              <p className="text-xs text-amber-300">Demo review controls: reviewer names are self-reported. Authentication and concurrent-write protection are not implemented; do not expose these controls as production approval authority.</p>
+              <p className="text-xs text-amber-300">Demo review controls: reviewer names are self-reported. Version checks prevent lost writes, but authentication and ownership checks are not implemented; do not expose these controls as production approval authority.</p>
               <label className="block text-sm">
                 Reviewer
                 <input className="block w-full mt-1 rounded bg-white/5 border border-white/10 p-2" value={reviewer} onChange={(e) => setReviewer(e.target.value)} maxLength={200} disabled={busy} />
