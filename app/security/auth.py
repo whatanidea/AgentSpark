@@ -29,6 +29,16 @@ class AuthSettings:
     audience: str = ""
     jwks_url: str = ""
     reviewer_role: str = "AgentSense.Reviewer"
+    sign_in_client_id: str = ""
+    sign_in_authority: str = ""
+    sign_in_scope: str = ""
+
+    def sign_in(self) -> dict[str, str] | None:
+        """Public browser sign-in (OIDC authorization code + PKCE) settings, when configured."""
+        if self.mode != "oidc" or not self.sign_in_client_id:
+            return None
+        return {"client_id": self.sign_in_client_id, "authority": self.sign_in_authority,
+                "scope": self.sign_in_scope}
 
 
 def load_auth_settings() -> AuthSettings:
@@ -39,12 +49,16 @@ def load_auth_settings() -> AuthSettings:
     result = AuthSettings(
         mode, os.getenv("AUTH_ISSUER", ""), os.getenv("AUTH_AUDIENCE", ""),
         os.getenv("AUTH_JWKS_URL", ""), os.getenv("AUTH_REVIEWER_ROLE", "AgentSense.Reviewer"),
+        os.getenv("AUTH_SPA_CLIENT_ID", ""), os.getenv("AUTH_SPA_AUTHORITY", ""), os.getenv("AUTH_SPA_SCOPE", ""),
     )
     if mode == "oidc" and (
         not result.issuer.startswith("https://") or not result.audience
         or not result.jwks_url.startswith("https://") or not result.reviewer_role
     ):
         raise ValueError("OIDC requires HTTPS AUTH_ISSUER/AUTH_JWKS_URL, AUTH_AUDIENCE and a reviewer role.")
+    spa = (result.sign_in_client_id, result.sign_in_authority, result.sign_in_scope)
+    if any(spa) and (not all(spa) or not result.sign_in_authority.startswith("https://")):
+        raise ValueError("Browser sign-in requires AUTH_SPA_CLIENT_ID, an HTTPS AUTH_SPA_AUTHORITY and AUTH_SPA_SCOPE.")
     hours = int(os.getenv("SESSION_RETENTION_HOURS", "24"))
     if not 1 <= hours <= 720:
         raise ValueError("SESSION_RETENTION_HOURS must be between 1 and 720.")

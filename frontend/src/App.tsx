@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, ApiError, AuthConfig, Identity, parseInviteCode, Readiness, SessionSnapshot, setAccessToken, setWorkspace, type WorkspaceSelection } from "./api";
+import { api, ApiError, AuthConfig, Identity, parseInviteCode, Readiness, SessionSnapshot, setAccessToken, setTokenProvider, setWorkspace, type WorkspaceSelection } from "./api";
+const signInModule = () => import("./auth");
 import Intake from "./components/Intake";
 import Diagnose from "./components/Diagnose";
 import Analyze from "./components/Analyze";
@@ -89,7 +90,19 @@ export default function App() {
     api.authConfig().then(async (config) => {
       if (!alive) return;
       setAuth(config);
-      if (config.mode === "local-demo") await connect();
+      if (config.mode === "local-demo") { await connect(); return; }
+      if (!config.sign_in) return;
+      try {
+        const { initSignIn, currentToken } = await signInModule();
+        const outcome = await initSignIn(config.sign_in);
+        if (!alive || !outcome) return;
+        setAccessToken(outcome.token); setTokenProvider(currentToken);
+        if (outcome.invite) setPendingInvite(outcome.invite);
+        await connect();
+      } catch (e) {
+        setTokenProvider(null); setAccessToken(""); setIdentity(null);
+        if (alive) setMessage(e instanceof Error ? `Microsoft sign-in failed: ${e.message}` : "Microsoft sign-in failed.");
+      }
     }).catch((e: Error) => { if (alive) setMessage(e.message); })
       .finally(() => { if (alive) setStarting(false); });
     return () => { alive = false; };
@@ -107,7 +120,7 @@ export default function App() {
     }
     void refresh();
     const interval = window.setInterval(refresh, 30000);
-    const expire = () => { setAccessToken(""); setWorkspace(null); selectWorkspace(null); setIdentity(null); setSnapshot(null); setView("intake"); setMessage("Access expired. Sign in again; tokens are never saved in browser storage."); };
+    const expire = () => { setTokenProvider(null); void signInModule().then((m) => m.signOutLocally()); setAccessToken(""); setWorkspace(null); selectWorkspace(null); setIdentity(null); setSnapshot(null); setView("intake"); setMessage("Access expired. Sign in again; tokens are never saved in browser storage."); };
     window.addEventListener("agentsense-auth-expired", expire);
     return () => { alive = false; clearInterval(interval); window.removeEventListener("agentsense-auth-expired", expire); };
   }, []);
@@ -149,10 +162,15 @@ export default function App() {
     } finally { setBusy(false); }
   }
   async function signIn() {
-    setBusy(true); setMessage(""); setAccessToken(token.trim()); setToken("");
+    setBusy(true); setMessage(""); setTokenProvider(null); setAccessToken(token.trim()); setToken("");
     try { await connect(); }
     catch (e) { setAccessToken(""); setIdentity(null); setMessage(e instanceof Error ? e.message : "Sign-in failed."); }
     finally { setBusy(false); }
+  }
+  async function signInWithMicrosoft() {
+    setBusy(true); setMessage("");
+    try { await (await signInModule()).startSignIn(pendingInvite); }
+    catch (e) { setBusy(false); setMessage(e instanceof Error ? e.message : "Microsoft sign-in failed."); }
   }
   async function removeSession() {
     setBusy(true);
@@ -275,13 +293,22 @@ export default function App() {
           {starting ? <p role="status">Loading access configuration…</p> : !identity ? (
             <section className="surface-card max-w-xl space-y-4">
               <h1 className="text-2xl font-bold">Organization access</h1>
-              {pendingInvite && <p role="status" className="notice">You opened an invite link. Connect first; you can then accept the invite on the Organizations & teams page.</p>}
-              <p className="text-sm text-slate-600 leading-relaxed">Supply an API access token from your organization's configured OIDC provider. It stays in memory and must be supplied again after reload.</p>
-              <label className="block">Access token
-                <input type="password" autoComplete="off" spellCheck={false} value={token} onChange={(e) => setToken(e.target.value)}
-                  className="form-control block mt-2" />
-              </label>
-              <Button disabled={busy || !token.trim() || !auth} onClick={signIn}>Connect securely</Button>
+              {pendingInvite && <p role="status" className="notice">You opened an invite link. Sign in first; you can then accept the invite on the Organizations & teams page.</p>}
+              {auth?.sign_in ? <>
+                <p className="text-sm text-slate-600 leading-relaxed">Sign in with your organization's Microsoft account. Your session stays in this tab only.</p>
+                <Button disabled={busy} onClick={signInWithMicrosoft}>Sign in with Microsoft</Button>
+              </> : null}
+              <details className="text-sm" open={!auth?.sign_in}>
+                <summary className="cursor-pointer text-slate-600">{auth?.sign_in ? "Use an access token instead" : "Access token"}</summary>
+                <div className="space-y-4 mt-3">
+                  <p className="text-sm text-slate-600 leading-relaxed">Supply an API access token from your organization's configured OIDC provider. It stays in memory and must be supplied again after reload.</p>
+                  <label className="block">Access token
+                    <input type="password" autoComplete="off" spellCheck={false} value={token} onChange={(e) => setToken(e.target.value)}
+                      className="form-control block mt-2" />
+                  </label>
+                  <Button disabled={busy || !token.trim() || !auth} onClick={signIn}>Connect securely</Button>
+                </div>
+              </details>
               {!auth && <p role="alert">Access configuration unavailable. Reload to retry.</p>}
             </section>
           ) : <div key={sessionId || "new"}>

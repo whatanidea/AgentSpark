@@ -271,6 +271,9 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'AUTH_AUDIENCE', value: authAudience }
             { name: 'AUTH_JWKS_URL', value: '${environment().authentication.loginEndpoint}${tenantId}/discovery/v2.0/keys' }
             { name: 'AUTH_REVIEWER_ROLE', value: 'AgentSense.Reviewer' }
+            { name: 'AUTH_SPA_CLIENT_ID', value: authAudience }
+            { name: 'AUTH_SPA_AUTHORITY', value: '${environment().authentication.loginEndpoint}${tenantId}' }
+            { name: 'AUTH_SPA_SCOPE', value: 'api://${authAudience}/access_as_user' }
             { name: 'SESSION_RETENTION_HOURS', value: '24' }
             { name: 'DECISION_ARCHIVE_RETENTION_DAYS', value: '30' }
             { name: 'COSMOS_DB_ENDPOINT', value: cosmos.properties.documentEndpoint }

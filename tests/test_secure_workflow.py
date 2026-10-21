@@ -332,6 +332,26 @@ class PrivacyRetentionTests(unittest.TestCase):
             with self.assertRaises(ValueError):
                 auth.load_auth_settings()
 
+    def test_browser_sign_in_settings_are_complete_and_only_published_for_oidc(self):
+        oidc = {"AGENTSENSE_AUTH_MODE": "oidc", "AUTH_ISSUER": "https://login.example/t/v2.0",
+                "AUTH_AUDIENCE": "client", "AUTH_JWKS_URL": "https://login.example/t/keys"}
+        spa = {"AUTH_SPA_CLIENT_ID": "client", "AUTH_SPA_AUTHORITY": "https://login.example/t",
+               "AUTH_SPA_SCOPE": "api://client/access_as_user"}
+        with patch.dict(os.environ, {**oidc, **spa}):
+            self.assertEqual(auth.load_auth_settings().sign_in(), {
+                "client_id": "client", "authority": "https://login.example/t", "scope": "api://client/access_as_user"})
+        with patch.dict(os.environ, oidc):
+            for key in spa:
+                os.environ.pop(key, None)
+            self.assertIsNone(auth.load_auth_settings().sign_in())
+        for broken in ({"AUTH_SPA_SCOPE": ""}, {"AUTH_SPA_AUTHORITY": "http://login.example/t"}):
+            with self.subTest(broken=broken), patch.dict(os.environ, {**oidc, **spa, **broken}):
+                with self.assertRaises(ValueError):
+                    auth.load_auth_settings()
+        with patch.dict(os.environ, {**spa, "AGENTSENSE_AUTH_MODE": "local-demo"}):
+            self.assertIsNone(auth.load_auth_settings().sign_in())
+        self.assertIn("sign_in", self.client.get("/api/v1/auth/config").json())
+
     def test_spa_assets_cannot_escape_distribution_directory(self):
         from app.main import _DIST
         if not os.path.isdir(_DIST):
