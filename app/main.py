@@ -1,29 +1,71 @@
 import os
 import logging
 
-from fastapi import FastAPI
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from dotenv import load_dotenv
 
 load_dotenv()  # Load variables from .env if present
 
 from app.api.routes import router
-from app.utils.llm import azure_is_configured
+from app.api.middleware import RequestSizeLimit
+from app.utils.errors import ConcurrentUpdate, DependencyUnavailable, InvalidDependencyResponse, WorkflowNotFound
+from app.utils.health import readiness
+from app.utils.runtime import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+logger.info("AgentSense runtime mode: %s", settings.mode)
 
 app = FastAPI(title="AgentSense API", version="2.0.0",
               description="Enterprise Agentification Advisor — React SPA + FastAPI + LangGraph")
 
 app.include_router(router, prefix="/api/v1")
+app.add_middleware(RequestSizeLimit)
+
+
+@app.exception_handler(DependencyUnavailable)
+async def dependency_error(request: Request, exc: DependencyUnavailable):
+    invalid = isinstance(exc, InvalidDependencyResponse)
+    return JSONResponse(status_code=502 if invalid else 503, content={
+        "detail": str(exc),
+        "code": "invalid_dependency_response" if invalid else "dependency_unavailable",
+        "dependency": exc.dependency,
+    })
+
+
+@app.exception_handler(ConcurrentUpdate)
+async def write_conflict(request: Request, exc: ConcurrentUpdate):
+    return JSONResponse(status_code=409, content={"detail": str(exc), "code": "session_conflict"})
+
+
+@app.exception_handler(WorkflowNotFound)
+async def session_not_found(request: Request, exc: WorkflowNotFound):
+    return JSONResponse(status_code=404, content={"detail": str(exc), "code": "session_not_found"})
+
+
+@app.exception_handler(Exception)
+async def unexpected_error(request: Request, exc: Exception):
+    logger.error("Unhandled request error on %s", request.url.path,
+                 exc_info=(type(exc), exc, exc.__traceback__))
+    return JSONResponse(status_code=500, content={
+        "detail": "An internal error occurred.", "code": "internal_error",
+    })
 
 
 @app.get("/health")
 def health_check():
-    # `live` drives the UI status badge (Azure Live vs Demo/Mock).
-    return {"status": "ok", "live": azure_is_configured()}
+    return {"status": "ok", "live": settings.mode == "live", "mode": settings.mode}
+
+
+@app.get("/ready")
+def readiness_check():
+    ready, dependencies = readiness()
+    return JSONResponse(status_code=200 if ready else 503, content={
+        "status": "ready" if ready else "degraded",
+        "ready": ready, "mode": settings.mode, "dependencies": dependencies,
+    })
 
 
 # ── Serve the built React SPA (frontend/dist) from the same origin ──────────

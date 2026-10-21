@@ -3,7 +3,9 @@ import logging
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
 from app.utils.models import WorkflowIntelligence, EnterpriseContext
-from app.utils.llm import get_chat_llm, structured_call, azure_is_configured
+from app.utils.llm import get_chat_llm, structured_call, invoke_llm
+from app.utils.runtime import demo_mode
+from app.utils.errors import InvalidDependencyResponse
 
 logger = logging.getLogger(__name__)
 
@@ -24,10 +26,9 @@ values (High/Medium/Low, or Stable/Evolving/Volatile for rule_stability)."""
 
 class DiagnosticAgent:
     def __init__(self):
-        self.use_mock = not azure_is_configured()
-        self.llm = get_chat_llm(temperature=0.2)
+        self.use_mock = demo_mode()
         if self.use_mock:
-            logger.warning("Azure OpenAI not configured. DiagnosticAgent uses mock responses.")
+            logger.info("DiagnosticAgent is running in explicit demo mode.")
 
     @staticmethod
     def _context_block(context: EnterpriseContext | None) -> str:
@@ -61,11 +62,11 @@ class DiagnosticAgent:
                 messages.append(AIMessage(content=msg.get("content", "")))
         messages.append(HumanMessage(content=user_message))
 
-        try:
-            return self.llm.invoke(messages).content
-        except Exception as e:
-            logger.error(f"LLM Chat Error: {e}")
-            return "I hit an error reaching the AI backend. Please check the Azure OpenAI configuration."
+        content = invoke_llm(get_chat_llm(temperature=0.2), messages).content
+        if not isinstance(content, str) or not content.strip():
+            logger.error("Diagnostic chat received an empty or non-text completion.")
+            raise InvalidDependencyResponse("openai")
+        return content
 
     def analyze_chat_history(self, chat_history, context: EnterpriseContext | None = None) -> WorkflowIntelligence:
         """Extract a structured WorkflowIntelligence record from the conversation + intake context."""
@@ -82,11 +83,7 @@ class DiagnosticAgent:
         transcript = self._context_block(context) + "\nINTERVIEW TRANSCRIPT:\n" + "\n".join(
             f"{m.get('role')}: {m.get('content','')}" for m in chat_history
         )
-        result = structured_call(self.llm, _EXTRACT_SYSTEM, transcript, WorkflowIntelligence)
-        if result is None:
-            logger.error("Extraction failed; returning low-signal default.")
-            return WorkflowIntelligence(workflow_name="Unknown Workflow", summary="Could not extract details.")
-        return result
+        return structured_call(get_chat_llm(temperature=0.2), _EXTRACT_SYSTEM, transcript, WorkflowIntelligence)
 
 
 diagnostic_agent = DiagnosticAgent()

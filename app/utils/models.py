@@ -1,5 +1,5 @@
-from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any, Literal
+from pydantic import BaseModel, Field, PrivateAttr, StringConstraints
+from typing import List, Optional, Dict, Any, Literal, Annotated
 from datetime import datetime
 
 
@@ -7,6 +7,9 @@ AutonomyLevel = Literal["Autonomous", "Supervised", "Assisted", "Manual"]
 GovernanceDecision = Literal["AUTO_APPROVE", "HUMAN_REVIEW_REQUIRED", "REJECT"]
 RiskLevel = Literal["Low", "Medium", "High", "Critical"]
 WorkflowStatus = Literal["init", "processing", "awaiting_human_review", "completed", "rejected"]
+SignalLevel = Literal["High", "Medium", "Low"]
+SessionId = Annotated[str, StringConstraints(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$")]
+WorkflowLabel = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 
 
 # ──────────────────────────────────────────────────────────────
@@ -15,20 +18,20 @@ WorkflowStatus = Literal["init", "processing", "awaiting_human_review", "complet
 # Agentification Readiness Index.
 # ──────────────────────────────────────────────────────────────
 class WorkflowIntelligence(BaseModel):
-    workflow_name: str = Field(..., description="Name of the workflow")
-    summary: str = Field(default="", description="One-line description of the workflow")
-    steps: int = Field(default=0, description="Number of discrete steps in the workflow")
-    departments: List[str] = Field(default_factory=list, description="Departments involved")
-    decision_points: int = Field(default=0, description="Number of human decision points")
-    systems: List[str] = Field(default_factory=list, description="Systems/applications touched")
-    exceptions_per_week: int = Field(default=0, description="Exceptions/edge cases per week")
-    volume_per_day: int = Field(default=0, description="Transactions processed per day")
-    compliance_sensitivity: str = Field(default="Low", description="High, Medium, or Low")
-    data_availability: str = Field(default="Medium", description="High, Medium, or Low — is the data digital/accessible/structured")
-    rule_stability: str = Field(default="Evolving", description="Stable, Evolving, or Volatile")
-    human_judgment: str = Field(default="Medium", description="High, Medium, or Low — degree of subjective judgement")
-    unstructured_content: str = Field(default="Medium", description="High, Medium, or Low — share of free-text/document content")
-    error_cost: str = Field(default="Medium", description="High, Medium, or Low — business cost of a mistake")
+    workflow_name: WorkflowLabel = Field(..., description="Name of the workflow")
+    summary: str = Field(default="", max_length=2000, description="One-line description of the workflow")
+    steps: int = Field(default=0, ge=0, le=1000, strict=True, description="Number of discrete steps")
+    departments: List[WorkflowLabel] = Field(default_factory=list, max_length=100, description="Departments involved")
+    decision_points: int = Field(default=0, ge=0, le=1000, strict=True, description="Number of human decision points")
+    systems: List[WorkflowLabel] = Field(default_factory=list, max_length=100, description="Systems touched")
+    exceptions_per_week: int = Field(default=0, ge=0, le=1000000, strict=True, description="Weekly exception count")
+    volume_per_day: int = Field(default=0, ge=0, le=10000000, strict=True, description="Daily transaction count")
+    compliance_sensitivity: SignalLevel = "Low"
+    data_availability: SignalLevel = "Medium"
+    rule_stability: Literal["Stable", "Evolving", "Volatile"] = "Evolving"
+    human_judgment: SignalLevel = "Medium"
+    unstructured_content: SignalLevel = "Medium"
+    error_cost: SignalLevel = "Medium"
 
 
 # ──────────────────────────────────────────────────────────────
@@ -44,8 +47,8 @@ class CriterionScore(BaseModel):
 
 
 class AgentSuitabilityScore(BaseModel):
-    agent_score: int = Field(..., description="Agentification Readiness Index, 0 to 100")
-    classification: str = Field(..., description="High, Medium, Low, or Not Suitable")
+    agent_score: int = Field(..., ge=0, le=100, description="Agentification Readiness Index, 0 to 100")
+    classification: Literal["High", "Medium", "Low", "Not Suitable"]
     recommended_pattern: str = Field(..., description="Recommended architecture pattern")
     autonomy_level: AutonomyLevel = "Assisted"
     requires_hitl: bool = Field(default=True, description="Whether a human-in-the-loop gate is required")
@@ -157,7 +160,7 @@ class PortfolioEntry(BaseModel):
 
 
 class HumanReview(BaseModel):
-    analysis_id: str
+    analysis_id: SessionId
     decision: Literal["approve", "reject"]
     reviewer: str
     note: str
@@ -165,7 +168,8 @@ class HumanReview(BaseModel):
 
 
 class WorkflowState(BaseModel):
-    session_id: str
+    _etag: Optional[str] = PrivateAttr(default=None)
+    session_id: SessionId
     enterprise_context: EnterpriseContext = Field(default_factory=EnterpriseContext)
     chat_history: List[Dict[str, str]] = Field(default_factory=list)
     workflow_intelligence: Optional[WorkflowIntelligence] = None
@@ -181,7 +185,7 @@ class WorkflowState(BaseModel):
     guardrail_events: List[Dict[str, Any]] = Field(default_factory=list)
     token_usage: Optional[TokenUsage] = None
     status: WorkflowStatus = "init"
-    analysis_id: Optional[str] = None
+    analysis_id: Optional[SessionId] = None
     human_review: Optional[HumanReview] = None
 
     def invalidate_analysis(self) -> None:

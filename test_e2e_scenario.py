@@ -8,6 +8,8 @@ deterministic and runnable with no Azure credentials — `python test_e2e_scenar
 import os
 import sys
 
+os.environ["AGENTSENSE_MODE"] = "demo"
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 # Force mock mode for a deterministic, offline test run. We set placeholders

@@ -1,25 +1,11 @@
-import os
 import logging
 
-from app.utils.env import get_valid_env
+from azure.core.exceptions import AzureError
+from app.utils.errors import DependencyUnavailable, InvalidDependencyResponse
+from app.rag.search_client import get_search_client
 from app.rag.pattern_library import all_patterns
 
 logger = logging.getLogger(__name__)
-
-
-def get_search_client():
-    endpoint = get_valid_env("AZURE_SEARCH_ENDPOINT")
-    key = get_valid_env("AZURE_SEARCH_KEY")
-    index_name = os.environ.get("AZURE_SEARCH_INDEX_NAME", "patterns-index")
-
-    if not (endpoint and key):
-        logger.warning("Azure AI Search not configured. Ingestion runs in mock mode.")
-        return None, index_name
-
-    from azure.core.credentials import AzureKeyCredential
-    from azure.search.documents import SearchClient
-
-    return SearchClient(endpoint=endpoint, index_name=index_name, credential=AzureKeyCredential(key)), index_name
 
 
 def seed_pattern_library():
@@ -30,7 +16,7 @@ def seed_pattern_library():
     """
     client, index_name = get_search_client()
     if client is None:
-        return {"status": "mock", "message": f"{len(all_patterns())} patterns available locally (no Azure Search)."}
+        return {"status": "demo", "message": f"{len(all_patterns())} patterns available locally; no documents were written."}
 
     docs = []
     for p in all_patterns():
@@ -45,25 +31,28 @@ def seed_pattern_library():
             "content": f"{p['name']}. {p['description']} When to use: {p['when_to_use']}",
         })
 
-    try:
-        result = client.upload_documents(documents=docs)
-        succeeded = sum(1 for r in result if r.succeeded)
-        return {"status": "success", "indexed": succeeded, "index": index_name}
-    except Exception as e:
-        logger.error(f"Failed to seed pattern library: {e}")
-        return {"status": "error", "message": str(e)}
+    result = _upload(client, docs)
+    return {"status": "success", "indexed": len(result), "index": index_name}
 
 
 def ingest_document(doc_id: str, content: str, metadata: dict):
     client, _ = get_search_client()
     if client is None:
-        return {"status": "mock_success", "message": "Document accepted (mock index)."}
+        return {"status": "demo", "message": "No document was written; ingestion is disabled in demo mode."}
+    result = _upload(client, [{**metadata, "id": doc_id, "content": content}])
+    return {"status": "success", "result": [r.succeeded for r in result]}
+
+
+def _upload(client, documents):
     try:
-        result = client.upload_documents(documents=[{"id": doc_id, "content": content, **metadata}])
-        return {"status": "success", "result": [r.succeeded for r in result]}
-    except Exception as e:
-        logger.error(f"Failed to upload document: {e}")
-        return {"status": "error", "message": str(e)}
+        result = client.upload_documents(documents=documents)
+    except (AzureError, OSError) as exc:
+        logger.exception("Azure AI Search ingestion failed.")
+        raise DependencyUnavailable("search") from exc
+    if len(result) != len(documents) or not all(item.succeeded for item in result):
+        logger.error("Azure AI Search rejected one or more uploaded documents.")
+        raise InvalidDependencyResponse("search")
+    return result
 
 
 if __name__ == "__main__":

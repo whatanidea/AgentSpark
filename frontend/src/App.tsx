@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api } from "./api";
+import { api, Readiness } from "./api";
 import Intake from "./components/Intake";
 import Diagnose from "./components/Diagnose";
 import Analyze from "./components/Analyze";
@@ -20,10 +20,13 @@ export default function App() {
   const [view, setView] = useState<View>("intake");
   const [sessionId, setSessionId] = useState<string>("");
   const [context, setContext] = useState<any>(null);   // intake context, shared with the Diagnostic
-  const [live, setLive] = useState<boolean | null>(null);
+  const [runtime, setRuntime] = useState<Readiness | null>(null);
+  const [runtimeError, setRuntimeError] = useState("");
 
   useEffect(() => {
-    api.health().then((d) => setLive(!!d.live)).catch(() => setLive(false));
+    Promise.all([api.health(), api.readiness()])
+      .then(([, ready]) => setRuntime(ready))
+      .catch((error: Error) => setRuntimeError(error.message));
   }, []);
 
   return (
@@ -38,10 +41,14 @@ export default function App() {
             The agent that tells you where agents belong.
           </div>
           <div className="mt-3">
-            {live === null ? (
+            {runtimeError ? (
+              <span className="text-[11px] text-rose-300">Backend unavailable: {runtimeError}</span>
+            ) : runtime === null ? (
               <span className="text-[11px] text-slate-500">checking…</span>
-            ) : live ? (
-              <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300">● Azure Live</span>
+            ) : runtime.mode === "live" ? (
+              <span className={`text-[11px] font-bold px-2.5 py-1 rounded-full ${runtime.ready ? "bg-emerald-500/20 text-emerald-300" : "bg-amber-500/20 text-amber-300"}`}>
+                {runtime.ready ? "● Azure Live — ready" : "Live — dependencies unavailable"}
+              </span>
             ) : (
               <span className="text-[11px] font-bold px-2.5 py-1 rounded-full bg-violet-500/20 text-violet-300">◐ Demo / Mock Mode</span>
             )}

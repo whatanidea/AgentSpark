@@ -4,7 +4,8 @@ import logging
 from pydantic import BaseModel, Field
 
 from app.utils.models import AgentSuitabilityScore
-from app.utils.llm import get_chat_llm, structured_call, azure_is_configured
+from app.utils.llm import get_chat_llm, structured_call
+from app.utils.runtime import demo_mode
 
 logger = logging.getLogger(__name__)
 
@@ -61,8 +62,7 @@ runtime = graph.compile()
 
 class BlueprintAgent:
     def __init__(self):
-        self.use_mock = not azure_is_configured()
-        self.llm = get_chat_llm(temperature=0.2)
+        self.use_mock = demo_mode()
 
     def generate_blueprint(self, score: AgentSuitabilityScore, recommendation: dict) -> dict:
         if self.use_mock:
@@ -88,12 +88,7 @@ class BlueprintAgent:
             ).model_dump()
 
         payload = json.dumps({"score": score.model_dump(), "recommendation": recommendation})
-        result = structured_call(self.llm, _SYSTEM, payload, Blueprint)
-        if result is None:
-            return Blueprint(
-                architecture_doc="Error generating document.", mermaid_diagram=_MOCK_MERMAID,
-                cost_estimate="Unknown", roadmap="Unknown", code_scaffold="# Error generating scaffold",
-            ).model_dump()
+        result = structured_call(get_chat_llm(temperature=0.2), _SYSTEM, payload, Blueprint)
         return result.model_dump()
 
 
