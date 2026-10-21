@@ -1,11 +1,24 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api";
 import { Card, Button, Bar, Pill, Spinner, classColor } from "./ui";
 
-export default function Analyze({ sessionId, goNext }: any) {
+export default function Analyze({ sessionId, active, goNext }: any) {
   const [data, setData] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+
+  useEffect(() => {
+    if (!active || !sessionId || !data?.analysis_id) return;
+    let cancelled = false;
+    api.review(sessionId).then((review) => {
+      if (cancelled) return;
+      if (review.analysis_id !== data.analysis_id) setData(null);
+      else setData((current: any) => ({ ...current, status: review.status, human_review: review.human_review }));
+    }).catch((e: Error) => {
+      if (!cancelled) { setData(null); setErr(e.message); }
+    });
+    return () => { cancelled = true; };
+  }, [active, sessionId]);
 
   async function run() {
     if (!sessionId) return;
@@ -28,7 +41,7 @@ export default function Analyze({ sessionId, goNext }: any) {
       <header className="flex items-end justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-extrabold">Agentification Readiness</h1>
-          <p className="text-slate-400 mt-1">Diagnostic → Score (12 criteria) → Map → RAG Recommend → Validate → ROI → Blueprint.</p>
+          <p className="text-slate-400 mt-1">Diagnostic → Score (12 criteria) → Map → RAG Recommend → ROI → Govern → Blueprint or Alternative.</p>
         </div>
         <Button onClick={run} disabled={!sessionId || busy}>▶ Run Multi-Agent Analysis</Button>
       </header>
@@ -36,6 +49,17 @@ export default function Analyze({ sessionId, goNext }: any) {
       {!sessionId && <Card><p className="text-amber-300 text-sm">⚠️ Chat with the Diagnostic Agent first to describe a workflow.</p></Card>}
       {busy && <Card><Spinner label="Running the 7-stage agent flow…" /></Card>}
       {err && <Card><p className="text-rose-300 text-sm">❌ {err}</p></Card>}
+      {data?.status && score && (
+        <Card title="Recommendation status">
+          <p className="text-sm">
+            {data.status === "rejected" ? "Rejected — no agentic blueprint is available."
+              : data.status === "awaiting_human_review" ? "Provisional — open Blueprint to review this recommendation."
+              : data.human_review?.decision === "approve" ? "Recommendation approved by a human reviewer."
+              : "Recommendation auto-approved by policy."}
+          </p>
+          <p className="text-xs text-slate-500 mt-1">Approval is advisory; it does not execute or deploy a business workflow.</p>
+        </Card>
+      )}
       {data && !score && !busy && !err && (
         <Card><p className="text-amber-300 text-sm">
           ⚠️ No workflow captured yet. Open the <b>Diagnostic Agent</b>, describe a real workflow
@@ -108,7 +132,7 @@ export default function Analyze({ sessionId, goNext }: any) {
               </div>
             </Card>
 
-            <Card title="Enterprise Governance Dashboard">
+            <Card title="Original Policy Assessment">
               {governance && (
                 <>
                   <div className="flex items-center gap-2 mb-3">
@@ -184,7 +208,7 @@ export default function Analyze({ sessionId, goNext }: any) {
                 </div>
               ))}
             </div>
-            <div className="mt-4"><Button variant="ghost" onClick={goNext}>Generate Blueprint →</Button></div>
+            <div className="mt-4"><Button variant="ghost" onClick={goNext}>View Blueprint / Review Outcome →</Button></div>
           </Card>
         </>
       )}

@@ -1,5 +1,6 @@
 import time
 import logging
+from uuid import uuid4
 from typing import TypedDict, Optional, Dict, Any, List
 
 from langchain_core.callbacks import BaseCallbackHandler
@@ -28,6 +29,7 @@ class TokenCountingCallback(BaseCallbackHandler):
 
 from app.utils.models import (
     WorkflowState, WorkflowIntelligence, AgentSuitabilityScore, EnterpriseContext,
+    ROIEstimate, WorkflowStatus,
 )
 from app.agents.diagnostic_agent import diagnostic_agent
 from app.agents.mapping_agent import mapping_agent
@@ -54,7 +56,7 @@ class GraphState(TypedDict):
     roi: Optional[Dict[str, Any]]
     blueprint: Optional[Dict[str, Any]]
     trace: List[Dict[str, Any]]
-    status: str
+    status: WorkflowStatus
 
 
 def _trace(state: GraphState, agent: str, detail: str, started: float, status: str = "ok"):
@@ -112,9 +114,10 @@ def generate_recommendations(state: GraphState) -> GraphState:
 
 def evaluate_governance(state: GraphState) -> GraphState:
     t = time.perf_counter()
-    logger.info("[5/7] Governance Agent → enterprise compliance & risk rules")
+    logger.info("[6/7] Governance Agent → enterprise compliance & risk rules")
     result = governance_agent.evaluate(
         state["workflow_intelligence"], state["suitability_score"], state["recommendation"],
+        ROIEstimate.model_validate(state["roi"]),
     )
     state["governance"] = result.model_dump()
     _trace(state, "Governance Agent", f"Decision: {result.decision}; "
@@ -125,7 +128,7 @@ def evaluate_governance(state: GraphState) -> GraphState:
 
 def estimate_value(state: GraphState) -> GraphState:
     t = time.perf_counter()
-    logger.info("[6/7] ROI Engine → value estimate")
+    logger.info("[5/7] ROI Engine → value estimate")
     roi = estimate_roi(state["workflow_intelligence"], state["suitability_score"])
     state["roi"] = roi.model_dump()
     _trace(state, "ROI Engine", f"~${roi.cost_saved_per_year:,}/yr saved, "
@@ -145,6 +148,19 @@ def create_blueprint(state: GraphState) -> GraphState:
     return state
 
 
+def reject_recommendation(state: GraphState) -> GraphState:
+    t = time.perf_counter()
+    state["blueprint"] = None
+    state["status"] = "rejected"
+    _trace(state, "Governance Outcome", "Recommendation rejected; no agentic blueprint generated.",
+           t, status="warn")
+    return state
+
+
+def route_governance(state: GraphState) -> str:
+    return "reject_recommendation" if state["governance"]["decision"] == "REJECT" else "create_blueprint"
+
+
 # ── Graph wiring ─────────────────────────────────────────────────────────
 workflow = StateGraph(GraphState)
 workflow.add_node("extract_intelligence", extract_intelligence)
@@ -154,15 +170,20 @@ workflow.add_node("generate_recommendations", generate_recommendations)
 workflow.add_node("evaluate_governance", evaluate_governance)
 workflow.add_node("estimate_value", estimate_value)
 workflow.add_node("create_blueprint", create_blueprint)
+workflow.add_node("reject_recommendation", reject_recommendation)
 
 workflow.set_entry_point("extract_intelligence")
 workflow.add_edge("extract_intelligence", "score_workflow")
 workflow.add_edge("score_workflow", "map_services")
 workflow.add_edge("map_services", "generate_recommendations")
-workflow.add_edge("generate_recommendations", "evaluate_governance")
-workflow.add_edge("evaluate_governance", "estimate_value")
-workflow.add_edge("estimate_value", "create_blueprint")
+workflow.add_edge("generate_recommendations", "estimate_value")
+workflow.add_edge("estimate_value", "evaluate_governance")
+workflow.add_conditional_edges("evaluate_governance", route_governance, {
+    "reject_recommendation": "reject_recommendation",
+    "create_blueprint": "create_blueprint",
+})
 workflow.add_edge("create_blueprint", END)
+workflow.add_edge("reject_recommendation", END)
 
 orchestrator_app = workflow.compile()
 
@@ -211,6 +232,8 @@ def run_orchestration(session_id: str) -> WorkflowState:
     db_state.blueprint = result["blueprint"]
     db_state.trace = result["trace"]
     db_state.status = result["status"]
+    db_state.analysis_id = str(uuid4())
+    db_state.human_review = None
     
     from app.utils.models import TokenUsage
     db_state.token_usage = TokenUsage(

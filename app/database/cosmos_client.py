@@ -56,7 +56,7 @@ class DatabaseClient:
                 return WorkflowState(session_id=session_id)
 
     def save_workflow_state(self, state: WorkflowState) -> None:
-        state_dict = state.model_dump()
+        state_dict = state.model_dump(mode="json")
         state_dict["id"] = state.session_id  # Cosmos requires an 'id' field
         
         if self.use_mock:
@@ -66,5 +66,6 @@ class DatabaseClient:
                 self.container.upsert_item(state_dict)
             except Exception as e:
                 logger.error(f"Error saving to Cosmos DB: {e}")
+                raise
 
 db_client = DatabaseClient()

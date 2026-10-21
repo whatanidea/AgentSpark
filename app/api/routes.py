@@ -1,5 +1,8 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ConfigDict
+from datetime import datetime, timezone
+from typing import Literal
+from app.utils.models import HumanReview
 
 from app.database.cosmos_client import db_client
 from app.orchestration.langgraph_flow import run_orchestration
@@ -24,9 +27,19 @@ class ChatRequest(BaseModel):
     message: str
 
 
+class ReviewRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+
+    analysis_id: str = Field(min_length=1)
+    decision: Literal["approve", "reject"]
+    reviewer: str = Field(min_length=1, max_length=200)
+    note: str = Field(min_length=1, max_length=2000)
+
+
 @router.post("/intake")
 async def save_intake(req: IntakeRequest):
     state = db_client.get_workflow_state(req.session_id)
+    state.invalidate_analysis()
     state.enterprise_context.business_domain = req.business_domain
     state.enterprise_context.team_size = req.team_size
     state.enterprise_context.existing_systems = req.existing_systems
@@ -57,6 +70,7 @@ async def chat_interaction(req: ChatRequest):
 
     # Diagnostic Agent answers grounded in the intake context. PII is redacted before storage.
     response_text = diagnostic_agent.chat(req.message, state.chat_history, state.enterprise_context)
+    state.invalidate_analysis()
     state.chat_history.append({"role": "user", "content": redact_pii(req.message)})
     state.chat_history.append({"role": "assistant", "content": response_text})
     db_client.save_workflow_state(state)
@@ -75,6 +89,7 @@ async def analyze_workflow(session_id: str):
             "roi": s.roi,
             "patterns": s.retrieved_patterns,
             "trace": s.trace,
+            "analysis_id": s.analysis_id,
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -83,10 +98,18 @@ async def analyze_workflow(session_id: str):
 @router.get("/blueprint/{session_id}")
 async def get_blueprint(session_id: str):
     state = db_client.get_workflow_state(session_id)
-    if not state.blueprint:
+    if not state.blueprint and state.status != "rejected":
         raise HTTPException(status_code=404, detail="Blueprint not generated yet.")
 
-    res = dict(state.blueprint)
+    res = dict(state.blueprint or {})
+    res["status"] = state.status
+    res["analysis_id"] = state.analysis_id
+    res["provisional"] = state.status == "awaiting_human_review"
+    res["human_review"] = state.human_review.model_dump(mode="json") if state.human_review else None
+    if state.status == "rejected":
+        res["alternative"] = (
+            (state.governance or {}).get("rejection_package") or {}
+        ).get("alternative", "Use standard software or a deterministic approval workflow without agentic loops.")
     res["enterprise_context"] = state.enterprise_context.model_dump()
     if state.suitability_score:
         res["suitability_score"] = state.suitability_score.model_dump()
@@ -103,6 +126,42 @@ async def get_blueprint(session_id: str):
     if state.token_usage:
         res["token_usage"] = state.token_usage.model_dump() if hasattr(state.token_usage, "model_dump") else state.token_usage
     return res
+
+
+@router.get("/review/{session_id}")
+async def get_review(session_id: str):
+    state = db_client.get_workflow_state(session_id)
+    if not state.analysis_id:
+        raise HTTPException(status_code=404, detail="No current analysis to review.")
+    return {
+        "analysis_id": state.analysis_id,
+        "status": state.status,
+        "governance": state.governance,
+        "human_review": state.human_review.model_dump(mode="json") if state.human_review else None,
+    }
+
+
+@router.post("/review/{session_id}")
+async def submit_review(session_id: str, req: ReviewRequest):
+    state = db_client.get_workflow_state(session_id)
+    if not state.analysis_id:
+        raise HTTPException(status_code=404, detail="No current analysis to review.")
+    if state.analysis_id != req.analysis_id:
+        raise HTTPException(status_code=409, detail="Analysis changed; fetch the current recommendation before reviewing.")
+    if (state.status != "awaiting_human_review"
+            or not state.blueprint
+            or (state.governance or {}).get("decision") != "HUMAN_REVIEW_REQUIRED"):
+        raise HTTPException(status_code=409, detail="Only a pending human review can be decided.")
+    state.human_review = HumanReview(**req.model_dump(), reviewed_at=datetime.now(timezone.utc))
+    state.status = "completed" if req.decision == "approve" else "rejected"
+    if req.decision == "reject":
+        state.blueprint = None
+    db_client.save_workflow_state(state)
+    return {
+        "status": state.status,
+        "analysis_id": state.analysis_id,
+        "human_review": state.human_review.model_dump(mode="json"),
+    }
 
 
 @router.post("/guardrail-check")

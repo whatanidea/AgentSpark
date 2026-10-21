@@ -1,7 +1,7 @@
 """
 End-to-end scenario test for AgentSense.
 
-Runs the full pipeline (intake → diagnostic → 6-stage orchestration → blueprint)
+Runs the full pipeline (intake → diagnostic → 7-stage orchestration → review)
 against the real FastAPI app via TestClient. Forces MOCK MODE so it is fully
 deterministic and runnable with no Azure credentials — `python test_e2e_scenario.py`.
 """
@@ -79,6 +79,17 @@ def run_tests():
     for key in ("architecture_doc", "mermaid_diagram", "cost_estimate", "roadmap", "code_scaffold"):
         assert key in bp, f"blueprint missing {key}"
     assert "governance" in bp and "suitability_score" in bp
+    assert bp["provisional"] is True and bp["status"] == "awaiting_human_review"
+
+    print("=== 5b. Explicit advisory human approval ===")
+    r = client.post(f"/api/v1/review/{session_id}", json={
+        "analysis_id": data["analysis_id"], "decision": "approve",
+        "reviewer": "E2E Reviewer", "note": "Validated assumptions and required human oversight.",
+    })
+    assert r.status_code == 200 and r.json()["status"] == "completed"
+    bp = client.get(f"/api/v1/blueprint/{session_id}").json()
+    assert bp["provisional"] is False and bp["human_review"]["decision"] == "approve"
+    assert bp["governance"]["decision"] == "HUMAN_REVIEW_REQUIRED"
 
     print("=== 6. Pattern retrieval endpoint ===")
     r = client.get("/api/v1/patterns", params={"q": "high compliance approval workflow", "k": 4})

@@ -1,45 +1,63 @@
-# Enterprise Governance Rules
-# Deterministic policies to evaluate agent recommendations.
-
-thresholds:
-  confidence_min: 70
-  confidence_high: 90
-
+# Ordered policies: every condition in a policy must match; first policy wins.
+# first_year_net_savings = annual gross labor savings - one-time build cost.
 policies:
   - id: REJECT_HIGH_RISK_AUTONOMY
-    condition: "autonomy_level == 'Fully Autonomous' and compliance == 'HIGH'"
+    conditions:
+      - {field: autonomy_level, operator: eq, value: Autonomous}
+      - {field: requires_hitl, operator: eq, value: true}
     decision: REJECT
-    reason: "High-compliance workflows cannot be fully autonomous."
+    reason: "A workflow requiring human oversight cannot be autonomous."
+
+  - id: REJECT_NOT_SUITABLE
+    conditions:
+      - {field: classification, operator: eq, value: Not Suitable}
+    decision: REJECT
+    reason: "Readiness is too low for an agentic solution; use standard software."
 
   - id: REJECT_UNSAFE
-    condition: "security == 'FAIL'"
+    conditions:
+      - {field: security, operator: eq, value: FAIL}
     decision: REJECT
-    reason: "Security assessment failed."
+    reason: "The limited architecture policy check failed."
 
   - id: REJECT_POOR_ROI
-    condition: "estimated_cost > expected_roi"
+    conditions:
+      - {field: first_year_net_savings, operator: lt, value: 0}
     decision: REJECT
-    reason: "Estimated cost exceeds expected ROI."
+    reason: "First-year gross labor savings do not cover the one-time implementation cost."
 
   - id: HITL_HIGH_COMPLIANCE
-    condition: "compliance == 'HIGH'"
+    conditions:
+      - {field: compliance, operator: eq, value: HIGH}
     decision: HUMAN_REVIEW_REQUIRED
     reason: "Workflow operates in a high-compliance domain."
 
+  - id: HITL_REQUIRED
+    conditions:
+      - {field: requires_hitl, operator: eq, value: true}
+    decision: HUMAN_REVIEW_REQUIRED
+    reason: "The readiness assessment requires human oversight."
+
   - id: HITL_RESTRICTED_DATA
-    condition: "data_sensitivity == 'RESTRICTED'"
+    conditions:
+      - {field: data_sensitivity, operator: eq, value: RESTRICTED}
     decision: HUMAN_REVIEW_REQUIRED
     reason: "Workflow handles restricted data."
 
   - id: HITL_LOW_CONFIDENCE
-    condition: "confidence < 70"
+    conditions:
+      - {field: confidence, operator: lt, value: 70}
     decision: HUMAN_REVIEW_REQUIRED
-    reason: "Recommendation confidence is below the minimum threshold."
+    reason: "Recommendation completeness is below the minimum threshold."
 
   - id: AUTO_APPROVE_SAFE
-    condition: "confidence > 90 and compliance == 'LOW' and security == 'PASS' and roi_positive and operational_risk == 'LOW'"
+    conditions:
+      - {field: confidence, operator: gt, value: 90}
+      - {field: compliance, operator: eq, value: LOW}
+      - {field: security, operator: eq, value: PASS}
+      - {field: first_year_net_savings, operator: gt, value: 0}
+      - {field: operational_risk, operator: eq, value: LOW}
     decision: AUTO_APPROVE
-    reason: "Workflow is low risk, highly confident, and positive ROI."
+    reason: "Workflow is low risk, sufficiently complete, and covers build cost in year one."
 
-# Fallback decision if no rule matches
 default_decision: HUMAN_REVIEW_REQUIRED

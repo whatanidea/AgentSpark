@@ -27,12 +27,15 @@ _MOCK_MERMAID = """graph TD
     U[Stakeholder] --> DA[Diagnostic Agent]
     DA --> RI[Agentification Readiness Index]
     RI --> MA[Mapping Agent]
-    RI --> RA[Recommendation Agent]
-    RA --> BA[Blueprint Agent]
-    BA --> VA[Validation Agent]
-    VA -->|approved| OUT[Blueprint + Scaffold]
-    VA -->|needs review| H[Human Reviewer]
-    H --> OUT"""
+    MA --> RA[Recommendation Agent]
+    RA --> ROI[ROI Engine]
+    ROI --> GOV[Governance Agent]
+    GOV -->|auto-approved| OUT[Blueprint + Scaffold]
+    GOV -->|review required| P[Provisional Blueprint]
+    GOV -->|rejected| ALT[Non-agentic Alternative]
+    P --> H[Human Reviewer]
+    H -->|approve recommendation| OUT
+    H -->|reject recommendation| ALT"""
 
 _MOCK_SCAFFOLD = """from fastapi import FastAPI
 from langgraph.graph import StateGraph, END
@@ -73,7 +76,7 @@ class BlueprintAgent:
                     "## Components\n- **Orchestrator** (Azure AI Foundry + LangGraph)\n"
                     "- **Specialist agents** (Azure OpenAI GPT-4o, function calling)\n"
                     "- **Knowledge** (Azure AI Search RAG)\n- **State/Memory** (Azure Cosmos DB)\n"
-                    "- **Governance** (validation agent + HITL gate + audit log)\n"
+                    "- **Governance** (ordered policies + advisory human review + audit trace)\n"
                 ),
                 mermaid_diagram=_MOCK_MERMAID,
                 cost_estimate="~$180–$320/month at low volume: App Service B1 (~$13), Cosmos DB serverless "
