@@ -191,7 +191,7 @@ class RuntimeTests(unittest.TestCase):
                 patch.object(health, "check_openai") as openai:
             ready, dependencies = health.readiness()
         self.assertTrue(ready)
-        self.assertEqual(set(dependencies.values()), {"demo"})
+        self.assertEqual(dependencies, {"openai": "demo", "search": "demo", "cosmos": "demo", "decision_archive": "ready"})
         openai.assert_not_called()
 
     def test_live_readiness_missing_configuration_in_a_fresh_process(self):

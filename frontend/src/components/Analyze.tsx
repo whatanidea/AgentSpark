@@ -48,17 +48,18 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
 
   return (
     <div className="space-y-6">
-      <header className="flex items-end justify-between flex-wrap gap-3">
+      <header className="page-header flex items-end justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold">Agentification Readiness</h1>
-          <p className="text-slate-400 mt-1">Diagnostic → Score (12 criteria) → Map → RAG Recommend → ROI → Govern → Blueprint or Alternative.</p>
+          <div className="eyebrow mb-2">Step 03 / Evaluate the opportunity</div>
+          <h1>Agentification Readiness</h1>
+          <p className="mt-2">A grounded assessment of readiness, value, architecture, and governance.</p>
         </div>
-        <Button onClick={run} disabled={!sessionId || busy}>▶ Run Multi-Agent Analysis</Button>
+        <Button aria-label="▶ Run Multi-Agent Analysis" onClick={run} disabled={!sessionId || busy}>Run Multi-Agent Analysis</Button>
       </header>
 
-      {!sessionId && <Card><p className="text-amber-300 text-sm">⚠️ Chat with the Diagnostic Agent first to describe a workflow.</p></Card>}
+      {!sessionId && <Card><p className="text-amber-800 text-sm">⚠️ Chat with the Diagnostic Agent first to describe a workflow.</p></Card>}
       {busy && <Card><Spinner label="Running the 7-stage agent flow…" /></Card>}
-      {err && <Card><p role="alert" className="text-rose-300 text-sm">❌ {err}</p></Card>}
+      {err && <Card><p role="alert" className="text-rose-700 text-sm">❌ {err}</p></Card>}
       <ROIAssumptionForm value={assumptions} onChange={setAssumptions} disabled={busy} />
       <AnalysisEvidence diagnosis={data?.diagnosis} scenario={data?.demo_scenario} />
       {data?.status && score && (
@@ -73,7 +74,7 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
         </Card>
       )}
       {data && !score && data.status !== "needs_clarification" && !busy && !err && (
-        <Card><p className="text-amber-300 text-sm">
+        <Card><p className="text-amber-800 text-sm">
           ⚠️ No workflow captured yet. Open the <b>Diagnostic Agent</b>, describe a real workflow
           (or click “Use a sample answer”), then run the analysis.
         </p></Card>
@@ -93,7 +94,7 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
                 <Pill tone="slate">{score.autonomy_level}</Pill>
                 <Pill tone={score.requires_hitl ? "amber" : "green"}>{score.requires_hitl ? "HITL required" : "HITL optional"}</Pill>
               </div>
-              <p className="text-sm text-slate-300 mt-3 font-semibold">{score.recommended_pattern}</p>
+              <p className="text-sm text-slate-700 mt-3 font-semibold">{score.recommended_pattern}</p>
               <p className="text-xs text-slate-500 mt-1">{score.explanation}</p>
             </Card>
 
@@ -112,7 +113,7 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
               {score.criteria?.map((c: any) => (
                 <div key={c.name}>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="font-semibold text-slate-200">{c.name}</span>
+                    <span className="font-semibold text-slate-700">{c.name}</span>
                     <span className="text-slate-500">+{c.contribution}/{c.weight}</span>
                   </div>
                   <Bar pct={c.raw * 100} color={c.raw >= 0.66 ? "#10b981" : c.raw >= 0.33 ? "#f59e0b" : "#ef4444"} />
@@ -125,23 +126,23 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
           {/* Recommendation + Validation */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <Card title="Architecture Recommendation">
-              <p className="text-sm text-slate-200">{strategy.automation_strategy}</p>
+              <p className="text-sm text-slate-700 leading-relaxed">{strategy.automation_strategy}</p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {(strategy.recommended_patterns || []).map((p: string) => <Pill key={p}>{p}</Pill>)}
               </div>
               {strategy.data_completeness != null && <p className="text-xs text-slate-500 mt-2">Data completeness: {Math.round(strategy.data_completeness * 100)}% — not model confidence.</p>}
-              <div className="text-xs text-slate-400 mt-3 space-y-1">
-                <p><b className="text-slate-300">Memory:</b> {strategy.memory_strategy}</p>
-                <p><b className="text-slate-300">Governance:</b> {strategy.governance}</p>
-                <p><b className="text-slate-300">Why:</b> {strategy.justification}</p>
-                {strategy.critique && <p className="text-amber-300/90"><b>⚠ Self-critique:</b> {strategy.critique}</p>}
+              <div className="text-xs text-slate-600 mt-3 space-y-2 leading-relaxed">
+                <p><b className="text-slate-700">Memory:</b> {strategy.memory_strategy}</p>
+                <p><b className="text-slate-700">Governance:</b> {strategy.governance}</p>
+                <p><b className="text-slate-700">Why:</b> {strategy.justification}</p>
+                {strategy.critique && <p className="text-amber-800"><b>⚠ Self-critique:</b> {strategy.critique}</p>}
               </div>
             </Card>
 
             <Card title="Original Policy Assessment">
               {governance && (
                 <>
-                  <div className="flex items-center gap-2 mb-3">
+                  <div className="flex items-center flex-wrap gap-2 mb-3">
                     <Pill tone={governance.overall_risk === "Critical" || governance.overall_risk === "High" ? "red" : governance.overall_risk === "Medium" ? "amber" : "green"}>Overall Risk: {governance.overall_risk}</Pill>
                     <Pill tone={governance.decision === "REJECT" ? "red" : governance.decision === "HUMAN_REVIEW_REQUIRED" ? "amber" : "green"}>
                       {governance.decision === "REJECT" ? "🔴 Rejected" : governance.decision === "HUMAN_REVIEW_REQUIRED" ? "🟡 Human review required" : "🟢 Auto-approved"}
@@ -149,17 +150,17 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
                   </div>
                   
                   {governance.reason && (
-                    <p className="text-xs text-slate-300 mb-4 bg-white/5 p-2 rounded">
+                    <p className="text-xs text-slate-600 mb-4 bg-slate-50 p-3 rounded-lg leading-relaxed">
                       <b>Rationale:</b> {governance.reason}
                     </p>
                   )}
 
                   {governance.triggered_rules && governance.triggered_rules.length > 0 && (
                     <div className="mb-4">
-                      <p className="text-xs font-bold text-slate-400 mb-1">Triggered Policies:</p>
+                      <p className="text-xs font-semibold text-slate-600 mb-2">Triggered Policies:</p>
                       <div className="flex flex-wrap gap-1.5">
                         {governance.triggered_rules.map((rule: string) => (
-                          <span key={rule} className="text-[10px] bg-indigo-900/40 text-indigo-300 px-2 py-0.5 rounded border border-indigo-500/30 font-mono">
+                          <span key={rule} className="text-[11px] bg-teal-50 text-teal-800 px-2 py-1 rounded border border-teal-200 font-mono">
                             {rule}
                           </span>
                         ))}
@@ -168,18 +169,18 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
                   )}
 
                   <details className="cursor-pointer group">
-                    <summary className="text-sm font-semibold text-violet-300 mb-2">Show 8-Module Assessment Detail</summary>
-                    <div className="space-y-3 mt-3 pt-3 border-t border-white/10">
+                    <summary className="text-sm font-semibold text-teal-700 mb-2">Show 8-Module Assessment Detail</summary>
+                    <div className="space-y-3 mt-3 pt-3 border-t border-slate-200">
                       {Object.entries(governance.assessments || {}).map(([name, a]: [string, any]) => (
-                        <div key={name} className="text-xs bg-white/[0.02] p-2 rounded">
+                        <div key={name} className="text-xs bg-slate-50 p-3 rounded-lg">
                           <div className="flex justify-between items-start mb-1">
-                            <span className="font-bold text-slate-200">
+                            <span className="font-semibold text-slate-700">
                               {a.status === "pass" ? "✅" : a.status === "warn" ? "⚠️" : "❌"} {name === "Confidence" ? "Data Completeness (legacy policy key: Confidence)" : name}
                             </span>
                             <span className="text-[10px] text-slate-500 uppercase">{a.risk_level} Risk</span>
                           </div>
-                          <p className="text-slate-400 mt-0.5">{a.reason}</p>
-                          <p className="text-[10px] text-violet-300/80 mt-1">↳ {a.recommendation}</p>
+                          <p className="text-slate-600 mt-1 leading-relaxed">{a.reason}</p>
+                          <p className="text-[11px] text-teal-700 mt-2">↳ {a.recommendation}</p>
                         </div>
                       ))}
                     </div>
@@ -193,11 +194,11 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
           <Card title="Grounded Design Patterns · Keyword retrieval + required design IDs">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {patterns.map((p: any) => (
-                <div key={p.id || p.name} className="rounded-xl border border-white/10 bg-white/[0.02] p-3">
-                  <div className="text-sm font-bold text-violet-300">{p.name} <span className="text-[10px] text-slate-500">· {p.category}</span></div>
-                  <p className="text-xs text-slate-400 mt-0.5">{p.description}</p>
+                <div key={p.id || p.name} className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
+                  <div className="text-sm font-semibold text-teal-800">{p.name} <span className="text-[11px] text-slate-500">· {p.category}</span></div>
+                  <p className="text-xs text-slate-600 mt-2 leading-relaxed">{p.description}</p>
                   <p className="text-[11px] text-slate-500 mt-1"><i>When:</i> {p.when_to_use}</p>
-                  <a className="text-xs text-violet-300 underline" href={p.source_url} target="_blank" rel="noreferrer">{p.id} · {p.source_ref}</a>
+                  <a className="text-xs text-teal-700 underline break-words" href={p.source_url} target="_blank" rel="noreferrer">{p.id} · {p.source_ref}</a>
                   <p className="text-[10px] text-slate-500 break-all">Snapshot SHA256: {p.content_sha256}</p>
                 </div>
               ))}
@@ -207,12 +208,12 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
           <Card title="Agent Trace · Observability">
             <div className="space-y-1">
               {trace.map((s: any) => (
-                <div key={s.step} className="flex items-center gap-3 text-xs border-b border-white/5 py-1.5">
+                <div key={s.step} className="flex items-start flex-wrap sm:flex-nowrap gap-3 text-xs border-b border-slate-100 py-3">
                   <span className="text-slate-600 w-5">{s.step}</span>
                   <span>{s.status === "ok" ? "✅" : s.status === "warn" ? "⚠️" : "❌"}</span>
-                  <span className="font-bold text-violet-300 w-40">{s.agent}</span>
-                  <span className="flex-1 text-slate-300">{s.detail}</span>
-                  <span className="text-slate-600">{s.duration_ms} ms</span>
+                  <span className="font-semibold text-teal-800 sm:w-36">{s.agent}</span>
+                  <span className="flex-1 min-w-0 break-words text-slate-600">{s.detail}</span>
+                  <span className="text-slate-500 whitespace-nowrap">{s.duration_ms} ms</span>
                 </div>
               ))}
             </div>
@@ -226,7 +227,7 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
 
 function Metric({ label, value, color }: any) {
   return (
-    <div className="rounded-xl border border-white/10 bg-white/[0.02] p-3 text-center">
+    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
       <div className="text-2xl font-extrabold" style={{ color }}>{value}</div>
       <div className="text-[10px] uppercase tracking-wide text-slate-500 mt-1">{label}</div>
     </div>

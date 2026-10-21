@@ -256,6 +256,7 @@ def run_orchestration(session_id: str, roi_assumptions: ROIAssumptions | None = 
     db_state.status = result["status"]
     db_state.analysis_id = str(uuid4()) if result["status"] != "needs_clarification" else None
     db_state.human_review = None
+    db_state.decision_recorded_at = None
     
     from app.utils.models import TokenUsage
     db_state.token_usage = TokenUsage(

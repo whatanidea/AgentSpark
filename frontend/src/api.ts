@@ -3,7 +3,26 @@
 const BASE = "/api/v1";
 let accessToken = "";
 export function setAccessToken(token: string) { accessToken = token; }
-export type AuthConfig = { mode: "local-demo" | "oidc"; retention_hours: number };
+export type AuthConfig = { mode: "local-demo" | "oidc"; retention_hours: number; archive_retention_days: number };
+export type HomeStatus = "draft" | "pending_review" | "approved" | "rejected";
+export type HomeItem = {
+  kind: "session" | "decision"; session_id: string; analysis_id: string | null;
+  title: string; domain: string; status: HomeStatus; score: number | null;
+  updated_at: string; expires_at: string; sort_key: string; legacy: boolean;
+};
+export type HomePage = { items: HomeItem[]; next_cursor: string | null; archive_retention_days: number };
+export type ArchivedDecision = {
+  summary: HomeItem;
+  details: {
+    workflow_intelligence: { summary: string; systems: string[] } | null;
+    suitability_score: { agent_score: number; recommended_pattern: string; explanation: string } | null;
+    human_review: { decision: "approve" | "reject"; reviewer: string; note: string; reviewed_at: string } | null;
+    governance: { decision: string; overall_risk: string; reason: string } | null;
+    architecture_doc: string; cost_estimate: string; roadmap: string;
+    retrieved_patterns: { id: string; name: string; source_ref: string; content_sha256: string }[];
+    roi: import("./components/ROIReport").ROIResult | null;
+  };
+};
 export type Identity = { identity: string; can_review: boolean };
 export type SessionSnapshot = {
   session_id: string;
@@ -88,6 +107,11 @@ export const api = {
   me: (): Promise<Identity> => get("/auth/me"),
   session: (id: string): Promise<SessionSnapshot> => get(`/sessions/${encodeURIComponent(id)}`),
   deleteSession: (id: string) => request(`/sessions/${encodeURIComponent(id)}`, "DELETE"),
+  home: (status = "all", cursor = ""): Promise<HomePage> => get(`/home?${new URLSearchParams({ status, cursor })}`),
+  decision: (session: string, analysis: string): Promise<ArchivedDecision> =>
+    get(`/decisions/${encodeURIComponent(session)}/${encodeURIComponent(analysis)}`),
+  deleteArchivedWorkflow: (session: string, analysis: string) =>
+    request(`/decisions/${encodeURIComponent(session)}/${encodeURIComponent(analysis)}`, "DELETE"),
   health: async (): Promise<RuntimeHealth> => {
     const response = await fetch("/health");
     if (!response.ok) throw new Error(`Health check failed (${response.status})`);

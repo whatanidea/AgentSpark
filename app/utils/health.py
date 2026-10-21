@@ -32,7 +32,13 @@ def check_search() -> None:
 
 def readiness() -> tuple[bool, dict[str, str]]:
     if demo_mode():
-        return True, {"openai": "demo", "search": "demo", "cosmos": "demo"}
+        dependencies = {"openai": "demo", "search": "demo", "cosmos": "demo"}
+        try:
+            db_client.archive.check_ready()
+            dependencies["decision_archive"] = "ready"
+        except DependencyUnavailable:
+            dependencies["decision_archive"] = "unavailable"
+        return dependencies["decision_archive"] == "ready", dependencies
     dependencies = {}
     for name, check in (("openai", check_openai), ("search", check_search), ("cosmos", db_client.check_ready)):
         try:

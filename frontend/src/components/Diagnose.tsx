@@ -49,17 +49,18 @@ export default function Diagnose({ sessionId, context, initialHistory = [], demo
 
   return (
     <div className="space-y-6">
-      <header>
-        <h1 className="text-3xl font-extrabold">Diagnostic Interview</h1>
-        <p className="text-slate-400 mt-1">
+      <header className="page-header">
+        <div className="eyebrow mb-2">Step 02 / Discover the workflow</div>
+        <h1>Diagnostic Interview</h1>
+        <p className="mt-2">
           Describe the workflow. Every message is screened by the security guardrail before it reaches the AI.
         </p>
       </header>
 
       {context ? (
-        <div className="rounded-xl border border-violet-500/30 bg-violet-500/10 px-4 py-3 text-sm">
-          <span className="font-semibold text-violet-200">Context from Intake:</span>{" "}
-          <span className="text-slate-300">
+        <div className="rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm leading-relaxed">
+          <span className="font-semibold text-teal-800">Context from Intake:</span>{" "}
+          <span className="text-slate-600">
             {[context.business_domain, context.team_size, context.existing_systems]
               .filter(Boolean).join(" · ")}
             {context.compliance_requirements ? ` · Compliance: ${context.compliance_requirements}` : ""}
@@ -67,30 +68,31 @@ export default function Diagnose({ sessionId, context, initialHistory = [], demo
         </div>
       ) : !sessionId ? (
         <Card>
-          <p className="text-slate-400 text-sm">
+          <p className="text-slate-600 text-sm">
             💡 Tip: completing <b>Enterprise Intake</b> first gives the agent richer context — but you can
             start chatting here directly and a session will be created automatically.
           </p>
         </Card>
       ) : null}
 
-      <Card>
-        <div role="log" aria-live="polite" aria-label="Diagnostic conversation" className="space-y-3 max-h-[46vh] overflow-y-auto pr-1">
+      <Card title="Your conversation" description="Share the steps, decisions, and exceptions that make this workflow challenging.">
+        <div role="log" aria-live="polite" aria-label="Diagnostic conversation" className="space-y-5 max-h-[46vh] overflow-y-auto pr-1">
           {!history.some((m) => m.role === "user") && (
             <div className="text-slate-500 text-sm">
               {history.length === 0 ? "No messages yet. " : ""}
-              <button className="text-violet-300 underline hover:text-violet-200" onClick={useSample} disabled={busy}>
+              <button className="text-teal-700 underline underline-offset-4 hover:text-teal-900" onClick={useSample} disabled={busy}>
                 Use invoice sample (selects fictional fixture in demo) →
               </button>
             </div>
           )}
           {history.map((m, i) => (
             <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
-                m.role === "user" ? "bg-violet-600/30 border border-violet-500/30"
-                : m.blocked ? "bg-rose-500/15 border border-rose-500/40 text-rose-200"
-                : "bg-white/5 border border-white/10"
+              <div className={`max-w-[90%] md:max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed break-words ${
+                m.role === "user" ? "bg-teal-50 border border-teal-200 text-teal-950"
+                : m.blocked ? "bg-rose-50 border border-rose-200 text-rose-800"
+                : "bg-slate-50 border border-slate-200 text-slate-700"
               }`}>
+                <p className="text-[10px] uppercase tracking-wide font-semibold mb-1.5">{m.role === "user" ? "You" : m.blocked ? "Security guardrail" : "AgentSpark"}</p>
                 {m.content}
               </div>
             </div>
@@ -98,11 +100,11 @@ export default function Diagnose({ sessionId, context, initialHistory = [], demo
           {busy && <div className="text-slate-500 text-sm">…thinking</div>}
         </div>
 
-        <div className="flex gap-2 mt-4">
+        <div className="flex gap-3 mt-6 pt-5 border-t border-slate-100">
           <input
             aria-label="Describe your workflow"
             maxLength={8000}
-            className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-sm outline-none focus:border-violet-500/60"
+            className="form-control flex-1"
             value={text}
             onChange={(e) => setText(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && send()}

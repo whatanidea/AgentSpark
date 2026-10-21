@@ -141,6 +141,15 @@ class OIDCValidationTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["human_review"]["reviewer"], "owner-a")
         self.assertNotIn("forged-name", response.text)
+        detail = f"/api/v1/decisions/{sid}/{analysis['analysis_id']}"
+        self.assertEqual(self.client.get(detail, headers=reviewer).status_code, 200)
+        other = self.headers(sub="owner-b", roles=["AgentSense.Reviewer"])
+        self.assertEqual(self.client.get(detail, headers=other).status_code, 404)
+        self.assertEqual(self.client.delete(detail, headers=other).status_code, 404)
+        own_home = self.client.get("/api/v1/home?status=approved", headers=reviewer).json()
+        self.assertIn(sid, [item["session_id"] for item in own_home["items"]])
+        other_home = self.client.get("/api/v1/home", headers=other).json()
+        self.assertNotIn(sid, [item["session_id"] for item in other_home["items"]])
 
     def test_legacy_unowned_sessions_not_claimed_by_signed_in_user(self):
         sid = str(uuid4())
@@ -258,6 +267,7 @@ class PrivacyRetentionTests(unittest.TestCase):
         document = WorkflowState(session_id=self.sid).model_dump(mode="json")
         document["_etag"] = "version-one"
         db.container.read_item.return_value = document
+        db.container.query_items.return_value = []
         db.delete_workflow_state(self.sid)
         db.container.delete_item.assert_called_once_with(
             item=self.sid, partition_key=self.sid, etag="version-one", match_condition=MatchConditions.IfNotModified)

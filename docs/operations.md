@@ -96,8 +96,49 @@ loopback, drops capabilities, prevents privilege escalation and uses a read-only
 filesystem with temporary scratch space. A configured `.env` can select live or
 production mode; it must then include the OIDC/Azure prerequisites. Do not expose
 the shared local demo publicly or scale it to multiple workers. Process-local
-sessions disappear on restart. Compose is a local launcher, not a production
-orchestrator.
+sessions disappear on restart, but the `decision_archive` named volume preserves
+SQLite decision snapshots at `/home/agentsense/.agentspark/decisions.sqlite3`.
+Normal `docker compose down` preserves that volume; removing it destroys the demo
+archive. The archive mount is writable while the root filesystem remains
+read-only. Compose is a local launcher, not a production orchestrator.
+
+### Decision archive operations
+
+`DECISION_ARCHIVE_RETENTION_DAYS` defaults to 30 (allowed range 1–3650).
+Set it before startup; it affects only newly finalized decisions. Active-session
+retention remains controlled independently by `SESSION_RETENTION_HOURS`.
+Local non-container previews use `~/.agentspark/decisions.sqlite3` unless
+`DEMO_ARCHIVE_PATH` is configured. Protect the directory with appropriate OS
+permissions; demo identity/data remain shared, not tenant-isolated. `/ready`
+checks that the demo archive is writable and reports failures without falling
+back to transient storage.
+
+Live archives use the existing TTL-enabled `/session_id` Cosmos container.
+Retain range indexing for `home.sort_key`; Home performs bounded owner-filtered
+cross-partition keyset queries. Final session updates and decision creation use a
+same-partition transaction and ETag preconditions. Legacy session summaries are
+listed in a separate bounded fallback phase and are not backfilled into archives.
+Review costs, indexing and representative load with real Cosmos before release.
+Contract tests do not substitute for cloud integration testing.
+
+Workflow deletion cascades to every retained snapshot/comment. Cosmos deletion
+uses batches of at most 99 archive documents before conditionally deleting the
+active session. A failure can leave a partial deletion; the API reports failure,
+and operators/users must retry rather than assume success. Application expiry is
+immediate; Cosmos TTL cleanup is asynchronous and local SQLite expiry is pruned
+on access. SQLite secure deletion is enabled, but filesystem snapshots, backups,
+logs, telemetry and user exports require separate retention controls.
+
+These are minimized, deletable decision snapshots, not an immutable audit log.
+They omit complete transcripts and code scaffolds. Current live access is personal
+and owner-isolated; organizations, team memberships and shared permissions are
+not implemented. Future enterprise rollout requires a deliberate tenant/partition
+and RBAC design rather than merely adding organization filters to the UI.
+
+Browser/backend gates use isolated temporary archives and remove their own files.
+The CI container smoke uses a disposable writable tmpfs archive mount for UID/GID
+10001; it does not persist fictional CI decisions. Local Docker validation is
+unavailable on hosts without Docker; require the hosted container gate before merge.
 
 The image health check uses dependency-free `/health`. `/ready` probes live
 dependencies, including a billable one-token OpenAI call: run it conservatively,

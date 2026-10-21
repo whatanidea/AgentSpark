@@ -19,9 +19,12 @@ LABEL org.opencontainers.image.title="AgentSense" \
 ENV PATH="/opt/venv/bin:${PATH}" \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    ENVIRONMENT=production
+    ENVIRONMENT=production \
+    DEMO_ARCHIVE_PATH=/home/agentsense/.agentspark/decisions.sqlite3
 WORKDIR /app
-RUN useradd --create-home --uid 10001 agentsense
+RUN useradd --create-home --uid 10001 agentsense \
+    && mkdir /home/agentsense/.agentspark \
+    && chown 10001:10001 /home/agentsense/.agentspark
 COPY --from=dependencies /opt/venv /opt/venv
 COPY app/ ./app/
 COPY governance_rules.yaml ./

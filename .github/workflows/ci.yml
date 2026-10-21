@@ -85,6 +85,7 @@ jobs:
           fi
           grep -q "Set AGENTSENSE_MODE=demo or live in production" unconfigured.log
           docker run --detach --name agentsense-smoke --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+            --tmpfs /home/agentsense/.agentspark:rw,noexec,nosuid,size=16m,uid=10001,gid=10001 \
             --cap-drop ALL --security-opt no-new-privileges \
             -e ENVIRONMENT=development -e AGENTSENSE_MODE=demo -e AGENTSENSE_AUTH_MODE=local-demo \
             -p 127.0.0.1:8000:8000 "$IMAGE"

@@ -15,6 +15,7 @@ from app.utils.models import WorkflowState
 from app.utils.runtime import demo_mode, require_config
 from app.security.auth import principal_context
 from app.security.guardrails import redact_data
+from app.database.decision_archive import LocalDecisionArchive, HomeItem, decode_record, decision_record, summary, timestamp
 
 logger = logging.getLogger(__name__)
 PRIVATE_FIELDS = (
@@ -39,6 +40,7 @@ class DatabaseClient:
         self.mock_db: dict[str, dict] = {}
         self._lock = RLock()
         self.container = None
+        self.archive = LocalDecisionArchive()
         if self.use_mock:
             logger.info("Explicit demo mode: using process-local session storage.")
 
@@ -98,7 +100,16 @@ class DatabaseClient:
 
     def save_workflow_state(self, state: WorkflowState) -> None:
         self._authorize(state)
+        now = datetime.now(timezone.utc)
         document = private_document(state.model_dump(mode="json"))
+        safe_state = WorkflowState.model_validate(document)
+        archive = (decision_record(safe_state, now, self.archive.retention_days)
+                   if state.analysis_id and state.status in ("completed", "rejected")
+                   and state.decision_recorded_at is None else None)
+        if archive:
+            document["decision_recorded_at"] = timestamp(now)
+        document["home"] = summary(safe_state, now).model_dump()
+        document["home_visible"] = not (archive or state.decision_recorded_at)
         document["id"] = state.session_id
         document["ttl"] = max(1, int((state.expires_at - datetime.now(timezone.utc)).total_seconds()))
         if self.use_mock:
@@ -109,13 +120,28 @@ class DatabaseClient:
                 ):
                     logger.warning("Demo session write conflict.")
                     raise ConcurrentUpdate()
+                if archive:
+                    self.archive.put(archive)
                 document["_etag"] = str(uuid4())
                 self.mock_db[state.session_id] = deepcopy(document)
                 state._etag = document["_etag"]
+                if archive:
+                    state.decision_recorded_at = now
             return
         try:
             container = self._get_container()
-            if state._etag is None:
+            if archive:
+                operation = (("create", (document,)) if state._etag is None else
+                             ("replace", (state.session_id, document), {"if_match_etag": state._etag}))
+                result = container.execute_item_batch(
+                    [operation, ("create", (archive.model_dump(),))], partition_key=state.session_id,
+                )
+                try:
+                    response = result[0]["resourceBody"]
+                except (IndexError, KeyError, TypeError) as exc:
+                    logger.error("Cosmos decision batch returned an invalid response.")
+                    raise InvalidDependencyResponse("cosmos") from exc
+            elif state._etag is None:
                 response = container.create_item(body=document)
             else:
                 response = container.replace_item(
@@ -124,6 +150,14 @@ class DatabaseClient:
                 )
             saved = self._decode(response)
             state._etag = saved._etag
+            if archive:
+                state.decision_recorded_at = now
+        except exceptions.CosmosBatchOperationError as exc:
+            if exc.status_code in (404, 409, 412):
+                logger.warning("Cosmos decision write conflict.")
+                raise ConcurrentUpdate() from exc
+            logger.error("Cosmos decision batch failed; dependency details withheld.")
+            raise DependencyUnavailable("cosmos") from exc
         except exceptions.CosmosHttpResponseError as exc:
             if exc.status_code == 404:
                 self.check_ready()
@@ -143,22 +177,153 @@ class DatabaseClient:
                 current = self.mock_db.get(session_id)
                 if current is None or current["_etag"] != state._etag:
                     raise ConcurrentUpdate()
+                self.archive.delete_session(state.owner_id, session_id)
                 del self.mock_db[session_id]
             return
         try:
+            self._delete_cosmos_archives(session_id, state.owner_id)
             self._get_container().delete_item(
                 item=session_id, partition_key=session_id, etag=state._etag,
                 match_condition=MatchConditions.IfNotModified,
             )
-        except exceptions.CosmosHttpResponseError as exc:
-            if exc.status_code in (404, 412):
+        except (exceptions.CosmosHttpResponseError, exceptions.CosmosBatchOperationError) as exc:
+            if exc.status_code in (404, 409, 412):
+                logger.warning("Cosmos workflow deletion conflict.")
                 raise ConcurrentUpdate() from exc
+            logger.error("Cosmos workflow deletion failed; dependency details withheld.")
             raise DependencyUnavailable("cosmos") from exc
         except (AzureError, OSError) as exc:
+            logger.error("Cosmos workflow deletion failed; dependency details withheld.")
             raise DependencyUnavailable("cosmos") from exc
+
+    def _delete_cosmos_archives(self, session_id: str, owner: str):
+        container = self._get_container()
+        while True:
+            documents = list(container.query_items(
+                query="SELECT TOP 99 c.id, c._etag FROM c WHERE c.document_type = 'decision_archive' AND c.owner_id = @owner",
+                parameters=[{"name": "@owner", "value": owner}], partition_key=session_id,
+            ))
+            if not documents:
+                return
+            container.execute_item_batch([
+                ("delete", (document["id"],), {"if_match_etag": document["_etag"]})
+                for document in documents
+            ], partition_key=session_id)
+
+    def get_decision(self, session_id: str, analysis_id: str):
+        owner = principal_context.get().owner_id
+        if self.use_mock:
+            record = self.archive.get(owner, session_id, analysis_id)
+        else:
+            try:
+                record = decode_record(self._get_container().read_item(
+                    item=f"decision-{analysis_id}", partition_key=session_id))
+            except exceptions.CosmosResourceNotFoundError:
+                self.check_ready()
+                record = None
+            except (AzureError, OSError) as exc:
+                logger.error("Decision read failed; dependency details withheld.")
+                raise DependencyUnavailable("cosmos") from exc
+        if (record is None or record.owner_id != owner or record.session_id != session_id
+                or record.home.expires_at <= timestamp(datetime.now(timezone.utc))):
+            raise WorkflowNotFound()
+        return record
+
+    def delete_archived_workflow(self, session_id: str, analysis_id: str):
+        record = self.get_decision(session_id, analysis_id)
+        if self.use_mock:
+            with self._lock:
+                self.archive.delete_session(record.owner_id, session_id)
+                current = self.mock_db.get(session_id)
+                if current and current.get("owner_id") == record.owner_id:
+                    del self.mock_db[session_id]
+            return
+        try:
+            container = self._get_container()
+            try:
+                current = container.read_item(item=session_id, partition_key=session_id)
+            except exceptions.CosmosResourceNotFoundError:
+                current = None
+            self._delete_cosmos_archives(session_id, record.owner_id)
+            if current and current.get("owner_id") == record.owner_id:
+                container.delete_item(item=session_id, partition_key=session_id,
+                                      etag=current["_etag"], match_condition=MatchConditions.IfNotModified)
+        except (exceptions.CosmosHttpResponseError, exceptions.CosmosBatchOperationError) as exc:
+            if exc.status_code in (404, 409, 412):
+                raise ConcurrentUpdate() from exc
+            logger.error("Decision deletion failed; retry to finish removing this workflow.")
+            raise DependencyUnavailable("cosmos") from exc
+        except (AzureError, OSError) as exc:
+            logger.error("Decision deletion failed; dependency details withheld.")
+            raise DependencyUnavailable("cosmos") from exc
+
+    def list_home(self, status: str = "all", cursor: str = "", limit: int = 20):
+        owner = principal_context.get().owner_id
+        now = datetime.now(timezone.utc)
+        if self.use_mock:
+            with self._lock:
+                active = [
+                    HomeItem.model_validate(document.get("home") or summary(
+                        self._decode(document), now, legacy=True).model_dump())
+                    for document in self.mock_db.values()
+                    if document.get("owner_id") == owner and document.get("home_visible", True)
+                    and self._decode(document).expires_at > now
+                ]
+            records = self.archive.page(owner, status, cursor, limit + 1)
+            records.extend(item for item in active if (status == "all" or item.status == status)
+                           and (not cursor or item.sort_key < cursor))
+            records.sort(key=lambda item: item.sort_key, reverse=True)
+        else:
+            try:
+                parameters = [
+                    {"name": "@owner", "value": owner}, {"name": "@now", "value": timestamp(now)},
+                    {"name": "@status", "value": status}, {"name": "@cursor", "value": cursor},
+                ]
+                records = [] if cursor.startswith("legacy:") else [
+                    HomeItem.model_validate(item) for item in self._get_container().query_items(
+                        query=f"SELECT TOP {limit + 1} VALUE c.home FROM c WHERE c.owner_id = @owner "
+                        "AND c.home_visible = true AND c.home.expires_at > @now "
+                        "AND (@status = 'all' OR c.home.status = @status) "
+                        "AND (@cursor = '' OR c.home.sort_key < @cursor) ORDER BY c.home.sort_key DESC",
+                        parameters=parameters, enable_cross_partition_query=True,
+                    )
+                ]
+                if len(records) <= limit:
+                    legacy_cursor = cursor.removeprefix("legacy:") if cursor.startswith("legacy:") else ""
+                    legacy = self._get_container().query_items(
+                        query=f"SELECT TOP {limit + 1 - len(records)} c.id, c.session_id, c.owner_id, c.expires_at, "
+                        "c.status, c.enterprise_context, c.workflow_intelligence, c.suitability_score, c.analysis_id, c._etag "
+                        "FROM c WHERE c.owner_id = @owner AND NOT IS_DEFINED(c.home) AND IS_DEFINED(c.session_id) "
+                        "AND c.expires_at > @now AND (@cursor = '' OR c.id < @cursor) "
+                        "AND (@status = 'all' OR (@status = 'approved' AND c.status = 'completed') "
+                        "OR (@status = 'rejected' AND c.status = 'rejected') "
+                        "OR (@status = 'pending_review' AND c.status = 'awaiting_human_review') "
+                        "OR (@status = 'draft' AND c.status NOT IN ('completed', 'rejected', 'awaiting_human_review'))) "
+                        "ORDER BY c.id DESC",
+                        parameters=[*parameters[:3], {"name": "@cursor", "value": legacy_cursor}],
+                        enable_cross_partition_query=True,
+                    )
+                    for document in legacy:
+                        state = self._decode(document)
+                        self._authorize(state)
+                        item = summary(state, now, legacy=True)
+                        item.updated_at = ""
+                        item.sort_key = f"legacy:{state.session_id}"
+                        records.append(item)
+            except (AzureError, OSError) as exc:
+                logger.error("Personal workflow listing failed; dependency details withheld.")
+                raise DependencyUnavailable("cosmos") from exc
+            except ValidationError as exc:
+                logger.error("Personal workflow summary is invalid; payload withheld.")
+                raise InvalidDependencyResponse("cosmos") from exc
+        page = records[:limit]
+        return {"items": [item.model_dump() for item in page],
+                "next_cursor": page[-1].sort_key if len(records) > limit else None,
+                "archive_retention_days": self.archive.retention_days}
 
     def check_ready(self) -> None:
         if self.use_mock:
+            self.archive.check_ready()
             return
         try:
             properties = self._get_container().read()

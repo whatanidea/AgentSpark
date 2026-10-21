@@ -125,7 +125,7 @@ class DeliveryConfigurationTests(unittest.TestCase):
 
     def test_compose_does_not_shadow_the_built_frontend_or_expose_shared_demo_publicly(self):
         service = yaml.safe_load((ROOT / "docker-compose.yml").read_text())["services"]["agentsense"]
-        self.assertNotIn("volumes", service)
+        self.assertEqual(service["volumes"], ["decision_archive:/home/agentsense/.agentspark"])
         self.assertEqual(service["ports"], ["127.0.0.1:8000:8000"])
         self.assertTrue(service["read_only"])
         self.assertEqual(service["cap_drop"], ["ALL"])

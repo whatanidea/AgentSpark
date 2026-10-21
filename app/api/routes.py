@@ -18,7 +18,8 @@ router = APIRouter()
 
 @router.get("/auth/config")
 def auth_config():
-    return {"mode": auth_settings.mode, "retention_hours": int(os.getenv("SESSION_RETENTION_HOURS", "24"))}
+    return {"mode": auth_settings.mode, "retention_hours": int(os.getenv("SESSION_RETENTION_HOURS", "24")),
+            "archive_retention_days": db_client.archive.retention_days}
 
 
 @router.get("/auth/me")
@@ -37,6 +38,27 @@ def restore_session(session_id: SessionId):
 @router.delete("/sessions/{session_id}")
 def delete_session(session_id: SessionId):
     db_client.delete_workflow_state(session_id)
+    return {"status": "deleted"}
+
+
+@router.get("/home")
+def personal_home(
+    status: Literal["all", "draft", "pending_review", "approved", "rejected"] = "all",
+    cursor: Annotated[str, Query(max_length=512, pattern=r"^[A-Za-z0-9_.:+-]*$")] = "",
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+):
+    return db_client.list_home(status, cursor, limit)
+
+
+@router.get("/decisions/{session_id}/{analysis_id}")
+def archived_decision(session_id: SessionId, analysis_id: SessionId):
+    record = db_client.get_decision(session_id, analysis_id)
+    return {"summary": record.home.model_dump(), "details": record.details}
+
+
+@router.delete("/decisions/{session_id}/{analysis_id}")
+def delete_archived_workflow(session_id: SessionId, analysis_id: SessionId):
+    db_client.delete_archived_workflow(session_id, analysis_id)
     return {"status": "deleted"}
 
 
