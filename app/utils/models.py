@@ -1,5 +1,12 @@
 from pydantic import BaseModel, Field
-from typing import List, Optional, Dict, Any
+from typing import List, Optional, Dict, Any, Literal
+from datetime import datetime
+
+
+AutonomyLevel = Literal["Autonomous", "Supervised", "Assisted", "Manual"]
+GovernanceDecision = Literal["AUTO_APPROVE", "HUMAN_REVIEW_REQUIRED", "REJECT"]
+RiskLevel = Literal["Low", "Medium", "High", "Critical"]
+WorkflowStatus = Literal["init", "processing", "awaiting_human_review", "completed", "rejected"]
 
 
 # ──────────────────────────────────────────────────────────────
@@ -40,7 +47,7 @@ class AgentSuitabilityScore(BaseModel):
     agent_score: int = Field(..., description="Agentification Readiness Index, 0 to 100")
     classification: str = Field(..., description="High, Medium, Low, or Not Suitable")
     recommended_pattern: str = Field(..., description="Recommended architecture pattern")
-    autonomy_level: str = Field(default="Assisted", description="Autonomous, Supervised, Assisted, or Manual")
+    autonomy_level: AutonomyLevel = "Assisted"
     requires_hitl: bool = Field(default=True, description="Whether a human-in-the-loop gate is required")
     explanation: str = Field(default="", description="Narrative explanation of the score")
     criteria: List[CriterionScore] = Field(default_factory=list, description="Per-criterion breakdown")
@@ -76,14 +83,14 @@ class AzureServiceMapping(BaseModel):
 class GovernanceAssessment(BaseModel):
     score: str = ""
     status: str = Field(..., description="pass, warn, or fail")
-    risk_level: str = Field(default="Low")
+    risk_level: RiskLevel = "Low"
     reason: str = ""
     recommendation: str = ""
 
 
 class GovernanceResult(BaseModel):
-    decision: str = Field(..., description="AUTO_APPROVE, HUMAN_REVIEW_REQUIRED, or REJECT")
-    overall_risk: str = Field(default="Low")
+    decision: GovernanceDecision
+    overall_risk: RiskLevel = "Low"
     overall_confidence: int = Field(default=0)
     reason: str = ""
     triggered_rules: List[str] = Field(default_factory=list)
@@ -149,6 +156,14 @@ class PortfolioEntry(BaseModel):
     governance_risk: str = "Unknown"
 
 
+class HumanReview(BaseModel):
+    analysis_id: str
+    decision: Literal["approve", "reject"]
+    reviewer: str
+    note: str
+    reviewed_at: datetime
+
+
 class WorkflowState(BaseModel):
     session_id: str
     enterprise_context: EnterpriseContext = Field(default_factory=EnterpriseContext)
@@ -165,4 +180,21 @@ class WorkflowState(BaseModel):
     trace: List[Dict[str, Any]] = Field(default_factory=list)
     guardrail_events: List[Dict[str, Any]] = Field(default_factory=list)
     token_usage: Optional[TokenUsage] = None
-    status: str = "init"
+    status: WorkflowStatus = "init"
+    analysis_id: Optional[str] = None
+    human_review: Optional[HumanReview] = None
+
+    def invalidate_analysis(self) -> None:
+        self.workflow_intelligence = None
+        self.suitability_score = None
+        self.azure_mapping = None
+        self.retrieved_patterns = []
+        self.architecture_recommendation = None
+        self.governance = None
+        self.roi = None
+        self.blueprint = None
+        self.trace = []
+        self.token_usage = None
+        self.analysis_id = None
+        self.human_review = None
+        self.status = "init"

@@ -119,26 +119,26 @@
     <text x="700" y="506" font-size="13" font-weight="800" fill="#1e1b2e">Recommend</text>
     <text x="700" y="526" font-size="10.5" fill="#6b7280"><tspan x="700" dy="0">RAG over 50</tspan><tspan x="700" dy="13">patterns +</tspan><tspan x="700" dy="13">confidence &amp;</tspan><tspan x="700" dy="13">self-critique</tspan></text>
 
-    <!-- 5 Validation -->
+    <!-- 5 ROI -->
     <g filter="url(#sh)"><rect x="852" y="456" width="152" height="128" rx="12" fill="#ecfdf5" stroke="#34d399" stroke-width="1.5"/></g>
     <rect x="852" y="456" width="152" height="6" rx="3" fill="#059669"/>
-    <text x="868" y="486" font-size="10" font-weight="800" fill="#10b981">5 · AGENT</text>
-    <text x="868" y="506" font-size="13" font-weight="800" fill="#065f46">Validation</text>
-    <text x="868" y="526" font-size="10.5" fill="#047857"><tspan x="868" dy="0">Guardrail checks</tspan><tspan x="868" dy="13">+ Human-in-</tspan><tspan x="868" dy="13">the-Loop gate</tspan></text>
+    <text x="868" y="486" font-size="10" font-weight="800" fill="#10b981">5 · ENGINE</text>
+    <text x="868" y="506" font-size="13" font-weight="800" fill="#065f46">ROI</text>
+    <text x="868" y="526" font-size="10.5" fill="#047857"><tspan x="868" dy="0">$ &amp; hours saved</tspan><tspan x="868" dy="13">First-year savings</tspan><tspan x="868" dy="13">versus build cost</tspan></text>
 
-    <!-- 6 ROI -->
+    <!-- 6 Governance -->
     <g filter="url(#sh)"><rect x="1020" y="456" width="152" height="128" rx="12" fill="#fffbeb" stroke="#fbbf24" stroke-width="1.5"/></g>
     <rect x="1020" y="456" width="152" height="6" rx="3" fill="#d97706"/>
-    <text x="1036" y="486" font-size="10" font-weight="800" fill="#d97706">6 · ENGINE</text>
-    <text x="1036" y="506" font-size="13" font-weight="800" fill="#92400e">ROI</text>
-    <text x="1036" y="526" font-size="10.5" fill="#b45309"><tspan x="1036" dy="0">$ &amp; hours saved</tspan><tspan x="1036" dy="13">payback &amp;</tspan><tspan x="1036" dy="13">ROI multiple</tspan></text>
+    <text x="1036" y="486" font-size="10" font-weight="800" fill="#d97706">6 · AGENT</text>
+    <text x="1036" y="506" font-size="13" font-weight="800" fill="#92400e">Governance</text>
+    <text x="1036" y="526" font-size="10.5" fill="#b45309"><tspan x="1036" dy="0">Ordered policies</tspan><tspan x="1036" dy="13">Approve / review</tspan><tspan x="1036" dy="13">or reject</tspan></text>
 
     <!-- 7 Blueprint -->
     <g filter="url(#sh)"><rect x="1188" y="456" width="142" height="128" rx="12" fill="#ffffff" stroke="#ddd6fe" stroke-width="1.5"/></g>
     <rect x="1188" y="456" width="142" height="6" rx="3" fill="#7c3aed"/>
     <text x="1204" y="486" font-size="10" font-weight="800" fill="#a78bfa">7 · AGENT</text>
-    <text x="1204" y="506" font-size="13" font-weight="800" fill="#1e1b2e">Blueprint</text>
-    <text x="1204" y="526" font-size="10.5" fill="#6b7280"><tspan x="1204" dy="0">Architecture,</tspan><tspan x="1204" dy="13">diagram, cost,</tspan><tspan x="1204" dy="13">roadmap, code</tspan></text>
+    <text x="1204" y="506" font-size="13" font-weight="800" fill="#1e1b2e">Outcome</text>
+    <text x="1204" y="526" font-size="10.5" fill="#6b7280"><tspan x="1204" dy="0">Blueprint or</tspan><tspan x="1204" dy="13">provisional plan;</tspan><tspan x="1204" dy="13">reject: alternative</tspan></text>
 
     <!-- connectors between cards -->
     <g stroke="#c4b5fd" stroke-width="2">
@@ -196,7 +196,7 @@
   <text x="1460" y="430" text-anchor="middle" font-size="26">🧑‍⚖️</text>
   <text x="1460" y="462" text-anchor="middle" font-size="13.5" font-weight="800" fill="#92400e">Human-in-</text>
   <text x="1460" y="480" text-anchor="middle" font-size="13.5" font-weight="800" fill="#92400e">the-Loop</text>
-  <text x="1460" y="510" text-anchor="middle" font-size="10.5" fill="#b45309"><tspan x="1460" dy="0">Mandatory gate on</tspan><tspan x="1460" dy="13">high-compliance /</tspan><tspan x="1460" dy="13">high-error-cost</tspan><tspan x="1460" dy="13">workflows</tspan></text>
+  <text x="1460" y="510" text-anchor="middle" font-size="10.5" fill="#b45309"><tspan x="1460" dy="0">Advisory review of</tspan><tspan x="1460" dy="13">the recommendation;</tspan><tspan x="1460" dy="13">does not execute</tspan><tspan x="1460" dy="13">business workflows</tspan></text>
 
   <g filter="url(#sh)"><rect x="1378" y="586" width="164" height="200" rx="12" fill="#f8fafc" stroke="#cbd5e1" stroke-width="1.5"/></g>
   <text x="1460" y="630" text-anchor="middle" font-size="26">🔭</text>

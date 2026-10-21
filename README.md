@@ -27,11 +27,61 @@ A seven-stage pipeline orchestrated with **LangGraph**:
 | 2 | Score | **Scoring Engine** | Agentification Readiness Index — 12 weighted, explained criteria |
 | 3 | Map | **Mapping Agent** | Recommended Microsoft Azure service stack |
 | 4 | Recommend | **Recommendation Agent** | RAG-grounded design from a 50-pattern library, with confidence + self-critique |
-| 5 | Validate | **Validation Agent** | Guardrail checks + **Human-in-the-Loop gate** decision |
-| 6 | Estimate | **ROI Engine** | Hours/$ saved per year, payback period, ROI multiple |
-| 7 | Blueprint | **Blueprint Agent** | Architecture doc, Mermaid diagram, cost estimate, roadmap, code scaffold |
+| 5 | Estimate | **ROI Engine** | Hours/$ saved per year, payback period, ROI multiple |
+| 6 | Govern | **Governance Agent** | Validated, ordered policies over risk, completeness, autonomy, and actual first-year ROI |
+| 7 | Outcome | **Blueprint Agent** or rejection outcome | Approved/provisional blueprint, or a non-agentic alternative without generating a blueprint |
 
 Every run emits an **agent trace** (per-step status + latency) for observability/audit.
+
+### Governance and human review
+
+AgentSense approves **advisory recommendations**, not execution or deployment of a
+customer's business workflow.
+
+- `AUTO_APPROVE` produces a blueprint with workflow status `completed`.
+- `HUMAN_REVIEW_REQUIRED` produces a **provisional, not-approved** blueprint with
+  status `awaiting_human_review`. Fetching or exporting it does not approve it.
+- `REJECT` skips the Blueprint Agent, sets status `rejected`, and returns a
+  non-agentic alternative with no architecture document or code scaffold.
+- A human approval changes status to `completed`; a human rejection changes it to
+  `rejected` and removes the blueprint. The original policy decision remains intact,
+  alongside the separate reviewer decision, rationale, and UTC timestamp.
+
+Review API:
+
+1. `GET /api/v1/review/{session_id}` returns the current `analysis_id`, status,
+   original governance result, and human review.
+2. `POST /api/v1/review/{session_id}` accepts
+   `{"analysis_id": "...", "decision": "approve", "reviewer": "...", "note": "..."}`.
+   Decision must be `approve` or `reject`; reviewer and note must be nonblank.
+3. Only a pending recommendation can be reviewed. Stale analysis IDs and already
+   decided/non-reviewable recommendations return `409`; no current analysis returns
+   `404`; malformed review requests return `422`.
+
+Every successful reanalysis gets a new analysis ID and clears the previous review.
+Accepted chat or intake changes invalidate the current analysis and review; blocked
+chat does not. Only the **current analysis's** review is retained, not a historical
+ledger. Blueprint responses and Markdown exports identify provisional/rejected
+outcomes. The Blueprint screen contains the review controls.
+
+**Demo boundary:** review endpoints are unauthenticated, reviewer names are
+self-reported, and simultaneous writes do not yet have optimistic concurrency
+protection. An analysis ID rejects sequential stale requests but is not an access
+control or transactional lock. Do not expose these controls as production approval
+authority; authenticated ownership checks and concurrent-write protection are
+required before a multi-user production release. In-memory reviews last only for
+the process lifetime; durable retention requires configured Cosmos DB.
+
+Policies are validated at startup from `governance_rules.yaml`. Unknown fields,
+operators, values, decisions, and duplicate IDs fail startup with a logged error.
+Each policy contains `conditions` with `field`, `operator` (`eq`, `lt`, `gt`), and
+`value`; all conditions must match, and the first matching policy wins. There are no
+Python expressions or `eval`. If no policy matches, `default_decision` is honored.
+
+Cost governance compares **annual gross labor savings** with the **one-time build
+cost** over a first-year horizon. Negative first-year net savings reject the
+recommendation; operating costs are not included and require separate budgeting.
+The security dimension is a limited text policy check, not a security audit.
 
 ### Differentiators
 - **🛡️ Security-hardened** — every inbound message is screened for **prompt-injection and PII**
@@ -62,7 +112,7 @@ Every run emits an **agent trace** (per-step status + latency) for observability
 ```
 React SPA  ──/api/v1──►  FastAPI  ──►  LangGraph Orchestrator
                                         │
-   Diagnostic → Scoring(12) → Mapping → Recommendation(RAG) → Validation(HITL) → Blueprint
+   Diagnostic → Scoring(12) → Mapping → Recommendation(RAG) → ROI → Governance → Outcome
                                         │
         Azure OpenAI (GPT-4o)   Azure AI Search   Azure Cosmos DB   Azure App Service
 ```
@@ -118,6 +168,7 @@ python -m app.rag.ingestion
 ```bash
 python test_e2e_scenario.py    # full pipeline via FastAPI (offline, deterministic)
 python -m evals.run_evals      # scoring & governance invariants
+python -m unittest discover -s tests -v  # policy, graph routing, and persisted review regressions
 ```
 
 ### Dependencies
@@ -160,7 +211,7 @@ observability**.
 ## Repository layout
 ```
 app/
-  agents/        diagnostic · mapping · recommendation · blueprint · validation
+  agents/        diagnostic · mapping · recommendation · blueprint · governance · typed policies
   orchestration/ langgraph_flow.py        (7-stage state graph + agent trace)
   scoring/       scoring_engine.py (12 criteria) · roi.py · portfolio.py
   rag/           pattern_library.py (50 patterns) · retrieval.py · ingestion.py · embeddings.py

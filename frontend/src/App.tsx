@@ -81,8 +81,8 @@ export default function App() {
               (chat history, analysis results, blueprint) persists across navigation. */}
           <div hidden={view !== "intake"}><Intake sessionId={sessionId} setSessionId={setSessionId} setContext={setContext} goNext={() => setView("diagnose")} /></div>
           <div hidden={view !== "diagnose"}><Diagnose sessionId={sessionId} setSessionId={setSessionId} context={context} goNext={() => setView("analyze")} /></div>
-          <div hidden={view !== "analyze"}><Analyze sessionId={sessionId} goNext={() => setView("blueprint")} /></div>
-          <div hidden={view !== "blueprint"}><Blueprint sessionId={sessionId} /></div>
+          <div hidden={view !== "analyze"}><Analyze key={sessionId} sessionId={sessionId} active={view === "analyze"} goNext={() => setView("blueprint")} /></div>
+          <div hidden={view !== "blueprint"}><Blueprint key={sessionId} sessionId={sessionId} active={view === "blueprint"} /></div>
           <div hidden={view !== "portfolio"}><Portfolio /></div>
         </div>
       </main>

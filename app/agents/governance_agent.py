@@ -1,13 +1,15 @@
 import os
 import yaml
 import logging
-from typing import Dict, Any
+from typing import Dict
+from app.agents.governance_policy import GovernanceInputs, GovernancePolicies
 
 from app.utils.models import (
     WorkflowIntelligence,
     AgentSuitabilityScore,
     GovernanceAssessment,
-    GovernanceResult
+    GovernanceResult,
+    ROIEstimate,
 )
 
 logger = logging.getLogger(__name__)
@@ -22,18 +24,19 @@ class GovernanceAgent:
         self.rules_path = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), rules_path)
         self.rules = self._load_rules()
 
-    def _load_rules(self) -> Dict[str, Any]:
+    def _load_rules(self) -> GovernancePolicies:
         try:
-            with open(self.rules_path, "r") as f:
-                return yaml.safe_load(f)
-        except Exception as e:
-            logger.error(f"Failed to load governance rules: {e}")
-            return {"policies": [], "default_decision": "HUMAN_REVIEW_REQUIRED"}
+            with open(self.rules_path, "r", encoding="utf-8") as f:
+                return GovernancePolicies.model_validate(yaml.safe_load(f))
+        except (OSError, ValueError, yaml.YAMLError):
+            logger.exception("Invalid governance configuration: %s", self.rules_path)
+            raise
 
     def evaluate(self, 
                  intel: WorkflowIntelligence, 
                  score: AgentSuitabilityScore, 
-                 recommendation: dict) -> GovernanceResult:
+                 recommendation: dict,
+                 roi: ROIEstimate) -> GovernanceResult:
         
         assessments: Dict[str, GovernanceAssessment] = {}
         triggered_rules = []
@@ -57,20 +60,20 @@ class GovernanceAgent:
         )
 
         # 2. Confidence
-        conf_val = int((recommendation.get("confidence", 0.85)) * 100)
+        conf_val = int((recommendation.get("confidence", 0.0)) * 100)
         if conf_val >= 90:
-            c_level = "High"
+            c_level = "Low"
             c_status = "pass"
         elif conf_val >= 70:
             c_level = "Medium"
             c_status = "warn"
         else:
-            c_level = "Low"
+            c_level = "High"
             c_status = "fail"
             
         assessments["Confidence"] = GovernanceAssessment(
             score=f"{conf_val}%", status=c_status, risk_level=c_level,
-            reason=f"LLM + RAG confidence is {conf_val}%.", recommendation="Gather more context if low."
+            reason=f"Recommendation data completeness is {conf_val}%.", recommendation="Gather more context if low."
         )
 
         # 3. Data Sensitivity
@@ -90,7 +93,8 @@ class GovernanceAgent:
         # 5. Automation Suitability
         auto = score.autonomy_level
         assessments["Automation Suitability"] = GovernanceAssessment(
-            score=auto, status="pass" if auto != "Fully Autonomous" else "warn", risk_level="Low" if auto != "Fully Autonomous" else "High",
+            score=auto, status="warn" if auto == "Autonomous" and score.requires_hitl else "pass",
+            risk_level="High" if auto == "Autonomous" and score.requires_hitl else "Low",
             reason=f"Scoring engine suggests {auto}.", recommendation="Always prefer Human-in-the-loop initially."
         )
 
@@ -100,16 +104,20 @@ class GovernanceAgent:
             sec_status = "FAIL"
         assessments["Security"] = GovernanceAssessment(
             score=sec_status, status="pass" if sec_status == "PASS" else "fail", risk_level="Low" if sec_status == "PASS" else "High",
-            reason="No critical security vulnerabilities found in architecture." if sec_status == "PASS" else "Restricted data connected to public internet.",
+            reason="Limited text policy check passed; this is not a security assessment." if sec_status == "PASS" else "Restricted data connected to public internet.",
             recommendation="Apply standard RBAC."
         )
 
         # 7. Cost Governance
-        # We don't have ROI generated yet, but we will assume it's positive based on score classification
-        cost_status = "PASS"
+        first_year_net_savings = roi.cost_saved_per_year - roi.implementation_cost
+        cost_status = "PASS" if first_year_net_savings >= 0 else "FAIL"
         assessments["Cost Governance"] = GovernanceAssessment(
-            score=cost_status, status="pass", risk_level="Low",
-            reason="Architecture fits standard enterprise budgets.", recommendation="Monitor Azure consumption."
+            score=cost_status, status="pass" if cost_status == "PASS" else "fail",
+            risk_level="Low" if cost_status == "PASS" else "High",
+            reason=f"First-year gross labor savings ${roi.cost_saved_per_year:,} versus "
+                   f"one-time build cost ${roi.implementation_cost:,}; "
+                   f"net ${first_year_net_savings:,}, before operating costs.",
+            recommendation="Validate labor assumptions and budget operating costs separately."
         )
 
         # 8. Explainability
@@ -119,53 +127,32 @@ class GovernanceAgent:
         )
 
         # Determine Decision
-        decision = self.rules.get("default_decision", "HUMAN_REVIEW_REQUIRED")
-        reason = "Default enterprise fallback."
-        
-        overall_risk = "Low"
-        for v in assessments.values():
-            if v.risk_level in ["High", "Critical"]:
-                overall_risk = v.risk_level
+        decision = self.rules.default_decision
+        reason = "No policy matched; using the configured default decision."
+        severity = {"Low": 0, "Medium": 1, "High": 2, "Critical": 3}
+        overall_risk = max(
+            (assessment.risk_level for assessment in assessments.values()),
+            key=severity.__getitem__,
+        )
 
         # Evaluate rules in order
-        eval_locals = {
-            "autonomy_level": score.autonomy_level,
-            "recommendation": recommendation,
-            "compliance": comp_level,
-            "security": sec_status,
-            "data_sensitivity": data_sens,
-            "confidence": conf_val,
-            "estimated_cost": 1000, # mock
-            "expected_roi": 5000, # mock
-            "roi_positive": True,
-            "operational_risk": op_risk
-        }
-
-        for policy in self.rules.get("policies", []):
-            cond = policy.get("condition", "")
-            try:
-                # Use python eval with controlled locals to evaluate the condition string
-                match = eval(cond, {"__builtins__": {}}, eval_locals)
-            except Exception as e:
-                logger.error(f"Error evaluating rule {policy.get('id')}: {e}")
-                match = False
-
-            if match:
-                decision = policy.get("decision", decision)
-                reason = policy.get("reason", reason)
-                triggered_rules.append(policy.get("id", "Unknown Rule"))
-                break # Stop at first matching rule based on priority in yaml
-                
-        # Fallback manual logic if no explicit rule matched
-        if not triggered_rules:
-            if overall_risk in ["High", "Critical"]:
-                decision = "HUMAN_REVIEW_REQUIRED"
-                reason = "Overall risk level requires human oversight."
-                triggered_rules.append("RISK_BASED_FALLBACK")
-            else:
-                decision = "AUTO_APPROVE"
-                reason = "Workflow is low risk and standard."
-                triggered_rules.append("AUTO_APPROVE_FALLBACK")
+        inputs = GovernanceInputs(
+            autonomy_level=score.autonomy_level,
+            requires_hitl=score.requires_hitl or comp_level == "HIGH" or op_risk == "HIGH",
+            classification=score.classification,
+            compliance=comp_level,
+            security=sec_status,
+            data_sensitivity=data_sens,
+            confidence=conf_val,
+            first_year_net_savings=first_year_net_savings,
+            operational_risk=op_risk,
+        )
+        for policy in self.rules.policies:
+            if policy.matches(inputs):
+                decision = policy.decision
+                reason = policy.reason
+                triggered_rules.append(policy.id)
+                break
 
         result = GovernanceResult(
             decision=decision,
@@ -179,8 +166,8 @@ class GovernanceAgent:
         if decision == "HUMAN_REVIEW_REQUIRED":
             result.human_review_package = {
                 "summary": "Enterprise Governance identified high-risk factors requiring human validation.",
-                "missing_info": ["Exact transaction volumes", "Identity Provider confirmation"],
-                "questions": ["Is PII strictly required for this workflow?", "Can autonomy be reduced?"]
+                "questions": ["Are the workflow assumptions and estimated savings credible?",
+                              "Are the proposed oversight controls sufficient?"]
             }
         elif decision == "REJECT":
             result.rejection_package = {

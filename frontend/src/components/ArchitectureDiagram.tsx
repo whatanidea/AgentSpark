@@ -5,8 +5,8 @@ const AGENTS = [
   { n: "Agent 1", t: "Diagnostic", d: "Interviews stakeholders; extracts workflow data via structured GPT-4o function calling." },
   { n: "Agent 2", t: "Mapping", d: "Maps the workflow to specific Microsoft Azure services via structured output." },
   { n: "Agent 3", t: "Recommendation", d: "Retrieves & composes patterns from a curated RAG library (Azure AI Search)." },
-  { n: "Agent 4", t: "Blueprint", d: "Synthesizes an architecture document with starter code scaffolding." },
-  { n: "Agent 5", t: "Validation", d: "Cross-checks compliance, audit & guardrails before human handoff." },
+  { n: "Agent 4", t: "Governance", d: "Applies ordered risk, autonomy and first-year ROI policies; rejects or requests advisory review." },
+  { n: "Agent 5", t: "Blueprint", d: "Synthesizes an approved or provisional architecture document with starter code scaffolding." },
 ];
 
 function Arrow({ label }: { label: string }) {

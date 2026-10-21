@@ -17,6 +17,7 @@ langchain-core==1.4.0
 langchain-openai==1.2.1
 openai==2.31.0
 pydantic==2.12.5
+PyYAML==6.0.3
 
 # Azure SDKs
 azure-cosmos==4.15.0

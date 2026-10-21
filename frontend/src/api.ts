@@ -2,6 +2,13 @@
 // serves this SPA and the API from the same origin, so relative URLs just work.
 const BASE = "/api/v1";
 
+export type ReviewRequest = {
+  analysis_id: string;
+  decision: "approve" | "reject";
+  reviewer: string;
+  note: string;
+};
+
 // Safe UUID: crypto.randomUUID() is only defined in secure contexts (https or
 // localhost). Fall back so sessions still work if ever served over plain http.
 export function uid(): string {
@@ -36,6 +43,8 @@ export const api = {
   chat: (session_id: string, message: string) => post("/chat", { session_id, message }),
   analyze: (session_id: string) => post(`/analyze/${session_id}`, {}),
   blueprint: (session_id: string) => get(`/blueprint/${session_id}`),
+  review: (session_id: string) => get(`/review/${session_id}`),
+  submitReview: (session_id: string, body: ReviewRequest) => post(`/review/${session_id}`, body),
   portfolio: () => get("/portfolio"),
   patterns: (q: string, k = 6) => get(`/patterns?q=${encodeURIComponent(q)}&k=${k}`),
   guardrailCheck: (message: string) => post("/guardrail-check", { session_id: "demo", message }),
