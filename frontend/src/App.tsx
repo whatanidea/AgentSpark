@@ -91,17 +91,9 @@ export default function App() {
       if (!alive) return;
       setAuth(config);
       if (config.mode === "local-demo") { await connect(); return; }
-      if (!config.sign_in) return;
-      try {
-        const { initSignIn, currentToken } = await signInModule();
-        const outcome = await initSignIn(config.sign_in);
-        if (!alive || !outcome) return;
-        setAccessToken(outcome.token); setTokenProvider(currentToken);
-        if (outcome.invite) setPendingInvite(outcome.invite);
-        await connect();
-      } catch (e) {
-        setTokenProvider(null); setAccessToken(""); setIdentity(null);
-        if (alive) setMessage(e instanceof Error ? `Microsoft sign-in failed: ${e.message}` : "Microsoft sign-in failed.");
+      if (config.sign_in) {
+        try { await (await signInModule()).initSignIn(config.sign_in); }
+        catch (e) { if (alive) setMessage(e instanceof Error ? `Microsoft sign-in unavailable: ${e.message}` : "Microsoft sign-in unavailable."); }
       }
     }).catch((e: Error) => { if (alive) setMessage(e.message); })
       .finally(() => { if (alive) setStarting(false); });
@@ -169,8 +161,17 @@ export default function App() {
   }
   async function signInWithMicrosoft() {
     setBusy(true); setMessage("");
-    try { await (await signInModule()).startSignIn(pendingInvite); }
-    catch (e) { setBusy(false); setMessage(e instanceof Error ? e.message : "Microsoft sign-in failed."); }
+    try {
+      const { signInWithPopup, currentToken } = await signInModule();
+      setAccessToken(await signInWithPopup()); setTokenProvider(currentToken);
+      await connect();
+    } catch (e) {
+      setTokenProvider(null); setAccessToken(""); setIdentity(null);
+      const text = e instanceof Error ? e.message : "";
+      setMessage(/popup_window_error|empty_window_error/.test(text)
+        ? "Your browser blocked the sign-in window. Allow pop-ups for this site and try again."
+        : /user_cancelled/.test(text) ? "Sign-in was cancelled." : `Microsoft sign-in failed. ${text}`);
+    } finally { setBusy(false); }
   }
   async function removeSession() {
     setBusy(true);

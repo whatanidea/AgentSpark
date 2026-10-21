@@ -1,36 +1,27 @@
 import { BrowserCacheLocation, InteractionRequiredAuthError, PublicClientApplication, type AccountInfo, type IPublicClientApplication } from "@azure/msal-browser";
 import type { SignInConfig } from "./api";
 
-// Tokens stay in memory; only MSAL's short-lived redirect state (PKCE verifier) uses sessionStorage.
-const PENDING_INVITE = "agentspark.pendingInvite";
+// Popup sign-in keeps tokens in memory only (MSAL rejects redirects with memory storage) and
+// keeps page state such as a pending invite. The popup lands on a blank page MSAL reads the code from.
+export const REDIRECT_PATH = "/auth-redirect.html";
 let client: IPublicClientApplication | null = null;
 let account: AccountInfo | null = null;
 let scope = "";
 
-export type RedirectOutcome = { token: string; invite: string } | null;
-
-/** Initialises MSAL and completes a sign-in redirect if this page load is returning from one. */
-export async function initSignIn(config: SignInConfig): Promise<RedirectOutcome> {
+export async function initSignIn(config: SignInConfig) {
   scope = config.scope;
-  client = await PublicClientApplication.createPublicClientApplication({
-    auth: { clientId: config.client_id, authority: config.authority, redirectUri: `${window.location.origin}/`,
-      navigateToLoginRequestUrl: false },
-    cache: { cacheLocation: BrowserCacheLocation.MemoryStorage, temporaryCacheLocation: BrowserCacheLocation.SessionStorage },
+  client ??= await PublicClientApplication.createPublicClientApplication({
+    auth: { clientId: config.client_id, authority: config.authority, redirectUri: `${window.location.origin}${REDIRECT_PATH}` },
+    cache: { cacheLocation: BrowserCacheLocation.MemoryStorage },
   });
-  const result = await client.handleRedirectPromise();
-  if (!result?.accessToken) return null;
-  account = result.account;
-  let invite = "";
-  try { invite = sessionStorage.getItem(PENDING_INVITE) || ""; sessionStorage.removeItem(PENDING_INVITE); } catch {}
-  window.history.replaceState(null, "", "/home");
-  return { token: result.accessToken, invite };
 }
 
-/** Sends the browser to Microsoft sign-in; an unaccepted invite code survives the round trip in this tab only. */
-export async function startSignIn(pendingInvite: string) {
+/** Opens Microsoft sign-in in a popup and returns an API access token. */
+export async function signInWithPopup(): Promise<string> {
   if (!client) throw new Error("Microsoft sign-in is not configured.");
-  try { if (pendingInvite) sessionStorage.setItem(PENDING_INVITE, pendingInvite); } catch {}
-  await client.loginRedirect({ scopes: [scope], prompt: "select_account" });
+  const result = await client.loginPopup({ scopes: [scope], prompt: "select_account" });
+  account = result.account;
+  return result.accessToken;
 }
 
 /** Returns a fresh access token for the signed-in account, or "" when interaction is required. */

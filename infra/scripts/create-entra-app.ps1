@@ -14,8 +14,8 @@
 #>
 param(
     [string]$DisplayName = 'AgentSpark Staging API',
-    # Browser sign-in returns here, e.g. https://<app>.azurecontainerapps.io/
-    [string[]]$SpaRedirectUris = @('http://localhost:5173/', 'http://localhost:8000/')
+    # Browser sign-in pop-ups return here, e.g. https://<app>.azurecontainerapps.io/auth-redirect.html
+    [string[]]$SpaRedirectUris = @('http://localhost:5173/auth-redirect.html', 'http://localhost:8000/auth-redirect.html')
 )
 $ErrorActionPreference = 'Stop'
 $PSNativeCommandUseErrorActionPreference = $true
