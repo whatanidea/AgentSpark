@@ -17,3 +17,5 @@ release
 tests
 docs
 *.log
+infra
+azure.yaml

@@ -125,6 +125,33 @@ class EvidenceTests(unittest.TestCase):
                         agent.analyze_chat_history([{"role": "user", "content": user_text},
                                                     {"role": "assistant", "content": "assistant-only fact"}])
 
+    def test_live_extraction_retries_once_after_unverifiable_evidence(self):
+        agent = DiagnosticAgent()
+        agent.use_mock = False
+        good = confirmed_diagnosis()
+        bad = confirmed_diagnosis()
+        bad.evidence["steps"] = FactEvidence(status="supplied", source="interview", quote="paraphrased claim")
+        user_text = good.intelligence.model_dump_json()
+        with patch("app.agents.diagnostic_agent.get_chat_llm", return_value=Mock()), \
+                patch("app.agents.diagnostic_agent.structured_call", side_effect=[bad, good]) as extract, \
+                self.assertLogs("app.agents.diagnostic_agent", level="ERROR"):
+            result = agent.analyze_chat_history([{"role": "user", "content": user_text}])
+        self.assertEqual(extract.call_count, 2)
+        self.assertEqual(result.missing_facts, [])
+
+    def test_live_extraction_matches_quotes_modulo_whitespace_and_typography(self):
+        agent = DiagnosticAgent()
+        agent.use_mock = False
+        diagnosis = confirmed_diagnosis()
+        user_text = diagnosis.intelligence.model_dump_json() + "\nThe adjuster's  queue\nhas 5 steps."
+        diagnosis.evidence["steps"] = FactEvidence(
+            status="supplied", source="interview", quote="The adjuster\u2019s queue has 5 steps.")
+        with patch("app.agents.diagnostic_agent.get_chat_llm", return_value=Mock()), \
+                patch("app.agents.diagnostic_agent.structured_call", return_value=diagnosis) as extract:
+            result = agent.analyze_chat_history([{"role": "user", "content": user_text}])
+        self.assertEqual(extract.call_count, 1)
+        self.assertEqual(result.missing_facts, [])
+
     def test_absent_evidence_normalizes_to_missing_not_default_confidence(self):
         agent = DiagnosticAgent()
         agent.use_mock = False

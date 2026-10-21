@@ -185,6 +185,56 @@ non-loopback origins. Without `--demo-workflow` it performs no workflow writes.
 That flag is refused against live/OIDC services and creates/deletes only its own
 fictional case.
 
+## Azure staging environment
+
+`azure.yaml` and `infra/` define a low-cost staging stack in a single
+resource group (`rg-<env>`). It contains:
+
+- Container Apps (consumption, scales to zero, probes on `/health` only)
+- ACR Basic, with images built remotely so Docker isn't needed locally
+- Cosmos DB free tier: `workflows` (`/session_id`, `defaultTtl=-1`) and
+  `directory` (`/organization_id`, no TTL)
+- AI Search Free, Azure OpenAI `gpt-5-mini` (Global Standard). Because it's a
+  reasoning model, the app is configured with `AZURE_OPENAI_REASONING_EFFORT=low`
+  (which omits `temperature`), `AZURE_OPENAI_TIMEOUT_SECONDS=60` and API version
+  `2025-04-01-preview`. Leave the effort unset for non-reasoning deployments.
+- Key Vault (RBAC) and Log Analytics (1 GB/day cap)
+
+The app's user-assigned identity pulls images and resolves Cosmos, Search query
+and OpenAI keys through Key Vault references; ACR admin is disabled.
+
+```powershell
+azd env new agentspark-stg --subscription <subscription-id> --location westus3
+./infra/scripts/create-entra-app.ps1        # sets AUTH_AUDIENCE (Entra API + reviewer role)
+azd provision --preview                     # review the what-if first
+azd up                                      # provision + remote ACR build + deploy
+./infra/scripts/seed-search.ps1 -Python <venv python>   # create and seed patterns-index
+```
+
+If `azd deploy` fails with ACR `InvalidCorrelationRequestId` (seen with azd
+1.22; upgrade azd first), build and roll out manually. Recording the image in the
+azd env keeps the next `azd provision` from reverting the app to the placeholder:
+
+```powershell
+az acr build -r <acr> -t agentspark/web-<env>:<tag> --platform linux/amd64 --no-logs .
+az containerapp update -n <app> -g rg-<env> --image <acr>.azurecr.io/agentspark/web-<env>:<tag>
+azd env set SERVICE_WEB_IMAGE_NAME <acr>.azurecr.io/agentspark/web-<env>:<tag>
+```
+
+Structured agent output uses function calling (not strict JSON-schema mode),
+because Azure strict mode rejects the optional fields in the app's schemas. The
+Diagnostic Agent retries extraction once if a "supplied" fact's quote isn't
+found verbatim (ignoring whitespace and typographic punctuation) in the user
+input. If the second attempt also fails, `/analyze` returns 502. App logs name
+the affected facts, not their content.
+
+Get a test token with
+`az account get-access-token --scope api://<AUTH_AUDIENCE>/access_as_user`.
+Reviewers additionally need the `AgentSense Reviewer` app role assigned in the
+enterprise application. Call `/ready` once after seeding; run acceptance with two
+identities so creator/reviewer separation is exercised. `azd down --purge`
+deletes the whole environment.
+
 ## Release artifact and approval
 
 After quality gates, CI builds `linux/amd64`, checks non-root operation, verifies

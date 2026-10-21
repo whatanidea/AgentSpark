@@ -92,6 +92,32 @@ class RuntimeTests(unittest.TestCase):
                 structured_call(llm, "system", "input", AzureServiceMapping)
         llm.invoke.assert_not_called()
 
+    def test_structured_call_uses_function_calling_not_strict_json_schema(self):
+        from langchain_openai import AzureChatOpenAI
+
+        requests = []
+
+        def transport(request):
+            requests.append(json.loads(request.content))
+            return httpx.Response(200, json={
+                "id": "mock-completion", "object": "chat.completion", "created": 1, "model": "gpt-5-mini",
+                "choices": [{"index": 0, "finish_reason": "tool_calls", "message": {
+                    "role": "assistant", "content": None, "tool_calls": [{
+                        "id": "call_1", "type": "function", "function": {
+                            "name": "AzureServiceMapping", "arguments": '{"compute":"Azure Functions"}'}}]}}],
+                "usage": {"prompt_tokens": 1, "completion_tokens": 1, "total_tokens": 2},
+            })
+
+        with httpx.Client(transport=httpx.MockTransport(transport)) as http_client:
+            llm = AzureChatOpenAI(azure_endpoint="https://example.openai.azure.com",
+                                 azure_deployment="gpt-5-mini", api_key="test-only-key",
+                                 api_version="2025-04-01-preview", http_client=http_client, max_retries=0)
+            result = structured_call(llm, "system", "input", AzureServiceMapping)
+        self.assertEqual(result.compute, "Azure Functions")
+        self.assertEqual(len(requests), 1)
+        self.assertNotIn("response_format", requests[0])
+        self.assertEqual(requests[0]["tools"][0]["function"]["name"], "AzureServiceMapping")
+
     def test_invalid_structured_output_has_one_real_json_retry(self):
         llm = Mock()
         llm.with_structured_output.return_value.invoke.side_effect = OutputParserException("invalid")
@@ -247,6 +273,62 @@ print(json.dumps({'health': health.json(), 'ready': ready.json(),
         self.assertEqual(len(requests), 1)
         token_limit = requests[0].get("max_completion_tokens", requests[0].get("max_tokens"))
         self.assertEqual(token_limit, 1)
+
+    def test_reasoning_deployments_omit_temperature_and_default_keeps_it(self):
+        base = {"AZURE_OPENAI_API_KEY": "test-only-key", "AZURE_OPENAI_ENDPOINT": "https://example.openai.azure.com"}
+        cases = (({}, {"temperature": 0.1}, "reasoning_effort", 15.0),
+                 ({"AZURE_OPENAI_REASONING_EFFORT": "Low", "AZURE_OPENAI_TIMEOUT_SECONDS": "60"},
+                  {"reasoning_effort": "low"}, "temperature", 60.0))
+        for extra, expected, absent, timeout in cases:
+            with self.subTest(extra=extra), patch.object(runtime.settings, "mode", "live"), \
+                    patch.dict(os.environ, {**base, **extra}, clear=True), \
+                    patch("langchain_openai.AzureChatOpenAI") as client:
+                get_chat_llm.cache_clear()
+                get_chat_llm(temperature=0.1)
+                kwargs = client.call_args.kwargs
+                self.assertLessEqual(expected.items(), kwargs.items())
+                self.assertNotIn(absent, kwargs)
+                self.assertEqual(kwargs["timeout"], timeout)
+
+    def test_invalid_reasoning_or_timeout_settings_fail_closed(self):
+        base = {"AZURE_OPENAI_API_KEY": "test-only-key", "AZURE_OPENAI_ENDPOINT": "https://example.openai.azure.com"}
+        for extra in ({"AZURE_OPENAI_REASONING_EFFORT": "extreme"}, {"AZURE_OPENAI_TIMEOUT_SECONDS": "0"},
+                      {"AZURE_OPENAI_TIMEOUT_SECONDS": "soon"}):
+            with self.subTest(extra=extra), patch.object(runtime.settings, "mode", "live"), \
+                    patch.dict(os.environ, {**base, **extra}, clear=True), \
+                    patch("langchain_openai.AzureChatOpenAI") as client:
+                get_chat_llm.cache_clear()
+                with self.assertLogs("app.utils.llm", level="ERROR"), self.assertRaises(DependencyUnavailable):
+                    get_chat_llm()
+                client.assert_not_called()
+
+    def test_openai_probe_for_reasoning_deployment_sends_no_temperature(self):
+        from langchain_openai import AzureChatOpenAI
+
+        requests = []
+
+        def transport(request):
+            requests.append(json.loads(request.content))
+            return httpx.Response(200, json={
+                "id": "mock-completion", "object": "chat.completion", "created": 1, "model": "gpt-5-mini",
+                "choices": [{"index": 0, "message": {"role": "assistant", "content": "OK"},
+                             "finish_reason": "stop"}],
+                "usage": {"prompt_tokens": 1, "completion_tokens": 9, "total_tokens": 10},
+            })
+
+        with httpx.Client(transport=httpx.MockTransport(transport)) as http_client, \
+                patch.dict(os.environ, {"AZURE_OPENAI_REASONING_EFFORT": "low"}):
+            llm = AzureChatOpenAI(azure_endpoint="https://example.openai.azure.com",
+                                 azure_deployment="gpt-5-mini", api_key="test-only-key",
+                                 api_version="2025-04-01-preview", http_client=http_client,
+                                 max_retries=0, reasoning_effort="low")
+            with patch.object(health, "get_chat_llm", return_value=llm):
+                health.check_openai()
+        self.assertEqual(len(requests), 1)
+        self.assertEqual(requests[0].get("max_completion_tokens"), 16)
+        self.assertNotIn("max_tokens", requests[0])
+        self.assertEqual(requests[0].get("reasoning_effort"), "minimal")
+        self.assertNotIn("temperature", requests[0])
 
 
 if __name__ == "__main__":

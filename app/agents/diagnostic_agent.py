@@ -1,4 +1,5 @@
 import logging
+import re
 
 from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 
@@ -9,6 +10,15 @@ from app.utils.runtime import demo_mode
 from app.utils.errors import InvalidDependencyResponse
 
 logger = logging.getLogger(__name__)
+
+_EXTRACTION_ATTEMPTS = 2
+_TYPOGRAPHIC = str.maketrans({"\u2018": "'", "\u2019": "'", "\u201c": '"', "\u201d": '"',
+                              "\u2013": "-", "\u2014": "-", "\u00a0": " "})
+
+
+def _normalize_quote(text: str) -> str:
+    """Compare quotes verbatim modulo whitespace and typographic punctuation."""
+    return re.sub(r"\s+", " ", text.translate(_TYPOGRAPHIC)).strip()
 
 _INTERVIEW_SYSTEM = """You are AgentSpark's Diagnostic Agent — a senior Enterprise AI Transformation
 Architect interviewing a stakeholder. Your goal is to understand one business workflow well enough to
@@ -91,19 +101,25 @@ class DiagnosticAgent:
             "interview": "\n".join(m.get("content", "") for m in chat_history if m.get("role") == "user"),
         }
         transcript = sources["intake"] + "\nINTERVIEW USER INPUT:\n" + sources["interview"]
-        diagnosis = structured_call(get_chat_llm(temperature=0.2), _EXTRACT_SYSTEM, transcript, WorkflowDiagnosis)
-        diagnosis.demo_scenario_required = False
-        diagnosis.evidence = {key: diagnosis.evidence.get(key, FactEvidence()) for key in ESSENTIAL_FACTS}
-        for key in ESSENTIAL_FACTS:
-            evidence = diagnosis.evidence.setdefault(key, FactEvidence())
-            if evidence.status == "supplied" and (
-                not evidence.quote.strip() or evidence.source not in sources
-                or evidence.quote not in sources[evidence.source]
-                or diagnosis.intelligence is None or key not in diagnosis.intelligence.model_fields_set
-            ):
-                logger.error("Diagnostic extraction supplied unverifiable evidence for %s.", key)
-                raise InvalidDependencyResponse("openai")
-        return diagnosis
+        normalized = {name: _normalize_quote(text) for name, text in sources.items()}
+        # Model output is nondeterministic: one fresh extraction may cite verbatim where the first paraphrased.
+        for attempt in range(1, _EXTRACTION_ATTEMPTS + 1):
+            diagnosis = structured_call(get_chat_llm(temperature=0.2), _EXTRACT_SYSTEM, transcript, WorkflowDiagnosis)
+            diagnosis.demo_scenario_required = False
+            diagnosis.evidence = {key: diagnosis.evidence.get(key, FactEvidence()) for key in ESSENTIAL_FACTS}
+            unverifiable = [
+                key for key, evidence in diagnosis.evidence.items()
+                if evidence.status == "supplied" and (
+                    not _normalize_quote(evidence.quote) or evidence.source not in sources
+                    or _normalize_quote(evidence.quote) not in normalized[evidence.source]
+                    or diagnosis.intelligence is None or key not in diagnosis.intelligence.model_fields_set
+                )
+            ]
+            if not unverifiable:
+                return diagnosis
+            logger.error("Diagnostic extraction attempt %d supplied unverifiable evidence for %s.",
+                         attempt, ", ".join(unverifiable))
+        raise InvalidDependencyResponse("openai")
 
 
 diagnostic_agent = DiagnosticAgent()
