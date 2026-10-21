@@ -123,6 +123,9 @@ React SPA  ──/api/v1──►  FastAPI  ──►  LangGraph Orchestrator
 
 - **Frontend:** React + TypeScript + Vite + TailwindCSS SPA (built to static, served by
   FastAPI on a single origin — no separate frontend server, no CORS)
+  with a light workspace, charcoal typography, teal actions, responsive workflow
+  navigation, and visible keyboard focus. Review, rejection, and clarification
+  states remain distinct; approval is advisory, not execution authority.
 - **API / Orchestration:** FastAPI + LangGraph state graph
 - **Reasoning:** Azure OpenAI (GPT-4o) via LangChain, using **structured outputs / function
   calling** so every agent returns schema-validated Pydantic objects
@@ -182,15 +185,57 @@ complete interactive SSO experience.
   (`defaultTtl=-1`, or a positive container default). `/ready` reports Cosmos
   unavailable when TTL is disabled. Application expiry is enforced independently;
   Cosmos physical deletion is asynchronous. No infrastructure is changed automatically.
-- `DELETE /api/v1/sessions/{session_id}` conditionally deletes the owning user's
-  current document with its ETag. Concurrent deletion/update returns 409.
+- `DELETE /api/v1/sessions/{session_id}` deletes the owning user's archived
+  decisions, then conditionally deletes the current document with its ETag.
+  Concurrent deletion/update returns 409; retry a failed deletion to finish it.
   Deletion does **not** erase external logs, provider telemetry, exports or backups;
   those require separate organizational retention controls.
 - Legacy documents without an owner remain anonymous and cannot be claimed by an
   authenticated user. Undated legacy documents are expired, not given a sliding
   lifetime. Review/migrate or purge legacy data administratively before release.
-- Demo data is process-local and shared; it disappears on restart. Expired demo
-  documents become inaccessible but may remain in process memory until restart.
+- Active demo sessions are process-local and shared; they disappear on restart.
+  Expired demo documents become inaccessible but may remain in process memory
+  until restart. Archived decisions persist separately as described below.
+
+### Personal Home and decision archive
+
+Home lists the current owner's workflows with draft, pending review, approved,
+and rejected filters. Open an active workflow to continue it, or open a finalized
+decision to see a read-only snapshot with its reviewer, comments, and decision
+time. Automated policy outcomes are explicitly distinguished from human reviews.
+Quick Start topics use icons, not letter monograms.
+
+Final approved/rejected analyses are archived for **30 days**, independently of
+the active session's lifetime. Set `DECISION_ARCHIVE_RETENTION_DAYS` (1–3650)
+before startup; changes affect new decisions only. Reanalysis creates a new
+decision version when finalized; it does not replace the prior archived review
+or extend that review's expiry. Snapshots contain workflow facts, scores,
+recommendations, estimates, policy/source metadata and review comments—not the
+full interview transcript or code scaffold. They are deletable snapshots,
+**not immutable compliance audit logs**.
+
+- **Local demo:** SQLite at `~/.agentspark/decisions.sqlite3`, or the absolute
+  `DEMO_ARCHIVE_PATH` configured by the operator. The directory must be writable;
+  `/ready` reports archive failure explicitly. Expired rows are pruned on access.
+  This is shared fictional demo data, not private multi-user storage.
+- **Live:** session and archive documents share the existing Cosmos
+  `/session_id` partition. Final decision and snapshot are committed in one
+  ETag-protected transactional batch. Per-document TTL and application checks
+  enforce expiry. Home uses owner-filtered, projected, bounded keyset queries;
+  keep `home.sort_key` range-indexed for these queries.
+- **Deletion:** deleting a workflow removes all its retained decision versions
+  and comments. Archived workflows remain deletable after active-session expiry
+  through `DELETE /api/v1/decisions/{session_id}/{analysis_id}`. This endpoint
+  deletes the entire workflow/history, not just the selected version.
+- **Upgrade:** existing finalized sessions without snapshots can still appear as
+  short-lived legacy records until session expiry. They are not retroactively
+  converted into durable decisions.
+
+This release implements **personal ownership only**. Organization/team
+membership, shared access, tenant administration and enterprise-scale partition
+design are deferred. Before a multi-organization rollout, validate the indexing,
+cross-partition query costs, tenant isolation, membership/RBAC and load profile
+against real Cosmos infrastructure.
 
 ### Privacy scope
 

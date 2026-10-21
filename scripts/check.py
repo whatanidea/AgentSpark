@@ -5,6 +5,7 @@ from pathlib import Path
 import shutil
 import subprocess
 import sys
+from tempfile import TemporaryDirectory
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -35,9 +36,13 @@ def main():
             parser.error("npm is required for frontend checks")
         commands.extend([[npm, "--prefix", "frontend", "run", "typecheck"],
                          [npm, "--prefix", "frontend", "run", "build"]])
-    for command in commands:
-        print("+ " + " ".join(command), flush=True)
-        subprocess.run(command, cwd=ROOT, env=offline_environment(), check=True)
+    with TemporaryDirectory(prefix="agentspark-check-") as directory:
+        env = offline_environment()
+        env["DEMO_ARCHIVE_PATH"] = str(Path(directory) / "decisions.sqlite3")
+        env["DECISION_ARCHIVE_RETENTION_DAYS"] = "30"
+        for command in commands:
+            print("+ " + " ".join(command), flush=True)
+            subprocess.run(command, cwd=ROOT, env=env, check=True)
 
 
 if __name__ == "__main__":

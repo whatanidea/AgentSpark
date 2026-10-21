@@ -143,21 +143,22 @@ ${bp.code_scaffold || ""}
 
   return (
     <div className="space-y-6">
-      <header className="flex items-end justify-between flex-wrap gap-3">
+      <header className="page-header flex items-end justify-between flex-wrap gap-4">
         <div>
-          <h1 className="text-3xl font-extrabold">Implementation Blueprint</h1>
-          <p className="text-slate-400 mt-1">Architecture, cost, roadmap and starter code — generated from the analysis.</p>
+          <div className="eyebrow mb-2">Step 04 / Review & decide</div>
+          <h1>Implementation Blueprint</h1>
+          <p className="mt-2">Architecture, cost, roadmap and starter code — generated from the analysis.</p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           <Button onClick={load} disabled={!sessionId || busy}>Generate / Fetch</Button>
-          {bp && <Button variant="ghost" onClick={download} disabled={busy}>⬇ Export .md</Button>}
+          {bp && <Button aria-label="⬇ Export .md" variant="ghost" onClick={download} disabled={busy}>Export .md</Button>}
         </div>
       </header>
 
-      {!sessionId && <Card><p className="text-amber-300 text-sm">⚠️ Run the analysis first.</p></Card>}
+      {!sessionId && <Card><p className="text-amber-800 text-sm">⚠️ Run the analysis first.</p></Card>}
       {busy && <Card><Spinner label="Fetching blueprint…" /></Card>}
-      {err && <Card><p role="alert" className="text-rose-300 text-sm">❌ {err}</p></Card>}
-      {bp && !bp.diagnosis && <Card><p className="text-amber-200 text-sm">Legacy analysis has no fact provenance. Rerun analysis before reviewing it.</p></Card>}
+      {err && <Card><p role="alert" className="text-rose-700 text-sm">❌ {err}</p></Card>}
+      {bp && !bp.diagnosis && <Card><p className="text-amber-800 text-sm">Legacy analysis has no fact provenance. Rerun analysis before reviewing it.</p></Card>}
       <AnalysisEvidence diagnosis={bp?.diagnosis} scenario={bp?.demo_scenario} />
       {bp?.roi && <Card title="ROI assumptions and sensitivity"><ROIReport roi={bp.roi} /></Card>}
 
@@ -169,30 +170,30 @@ ${bp.code_scaffold || ""}
               : bp.human_review ? "Recommendation approved by a human reviewer"
               : "Recommendation auto-approved by policy"}
           </p>
-          <p className="text-xs text-slate-400 mt-2">Approval applies to this advisory recommendation only. It does not execute or deploy a workflow.</p>
+          <p className="text-xs text-slate-500 mt-2 leading-relaxed">Approval applies to this advisory recommendation only. It does not execute or deploy a workflow.</p>
           {bp.human_review && <p className="text-sm mt-2">{bp.human_review.reviewer}: {bp.human_review.note}</p>}
           {bp.status === "rejected" && (
             <div className="mt-3">
-              <p className="text-sm text-rose-300">{bp.human_review?.note || bp.governance?.reason}</p>
+              <p className="text-sm text-rose-700">{bp.human_review?.note || bp.governance?.reason}</p>
               <p className="text-sm mt-2"><b>Non-agentic alternative:</b> {bp.alternative}</p>
             </div>
           )}
-          {bp.provisional && !canReview && <p role="status" className="mt-3 text-amber-200">Your identity does not have the reviewer role.</p>}
+          {bp.provisional && !canReview && <p role="status" className="mt-3 text-amber-800">Your identity does not have the reviewer role.</p>}
           {bp.provisional && canReview && (
             <div className="mt-4 space-y-3">
-              <p className="text-xs text-amber-300">{secureReview ? "Review is attributed to the verified token identity; owner and role checks are enforced by the API."
+              <p className="notice notice-warning">{secureReview ? "Review is attributed to the verified token identity; owner and role checks are enforced by the API."
                 : "Local demo only: reviewer names are self-reported, not production approval authority."}</p>
               {!secureReview && <label className="block text-sm">
                 Reviewer
-                <input className="block w-full mt-1 rounded bg-white/5 border border-white/10 p-2" value={reviewer} onChange={(e) => setReviewer(e.target.value)} maxLength={200} disabled={busy} />
+                <input className="form-control block mt-2" value={reviewer} onChange={(e) => setReviewer(e.target.value)} maxLength={200} disabled={busy} />
               </label>}
               <label className="block text-sm">
                 Review rationale
-                <textarea className="block w-full mt-1 rounded bg-white/5 border border-white/10 p-2" value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} disabled={busy} />
+                <textarea className="form-control block mt-2" rows={3} value={note} onChange={(e) => setNote(e.target.value)} maxLength={2000} disabled={busy} />
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <Button onClick={() => review("approve")} disabled={busy || (!secureReview && !reviewer.trim()) || !note.trim()}>Approve recommendation</Button>
-                <Button variant="ghost" onClick={() => review("reject")} disabled={busy || (!secureReview && !reviewer.trim()) || !note.trim()}>Reject recommendation</Button>
+                <Button variant="ghost" className="border-rose-200 text-rose-700" onClick={() => review("reject")} disabled={busy || (!secureReview && !reviewer.trim()) || !note.trim()}>Reject recommendation</Button>
               </div>
             </div>
           )}
@@ -203,14 +204,14 @@ ${bp.code_scaffold || ""}
         <>
           {bp.token_usage && (
             <div className="flex gap-4">
-              <div className="flex-1 bg-gradient-to-r from-violet-500/20 to-fuchsia-500/20 border border-violet-500/30 rounded-xl p-4 flex items-center justify-between">
+              <div className="flex-1 bg-teal-50 border border-teal-200 rounded-xl p-5 flex items-center justify-between flex-wrap gap-4">
                 <div>
-                  <h3 className="text-sm font-semibold text-violet-200">Total Tokens Consumed</h3>
-                  <p className="text-xs text-violet-300/70 mt-1">Across all 7 LangGraph agents</p>
+                  <h3 className="text-sm font-semibold text-teal-900">Total Tokens Consumed</h3>
+                  <p className="text-xs text-teal-700 mt-1">Across all 7 LangGraph agents</p>
                 </div>
                 <div className="text-right">
-                  <span className="text-3xl font-extrabold text-white">{bp.token_usage.total_tokens.toLocaleString()}</span>
-                  <div className="text-xs text-violet-200 mt-1 space-x-2">
+                  <span className="text-3xl font-semibold text-teal-900">{bp.token_usage.total_tokens.toLocaleString()}</span>
+                  <div className="text-xs text-teal-800 mt-1 space-x-2">
                     <span>Prompt: {bp.token_usage.prompt_tokens.toLocaleString()}</span>
                     <span className="opacity-50">|</span>
                     <span>Completion: {bp.token_usage.completion_tokens.toLocaleString()}</span>
@@ -224,16 +225,16 @@ ${bp.code_scaffold || ""}
           
           {bp.governance && (
             <Card title="Enterprise Governance Decision">
-              <div className="bg-white/[0.03] p-4 rounded-xl border border-white/10 mb-4">
-                <div className="flex gap-2 items-center mb-2">
-                  <span className="font-bold text-lg text-slate-200">
+              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4">
+                <div className="flex gap-2 items-center flex-wrap mb-2">
+                  <span className="font-semibold text-lg text-slate-800">
                     {bp.human_review?.decision === "approve" ? "HUMAN APPROVED" : bp.governance.decision === "HUMAN_REVIEW_REQUIRED" ? "🟡 HUMAN REVIEW REQUIRED" : "🟢 AUTO APPROVED"}
                   </span>
-                  <span className="text-xs text-slate-500 uppercase px-2 py-1 bg-black/40 rounded">Risk: {bp.governance.overall_risk}</span>
+                  <span className="text-xs text-slate-600 uppercase px-2 py-1 bg-white border border-slate-200 rounded">Risk: {bp.governance.overall_risk}</span>
                 </div>
-                <p className="text-sm text-slate-300">{bp.governance.reason}</p>
+                <p className="text-sm text-slate-600 leading-relaxed">{bp.governance.reason}</p>
                 {bp.governance.decision === "REJECT" && bp.governance.rejection_package && (
-                   <p className="text-sm text-rose-300 mt-2"><b>Alternative:</b> {bp.governance.rejection_package.alternative}</p>
+                   <p className="text-sm text-rose-700 mt-2"><b>Alternative:</b> {bp.governance.rejection_package.alternative}</p>
                 )}
               </div>
             </Card>
@@ -244,12 +245,12 @@ ${bp.code_scaffold || ""}
             <Card title="Roadmap"><Markdown>{bp.roadmap || ""}</Markdown></Card>
           </div>
           <Card title="Illustrative, untested scaffold — not deployment-ready">
-            <pre className="text-xs text-slate-200 bg-black/40 rounded-xl p-4 overflow-x-auto">{bp.code_scaffold}</pre>
+            <pre className="text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-4 overflow-x-auto leading-relaxed">{bp.code_scaffold}</pre>
           </Card>
           {bp.mermaid_diagram && (
-            <details className="rounded-xl border border-white/10 bg-white/[0.02] p-4">
-              <summary className="cursor-pointer text-sm font-semibold text-violet-300">Show raw Mermaid source</summary>
-              <pre className="text-xs text-emerald-200/90 bg-black/40 rounded-xl p-4 overflow-x-auto mt-3">{bp.mermaid_diagram}</pre>
+            <details className="rounded-xl border border-slate-200 bg-white p-5">
+              <summary className="cursor-pointer text-sm font-semibold text-teal-700">Show raw Mermaid source</summary>
+              <pre className="text-xs text-teal-900 bg-slate-50 border border-slate-200 rounded-xl p-4 overflow-x-auto mt-4">{bp.mermaid_diagram}</pre>
             </details>
           )}
         </>

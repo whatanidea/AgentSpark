@@ -5,10 +5,13 @@ import Diagnose from "./components/Diagnose";
 import Analyze from "./components/Analyze";
 import Blueprint from "./components/Blueprint";
 import Portfolio from "./components/Portfolio";
+import Home from "./components/Home";
+import Icon from "./components/Icon";
 import { Button } from "./components/ui";
 
-type View = "intake" | "diagnose" | "analyze" | "blueprint" | "portfolio";
+type View = "home" | "intake" | "diagnose" | "analyze" | "blueprint" | "portfolio";
 const NAV: { id: View; label: string }[] = [
+  { id: "home", label: "Home" },
   { id: "intake", label: "1 · Enterprise Intake" },
   { id: "diagnose", label: "2 · Diagnostic Interview" },
   { id: "analyze", label: "3 · Workflow Analysis" },
@@ -26,7 +29,7 @@ function readPointer(): { session: string; identity: string; view: View } | null
 function forgetPointer() { try { sessionStorage.removeItem(POINTER); } catch {} }
 
 export default function App() {
-  const [view, setView] = useState<View>("intake");
+  const [view, setView] = useState<View>("home");
   const [snapshot, setSnapshot] = useState<SessionSnapshot | null>(null);
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [auth, setAuth] = useState<AuthConfig | null>(null);
@@ -105,7 +108,7 @@ export default function App() {
       setView(next); setConfirmDelete(false);
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
-        forgetPointer(); setSnapshot(null); setView("intake"); setConfirmDelete(false);
+        forgetPointer(); setSnapshot(null); setView(next === "home" ? "home" : "intake"); setConfirmDelete(false);
       }
       setMessage(e instanceof Error ? e.message : "Could not refresh workflow. Retry.");
     } finally { setBusy(false); }
@@ -120,8 +123,8 @@ export default function App() {
     setBusy(true);
     try {
       await api.deleteSession(sessionId);
-      forgetPointer(); setSnapshot(null); setView("intake"); setConfirmDelete(false);
-      setMessage("Workflow deleted from the active session store. Backup retention is managed separately.");
+      forgetPointer(); setSnapshot(null); setView("home"); setConfirmDelete(false);
+      setMessage("Workflow and all retained decision snapshots deleted. Backup retention is managed separately.");
     } catch (e) { setMessage(e instanceof Error ? e.message : "Deletion failed; retry."); }
     finally { setBusy(false); }
   }
@@ -129,51 +132,90 @@ export default function App() {
     forgetPointer(); setSnapshot(null); setView("intake"); setConfirmDelete(false);
     setMessage("New workflow. The previous server session remains until expiry unless deleted.");
   }
+  async function openWorkflow(id: string) {
+    const state = await api.session(id);
+    setSnapshot(state); setConfirmDelete(false); setMessage("");
+    setView(["completed", "rejected", "awaiting_human_review"].includes(state.status) ? "blueprint"
+      : state.status === "needs_clarification" ? "analyze" : state.chat_history.length ? "diagnose" : "intake");
+  }
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
-      <a className="sr-only focus:not-sr-only" href="#main-content">Skip to workflow</a>
-      <aside className="md:w-64 shrink-0 border-r border-white/10 bg-[#0b0a18] flex flex-col">
-        <div className="p-5 border-b border-white/10">
-          <div className="text-2xl font-extrabold text-violet-300">AgentSpark</div>
-          <p className="text-xs text-slate-400 mt-2">The agent that tells you where agents belong.</p>
-          <p role="status" className="text-xs mt-3 text-amber-200">
-            {runtimeError ? "Backend unavailable — retrying every 30 seconds"
-              : !runtime ? "Checking backend…"
-              : runtime.mode === "demo" ? "Demo · fictional fixtures · process-local storage"
-              : runtime.ready ? "Azure live · dependencies ready" : "Live · dependencies unavailable"}
-          </p>
-          <p className="text-xs text-slate-400 mt-2">Status refreshed every 30 seconds.</p>
+      <a className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:bg-white focus:p-3" href="#main-content">Skip to workflow</a>
+      <aside className="md:w-64 lg:w-72 shrink-0 border-b md:border-b-0 md:border-r border-slate-200 bg-slate-50/70 flex flex-col md:sticky md:top-0 md:h-screen md:overflow-y-auto">
+        <div className="px-5 py-5 md:px-6 md:pt-7 md:pb-6">
+          <div className="flex items-center gap-3">
+            <span className="grid place-items-center h-10 w-10 rounded-xl bg-teal-700 text-white shadow-sm" aria-hidden="true">
+              <svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="m12 2 2.7 7.3L22 12l-7.3 2.7L12 22l-2.7-7.3L2 12l7.3-2.7L12 2Z" fill="currentColor" /></svg>
+            </span>
+            <div>
+              <div className="text-xl font-semibold tracking-tight text-slate-900">AgentSpark</div>
+              <p className="text-[11px] text-slate-500 mt-0.5">Enterprise transformation advisor</p>
+            </div>
+          </div>
+          <p className="hidden md:block text-xs leading-relaxed text-slate-500 mt-5">The agent that tells you where agents belong.</p>
         </div>
-        <nav aria-label="Workflow steps" className="flex-1 p-3 space-y-1">
-          {NAV.map((n) => (
-            <button key={n.id} disabled={busy || !identity || starting || (!sessionId && !["intake", "portfolio"].includes(n.id))}
-              aria-current={view === n.id ? "step" : undefined} onClick={() => void changeView(n.id)}
-              className={`w-full text-left px-3 py-2.5 rounded-xl text-sm disabled:opacity-40 focus-visible:outline focus-visible:outline-violet-400 ${view === n.id ? "bg-violet-500/20 text-violet-200" : "text-slate-300 hover:bg-white/5"}`}>
-              {n.label}
-            </button>
+        <nav aria-label="Workflow steps" className="flex md:block md:flex-1 overflow-x-auto px-4 pb-4 md:pb-5 gap-2 md:space-y-1.5">
+          <p className="hidden md:block px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Workspace</p>
+          {NAV.map((n, index) => (
+            <div key={n.id} className={`shrink-0 ${n.id === "portfolio" ? "md:mt-6 md:pt-5 md:border-t border-slate-200" : ""}`}>
+              {n.id === "portfolio" && <p className="hidden md:block px-3 pb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Explore</p>}
+              <button disabled={busy || !identity || starting || (!sessionId && !["home", "intake", "portfolio"].includes(n.id))}
+                aria-label={n.label} aria-current={view === n.id ? "step" : undefined} onClick={() => void changeView(n.id)}
+                className="nav-item">
+                <span className="nav-number" aria-hidden="true">{n.id === "home" || n.id === "portfolio" ? <Icon name={n.id} className="h-4 w-4" /> : String(index).padStart(2, "0")}</span>
+                <span>{n.label.replace(/^\d · /, "")}</span>
+                {view === n.id && <span aria-hidden="true" className="ml-auto text-teal-700">›</span>}
+              </button>
+            </div>
           ))}
         </nav>
-        <div className="p-4 space-y-3 text-xs text-slate-400">
+        <div className="mx-5 mb-4 md:mb-5 md:rounded-xl md:border border-slate-200 md:bg-white md:p-4">
+          <p className="hidden md:block text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Connection status</p>
+          <p role="status" className="text-xs leading-relaxed text-slate-700">
+            <span aria-hidden="true" className={`inline-block h-1.5 w-1.5 rounded-full mr-2 ${runtimeError || (runtime && !runtime.ready) ? "bg-amber-500" : runtime ? "bg-teal-600" : "bg-slate-400"}`} />
+            {runtimeError ? "Backend unavailable — retrying every 30 seconds"
+              : !runtime ? "Checking backend…"
+              : runtime.mode === "demo" ? runtime.ready ? "Demo · shared local sessions · retained decision snapshots" : "Demo · decision archive unavailable"
+              : runtime.ready ? "Azure live · dependencies ready" : "Live · dependencies unavailable"}
+          </p>
+          <p className="hidden md:block text-[11px] text-slate-500 mt-2">Status refreshed every 30 seconds.</p>
+        </div>
+        <div className="px-5 pb-5 space-y-3 text-xs text-slate-500">
           {sessionId && <>
             <p>Workflow: {sessionId.slice(0, 8)} · {snapshot?.status.replace(/_/g, " ")}</p>
             <p>Expires: {new Date(snapshot!.expires_at).toLocaleString()}</p>
-            <Button variant="ghost" disabled={busy} onClick={newWorkflow}>New workflow</Button>
-            <Button variant="ghost" disabled={busy} onClick={() => setConfirmDelete(true)}>Delete workflow</Button>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="ghost" disabled={busy} onClick={newWorkflow}>New workflow</Button>
+              <Button variant="ghost" disabled={busy} onClick={() => setConfirmDelete(true)}>Delete workflow</Button>
+            </div>
           </>}
           {identity && auth?.mode === "oidc" && <Button variant="ghost" disabled={busy} onClick={() => {
             setAccessToken(""); setIdentity(null); setSnapshot(null); setView("intake"); forgetPointer();
           }}>Sign out</Button>}
         </div>
       </aside>
-      <main id="main-content" className="flex-1 min-w-0 overflow-y-auto" aria-busy={busy}>
-        <div className="max-w-5xl mx-auto px-4 md:px-8 py-8 space-y-4">
-          <div className="text-sm text-amber-100 border border-amber-500/20 rounded-xl p-3">
-            Do not submit confidential data or credentials. Pattern-based redaction is best-effort, not anonymization.
-            {" "}{auth?.mode === "local-demo" ? "Local demo is unauthenticated and shared; do not expose it publicly." : "Workflows are private to the authenticated owner; review also requires a reviewer role."}
-            {" "}Session retention: {auth?.retention_hours ?? "…"} hours. Only an opaque session pointer is kept in this tab.
+      <main id="main-content" className="flex-1 min-w-0 bg-white" aria-busy={busy}>
+        <div className="min-h-16 border-b border-slate-200 flex items-center justify-between flex-wrap gap-3 px-5 md:px-10 py-4">
+          <p className="text-xs text-slate-500">Workspace <span className="mx-2 text-slate-300">/</span> <span className="font-medium text-slate-700">{NAV.find((n) => n.id === view)?.label.replace(/^\d · /, "")}</span></p>
+          <span className="text-[11px] font-medium text-teal-800 bg-teal-50 border border-teal-100 rounded-full px-3 py-1">Personal workspace</span>
+        </div>
+        <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-10 py-7 md:py-9 space-y-6">
+          <div className="notice">
+            <svg aria-hidden="true" className="shrink-0 mt-0.5 text-slate-500" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z" /><path d="m9 12 2 2 4-4" /></svg>
+            <div>
+              <p className="font-medium">Do not submit confidential data or credentials.</p>
+              <details className="mt-0.5">
+                <summary className="text-slate-500">Privacy, access & retention details</summary>
+                <p className="mt-2">Pattern-based redaction is best-effort, not anonymization.
+                  {" "}{auth?.mode === "local-demo" ? "Local demo is unauthenticated and shared; do not expose it publicly." : "Workflows are private to the authenticated owner; review also requires a reviewer role."}
+                  {" "}Session retention: {auth?.retention_hours ?? "…"} hours; decision snapshots: {auth?.archive_retention_days ?? "…"} days.
+                  {" "}Deleting a workflow also deletes its decision archive. Only an opaque session pointer is kept in this tab.
+                </p>
+              </details>
+            </div>
           </div>
-          {message && <p role="status" className="text-sm text-slate-200">{message}</p>}
+          {message && <p role="status" className="notice">{message}</p>}
           {identity && !snapshot && readPointer() && <Button disabled={busy} variant="ghost" onClick={async () => {
             setBusy(true);
             try { await connect(); }
@@ -181,25 +223,32 @@ export default function App() {
             finally { setBusy(false); }
           }}>Retry workflow restoration</Button>}
           {!auth && !starting && <Button onClick={() => window.location.reload()}>Retry connection</Button>}
-          {confirmDelete && <section role="alertdialog" aria-label="Confirm workflow deletion" aria-describedby="delete-explanation" className="rounded-xl border border-rose-400 p-4">
-            <p id="delete-explanation">Permanently delete this workflow from the active store? This cannot be undone.</p>
-            <div className="flex gap-3 mt-3">
-              <Button disabled={busy} onClick={removeSession}>Confirm delete</Button>
+          {confirmDelete && <section role="alertdialog" aria-label="Confirm workflow deletion" aria-describedby="delete-explanation" className="rounded-xl border border-rose-200 bg-rose-50 p-5 text-rose-900">
+            <h2 className="font-semibold mb-2">Delete this workflow?</h2>
+            <p id="delete-explanation">Permanently delete this workflow and all its decision snapshots, including reviewer comments? This cannot be undone.</p>
+            <div className="flex flex-wrap gap-3 mt-4">
+              <Button variant="danger" disabled={busy} onClick={removeSession}>Confirm delete</Button>
               <Button disabled={busy} variant="ghost" onClick={() => setConfirmDelete(false)} autoFocus>Cancel</Button>
             </div>
           </section>}
           {starting ? <p role="status">Loading access configuration…</p> : !identity ? (
-            <section className="space-y-3">
+            <section className="surface-card max-w-xl space-y-4">
               <h1 className="text-2xl font-bold">Organization access</h1>
-              <p className="text-sm text-slate-300">Supply an API access token from your organization's configured OIDC provider. It stays in memory and must be supplied again after reload.</p>
+              <p className="text-sm text-slate-600 leading-relaxed">Supply an API access token from your organization's configured OIDC provider. It stays in memory and must be supplied again after reload.</p>
               <label className="block">Access token
                 <input type="password" autoComplete="off" spellCheck={false} value={token} onChange={(e) => setToken(e.target.value)}
-                  className="block w-full rounded border border-white/20 bg-white/5 p-2" />
+                  className="form-control block mt-2" />
               </label>
               <Button disabled={busy || !token.trim() || !auth} onClick={signIn}>Connect securely</Button>
               {!auth && <p role="alert">Access configuration unavailable. Reload to retry.</p>}
             </section>
           ) : <div key={sessionId || "new"}>
+            {view === "home" && <Home demo={auth?.mode === "local-demo"} retentionDays={auth?.archive_retention_days ?? 30}
+              onCreate={newWorkflow} onOpen={openWorkflow} onBusyChange={setBusy}
+              onDeleted={(id) => {
+                if (id === sessionId) { forgetPointer(); setSnapshot(null); }
+                setMessage("Workflow and all retained decision snapshots deleted.");
+              }} />}
             {view === "intake" && <Intake sessionId={sessionId} initialContext={snapshot ? { ...snapshot.enterprise_context, demo_scenario: snapshot.demo_scenario } : undefined}
               onSaved={async (id: string) => { await refreshSession(id); setView("diagnose"); }}
               onBusyChange={setBusy} />}

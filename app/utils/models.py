@@ -283,6 +283,7 @@ class WorkflowState(BaseModel):
     status: WorkflowStatus = "init"
     analysis_id: Optional[SessionId] = None
     human_review: Optional[HumanReview] = None
+    decision_recorded_at: Optional[datetime] = None
 
     def invalidate_analysis(self) -> None:
         self.diagnosis = None
@@ -298,4 +299,5 @@ class WorkflowState(BaseModel):
         self.token_usage = None
         self.analysis_id = None
         self.human_review = None
+        self.decision_recorded_at = None
         self.status = "init"

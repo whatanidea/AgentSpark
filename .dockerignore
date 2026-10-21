@@ -1,6 +1,7 @@
 .git
 .github
 .azure
+.agentspark
 .env
 .env.*
 **/.env
