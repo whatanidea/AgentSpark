@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { api, type DirectoryMember, type DirectoryPage, type Organization, type Team, type TeamRole, type WorkspaceSelection } from "../api";
+import { api, inviteLink, parseInviteCode, type DirectoryMember, type DirectoryPage, type Invite, type Organization, type Team, type TeamRole, type WorkspaceSelection } from "../api";
 import { Button, Card, Pill } from "./ui";
 
 const empty = <T,>(): DirectoryPage<T> => ({ items: [], next_cursor: null });
 
-export default function Workspaces({ identity, demo, onSelect, onBusyChange }: {
+export default function Workspaces({ identity, demo, onSelect, onBusyChange, inviteCode = "", onInviteHandled }: {
   identity: string; demo: boolean; onSelect: (value: WorkspaceSelection | null) => void;
-  onBusyChange: (busy: boolean) => void;
+  onBusyChange: (busy: boolean) => void; inviteCode?: string; onInviteHandled?: () => void;
 }) {
   const [organizations, setOrganizations] = useState(empty<Organization>);
   const [organization, setOrganization] = useState("");
@@ -22,6 +22,15 @@ export default function Workspaces({ identity, demo, onSelect, onBusyChange }: {
   const [grantId, setGrantId] = useState("");
   const [grantRoles, setGrantRoles] = useState<TeamRole[]>(["viewer"]);
   const [grantActive, setGrantActive] = useState(true);
+  const [invites, setInvites] = useState(empty<Invite>);
+  const [inviteRole, setInviteRole] = useState<"admin" | "member">("member");
+  const [inviteTeam, setInviteTeam] = useState("");
+  const [inviteRoles, setInviteRoles] = useState<TeamRole[]>(["contributor"]);
+  const [inviteHours, setInviteHours] = useState(168);
+  const [inviteUses, setInviteUses] = useState(1);
+  const [createdLink, setCreatedLink] = useState("");
+  const [joinCode, setJoinCode] = useState(inviteCode);
+  useEffect(() => { if (inviteCode) setJoinCode(inviteCode); }, [inviteCode]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -38,12 +47,15 @@ export default function Workspaces({ identity, demo, onSelect, onBusyChange }: {
   async function scope(id: string, entries = organizations.items) {
     setOrganization(id); setTeams(empty()); setMembers(empty()); setGrants(empty()); setGrantTeam("");
     setMemberId(""); setGrantId(""); setMemberRole("member"); setMemberActive(true);
-    setGrantRoles(["viewer"]); setGrantActive(true);
+    setGrantRoles(["viewer"]); setGrantActive(true); setInvites(empty()); setCreatedLink(""); setInviteTeam("");
+    setInviteRole("member");
     const role = entries.find(item => item.organization_id === id)?.role;
-    const [nextTeams, nextMembers] = await Promise.all([
-      api.teams(id), role === "owner" || role === "admin" ? api.members(id) : Promise.resolve(empty<DirectoryMember>()),
+    const manager = role === "owner" || role === "admin";
+    const [nextTeams, nextMembers, nextInvites] = await Promise.all([
+      api.teams(id), manager ? api.members(id) : Promise.resolve(empty<DirectoryMember>()),
+      manager ? api.invites(id) : Promise.resolve(empty<Invite>()),
     ]);
-    setTeams(nextTeams); setMembers(nextMembers);
+    setTeams(nextTeams); setMembers(nextMembers); setInvites(nextInvites);
   }
 
   useEffect(() => {
@@ -74,11 +86,32 @@ export default function Workspaces({ identity, demo, onSelect, onBusyChange }: {
       <label className="block text-sm">Signed-in identity ID
         <input readOnly className="form-control block mt-2 font-mono text-xs" value={identity} />
       </label>
-      <p className="text-xs text-slate-500 mt-2">Share this ID with an organization administrator to request membership. Email invitations are not implemented.</p>
+      <p className="text-xs text-slate-500 mt-2">The easiest way to join an organization is an invite link from its administrator. Administrators can also add this ID directly.</p>
       <div className="flex flex-wrap gap-3 mt-4">
         <Button variant="ghost" disabled={busy} onClick={() => onSelect(null)}>Use personal workspace</Button>
         <Button variant="ghost" disabled={busy} onClick={() => void run(refresh)}>Refresh organizations</Button>
       </div>
+    </Card>
+    <Card title="Join with an invite link" description="Paste the link an organization administrator shared with you. Links expire and may be single-use.">
+      {inviteCode && <p className="notice mb-3">You opened an invite link. Select Join organization to accept it as the signed-in identity.</p>}
+      <form className="flex items-end gap-3 flex-wrap" onSubmit={event => {
+        event.preventDefault();
+        void run(async () => {
+          const joined = await api.redeemInvite(parseInviteCode(joinCode));
+          setJoinCode(""); onInviteHandled?.();
+          const result = await api.organizations();
+          setOrganizations(result);
+          await scope(joined.organization_id, result.items);
+          setMessage(joined.status === "joined" ? `Joined ${joined.name} as ${joined.role}${joined.team_id ? " with team access" : ""}.`
+            : `You already have this access in ${joined.name}.`);
+        });
+      }}>
+        <label className="block text-sm flex-1 min-w-48">Invite link or code
+          <input className="form-control block mt-2 font-mono text-xs" required maxLength={400} autoComplete="off"
+            spellCheck={false} value={joinCode} disabled={busy} onChange={event => setJoinCode(event.target.value)} />
+        </label>
+        <Button type="submit" disabled={busy || !joinCode.trim()}>Join organization</Button>
+      </form>
     </Card>
     {error && <p role="alert" className="notice border-rose-200 text-rose-800 bg-rose-50">{error}</p>}
     {message && <p role="status" className="notice">{message}</p>}
@@ -147,6 +180,78 @@ export default function Workspaces({ identity, demo, onSelect, onBusyChange }: {
           </label><Button type="submit" disabled={busy || !teamName.trim()}>Create team</Button>
         </form>}
       </Card>
+      {admin && <Card title="Invite links" description="Create a link instead of exchanging identity IDs. The link is shown once; anyone who signs in with it receives the access below until it expires, is used up, or is revoked.">
+        <form className="space-y-3" onSubmit={event => {
+          event.preventDefault(); void run(async () => {
+            const created = await api.createInvite(organization, {
+              role: inviteRole, expires_in_hours: inviteHours, max_uses: inviteUses,
+              ...(inviteTeam ? { team_id: inviteTeam, team_roles: inviteRoles } : {}),
+            });
+            setCreatedLink(inviteLink(created.code));
+            setInvites(await api.invites(organization));
+          });
+        }}>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="block text-sm">Invite organization role
+              <select className="form-control block mt-2" value={inviteRole} disabled={busy || selected.role !== "owner"}
+                onChange={event => setInviteRole(event.target.value === "admin" ? "admin" : "member")}>
+                <option value="member">Member</option><option value="admin">Administrator</option>
+              </select>
+            </label>
+            <label className="block text-sm">Team access
+              <select className="form-control block mt-2" value={inviteTeam} disabled={busy}
+                onChange={event => setInviteTeam(event.target.value)}>
+                <option value="">No team (organization only)</option>
+                {teams.items.map(team => <option key={team.team_id} value={team.team_id}>{team.name}</option>)}
+              </select>
+            </label>
+            <label className="block text-sm">Expires after
+              <select className="form-control block mt-2" value={inviteHours} disabled={busy}
+                onChange={event => setInviteHours(Number(event.target.value))}>
+                <option value={24}>1 day</option><option value={168}>7 days</option><option value={720}>30 days</option>
+              </select>
+            </label>
+            <label className="block text-sm">Maximum uses
+              <input type="number" min={1} max={100} className="form-control block mt-2" value={inviteUses} disabled={busy}
+                onChange={event => setInviteUses(Math.min(100, Math.max(1, Number(event.target.value) || 1)))} />
+            </label>
+          </div>
+          {inviteTeam && <fieldset disabled={busy} className="flex flex-wrap gap-4"><legend className="text-sm mb-2">Invite team roles</legend>
+            {(["contributor", "reviewer", "viewer"] as const).map(role => <label key={role} className="flex gap-2 text-sm">
+              <input type="checkbox" checked={inviteRoles.includes(role)} onChange={event => setInviteRoles(
+                event.target.checked ? [...inviteRoles, role] : inviteRoles.filter(value => value !== role))} />{role}
+            </label>)}
+          </fieldset>}
+          <Button type="submit" disabled={busy || (!!inviteTeam && !inviteRoles.length)}>Create invite link</Button>
+        </form>
+        {createdLink && <div className="mt-4 space-y-2">
+          <label className="block text-sm">New invite link (copy it now; it is not shown again)
+            <input readOnly className="form-control block mt-2 font-mono text-xs" value={createdLink}
+              onFocus={event => event.target.select()} />
+          </label>
+          <Button variant="ghost" disabled={busy} onClick={() => void navigator.clipboard?.writeText(createdLink)
+            .then(() => setMessage("Invite link copied."), () => setMessage("Copy failed; select the link and copy it manually."))}>Copy invite link</Button>
+        </div>}
+        <div className="space-y-2 mt-5">
+          {invites.items.map(invite => <div key={invite.invite_id} className="border border-slate-200 rounded-lg p-3 flex flex-wrap gap-3 items-center justify-between">
+            <div className="min-w-0 text-xs">
+              <p><Pill tone={invite.status === "active" ? "green" : "slate"}>{invite.status}</Pill>{" "}
+                {invite.role}{invite.team_id ? ` + ${teams.items.find(team => team.team_id === invite.team_id)?.name || "team"} (${invite.team_roles.join(", ")})` : ""}</p>
+              <p className="text-slate-500 mt-1">Used {invite.uses}/{invite.max_uses} · expires {new Date(invite.expires_at).toLocaleString()}</p>
+            </div>
+            {invite.status === "active" && (selected.role === "owner" || invite.role !== "admin") &&
+              <Button variant="ghost" disabled={busy} onClick={() => void run(async () => {
+                await api.revokeInvite(organization, invite.invite_id);
+                setInvites(await api.invites(organization)); setMessage("Invite link revoked.");
+              })}>Revoke invite {invite.invite_id.slice(0, 8)}</Button>}
+          </div>)}
+          {!invites.items.length && <p className="text-sm text-slate-500">No invite links yet.</p>}
+        </div>
+        {invites.next_cursor && <Button variant="ghost" disabled={busy} className="mt-3" onClick={() => void run(async () => {
+          const next = await api.invites(organization, invites.next_cursor!);
+          setInvites({ ...next, items: [...invites.items, ...next.items] });
+        })}>Load more invites</Button>}
+      </Card>}
       {admin && <Card title="Organization members" description="Owners manage administrators. Administrators manage ordinary membership. The founding owner cannot be removed.">
         <div className="space-y-2">
           {members.items.map(member => <div key={member.identity_id} className="border border-slate-200 rounded-lg p-3 flex flex-wrap gap-3 items-center justify-between">

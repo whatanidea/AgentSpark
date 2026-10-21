@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from contextvars import ContextVar
 from dataclasses import dataclass
 import logging
+import re
 import sqlite3
 from typing import Literal
 from uuid import uuid4
@@ -35,7 +36,7 @@ workspace_context: ContextVar[Workspace] = ContextVar("workspace", default=Works
 class DirectoryRecord(BaseModel):
     id: str
     organization_id: SessionId
-    document_type: Literal["organization", "team", "org_member", "team_member"]
+    document_type: Literal["organization", "team", "org_member", "team_member", "invite"]
     name: str = ""
     identity_id: str = ""
     team_id: str = ""
@@ -43,6 +44,10 @@ class DirectoryRecord(BaseModel):
     roles: list[TeamRole] = Field(default_factory=list)
     active: bool = True
     generation: str = ""
+    invite_id: str = ""
+    expires_at: str = ""
+    max_uses: int = Field(default=0, ge=0, le=100)
+    uses: int = Field(default=0, ge=0, le=100)
     version: str = ""
     schema_version: Literal[1] = 1
 
@@ -58,10 +63,15 @@ class DirectoryRecord(BaseModel):
             "team": f"team-{self.team_id}",
             "org_member": f"member-{self.identity_id}",
             "team_member": f"grant-{self.team_id}-{self.identity_id}",
+            "invite": f"invite-{self.invite_id}",
         }[self.document_type]
         if self.id != expected or (
             self.document_type in ("org_member", "team_member") and (not self.identity_id or not self.generation)
-        ) or (self.document_type in ("team", "team_member") and not self.team_id):
+        ) or (self.document_type in ("team", "team_member") and not self.team_id) or (
+            self.document_type == "invite" and (
+                not re.fullmatch(r"[a-f0-9]{64}", self.invite_id) or not self.identity_id or self.role == "owner"
+                or not self.expires_at or self.max_uses < 1 or bool(self.team_id) != bool(self.roles))
+        ):
             raise ValueError("Directory record metadata is inconsistent.")
         return self
 

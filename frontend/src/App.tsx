@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { api, ApiError, AuthConfig, Identity, Readiness, SessionSnapshot, setAccessToken, setWorkspace, type WorkspaceSelection } from "./api";
+import { api, ApiError, AuthConfig, Identity, parseInviteCode, Readiness, SessionSnapshot, setAccessToken, setWorkspace, type WorkspaceSelection } from "./api";
 import Intake from "./components/Intake";
 import Diagnose from "./components/Diagnose";
 import Analyze from "./components/Analyze";
@@ -31,6 +31,13 @@ function readPointer(): { session: string; identity: string; view: View; workspa
   } catch { return null; }
 }
 function forgetPointer() { try { sessionStorage.removeItem(POINTER); } catch {} }
+/** Invite links carry the code in the URL fragment, which browsers never send to the server. */
+function takeInviteFromUrl(): string {
+  if (!/^#invite=/.test(window.location.hash)) return "";
+  const code = parseInviteCode(window.location.hash);
+  window.history.replaceState(null, "", window.location.pathname + window.location.search);
+  return code;
+}
 
 export default function App() {
   const [view, setView] = useState<View>("home");
@@ -45,6 +52,7 @@ export default function App() {
   const [runtime, setRuntime] = useState<Readiness | null>(null);
   const [runtimeError, setRuntimeError] = useState("");
   const [workspace, selectWorkspace] = useState<WorkspaceSelection | null>(null);
+  const [pendingInvite, setPendingInvite] = useState(takeInviteFromUrl);
   const sessionId = snapshot?.session_id || "";
   const canWrite = snapshot ? snapshot.permissions.write : workspace?.permissions.write !== false;
   const canDelete = snapshot ? snapshot.permissions.delete : workspace?.permissions.delete !== false;
@@ -103,6 +111,16 @@ export default function App() {
     window.addEventListener("agentsense-auth-expired", expire);
     return () => { alive = false; clearInterval(interval); window.removeEventListener("agentsense-auth-expired", expire); };
   }, []);
+
+  useEffect(() => {
+    const onHash = () => { const code = takeInviteFromUrl(); if (code) setPendingInvite(code); };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
+
+  useEffect(() => {
+    if (identity && pendingInvite) { setView("workspaces"); setConfirmDelete(false); }
+  }, [identity, pendingInvite]);
 
   useEffect(() => {
     if (!snapshot || !identity) return;
@@ -257,6 +275,7 @@ export default function App() {
           {starting ? <p role="status">Loading access configuration…</p> : !identity ? (
             <section className="surface-card max-w-xl space-y-4">
               <h1 className="text-2xl font-bold">Organization access</h1>
+              {pendingInvite && <p role="status" className="notice">You opened an invite link. Connect first; you can then accept the invite on the Organizations & teams page.</p>}
               <p className="text-sm text-slate-600 leading-relaxed">Supply an API access token from your organization's configured OIDC provider. It stays in memory and must be supplied again after reload.</p>
               <label className="block">Access token
                 <input type="password" autoComplete="off" spellCheck={false} value={token} onChange={(e) => setToken(e.target.value)}
@@ -267,7 +286,8 @@ export default function App() {
             </section>
           ) : <div key={sessionId || "new"}>
             {view === "workspaces" && <Workspaces identity={identity.identity} demo={auth?.mode === "local-demo"}
-              onSelect={changeWorkspace} onBusyChange={setBusy} />}
+              onSelect={changeWorkspace} onBusyChange={setBusy} inviteCode={pendingInvite}
+              onInviteHandled={() => setPendingInvite("")} />}
             {view === "home" && <Home demo={auth?.mode === "local-demo"} retentionDays={auth?.archive_retention_days ?? 30}
               workspaceName={workspace ? `${workspace.organization_name} / ${workspace.team_name}` : undefined}
               canCreate={workspace?.permissions.write !== false} canDelete={workspace?.permissions.delete !== false}

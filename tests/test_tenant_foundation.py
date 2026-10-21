@@ -211,6 +211,86 @@ class TenantFoundationTests(unittest.TestCase):
         self.call("PUT", f"/organizations/{organization}/members/{viewer_id}", body=request, status=409)
         self.call("GET", f"/organizations/{organization}/members", subject="viewer", status=404)
 
+    def test_invite_link_joins_org_and_team_once_without_storing_the_secret(self):
+        organization, team = self.organization()
+        created = self.call("POST", f"/organizations/{organization}/invites", status=201,
+                            body={"team_id": team, "team_roles": ["contributor"], "expires_in_hours": 24})
+        code = created["code"]
+        self.assertTrue(code.startswith(organization + "."))
+        self.assertEqual((created["status"], created["max_uses"], created["uses"]), ("active", 1, 0))
+        self.call("POST", "/invites/redeem", subject="invitee", body={"code": code}, status=200)
+        joined = self.call("GET", "/organizations", subject="invitee")["items"]
+        self.assertEqual([(item["organization_id"], item["role"]) for item in joined], [(organization, "member")])
+        teams = self.call("GET", f"/organizations/{organization}/teams", subject="invitee")["items"]
+        self.assertEqual(teams[0]["permissions"], ["read", "write"])
+        self.workflow(organization, team, subject="invitee")
+        self.call("POST", "/invites/redeem", subject="second", body={"code": code}, status=404)
+        self.call("GET", "/organizations", subject="second")
+        listed = self.call("GET", f"/organizations/{organization}/invites")["items"]
+        self.assertEqual([(item["status"], item["uses"]) for item in listed], [("used", 1)])
+        self.assertNotIn("code", listed[0])
+        secret = code.split(".", 1)[1]
+        self.assertNotIn(secret.encode(), Path(tenant_directory.path).read_bytes())
+
+    def test_invite_redemption_rejects_revoked_expired_forged_and_unauthenticated_codes(self):
+        organization, _ = self.organization()
+        revoked = self.call("POST", f"/organizations/{organization}/invites", body={}, status=201)
+        self.call("DELETE", f"/organizations/{organization}/invites/{revoked['invite_id']}")
+        self.call("POST", "/invites/redeem", subject="invitee", body={"code": revoked["code"]}, status=404)
+        expired = self.call("POST", f"/organizations/{organization}/invites", body={}, status=201)
+        record = tenant_directory.get(organization, f"invite-{expired['invite_id']}")
+        tenant_directory.write([record.model_copy(update={"expires_at": "2000-01-01T00:00:00+00:00"})])
+        self.call("POST", "/invites/redeem", subject="invitee", body={"code": expired["code"]}, status=404)
+        valid = self.call("POST", f"/organizations/{organization}/invites", body={}, status=201)["code"]
+        for code in (valid[:-1] + ("A" if valid[-1] != "A" else "B"), "not-a-code", f"other-org.{valid.split('.')[1]}"):
+            self.call("POST", "/invites/redeem", subject="invitee", body={"code": code}, status=404)
+        response = self.client.post("/api/v1/invites/redeem", json={"code": valid})
+        self.assertEqual(response.status_code, 401)
+        self.assertEqual(self.call("GET", "/organizations", subject="invitee")["items"], [])
+
+    def test_invite_privileges_never_escalate_or_downgrade(self):
+        organization, team = self.organization()
+        self.call("POST", f"/organizations/{organization}/invites", subject="stranger", body={}, status=404)
+        self.call("PUT", f"/organizations/{organization}/members/{self.identity('admin')}", body={"role": "admin"})
+        self.call("POST", f"/organizations/{organization}/invites", subject="admin", body={"role": "admin"}, status=403)
+        admin_invite = self.call("POST", f"/organizations/{organization}/invites", body={"role": "admin"}, status=201)
+        self.call("DELETE", f"/organizations/{organization}/invites/{admin_invite['invite_id']}", subject="admin",
+                  status=403)
+        self.member(organization, team, "plain", ["viewer"])
+        self.call("POST", f"/organizations/{organization}/invites", subject="plain", body={}, status=403)
+        self.call("POST", f"/organizations/{organization}/invites", body={"team_id": team}, status=422)
+        self.call("POST", f"/organizations/{organization}/invites", status=404,
+                  body={"team_id": str(uuid4()), "team_roles": ["viewer"]})
+
+        member_invite = self.call("POST", f"/organizations/{organization}/invites", body={"max_uses": 5},
+                                  status=201)
+        result = self.call("POST", "/invites/redeem", subject="admin", body={"code": member_invite["code"]})
+        self.assertEqual((result["status"], result["role"]), ("already_member", "admin"))
+        self.call("POST", "/invites/redeem", body={"code": member_invite["code"]})
+        self.assertEqual(self.call("GET", "/organizations")["items"][0]["role"], "owner")
+        listed = {item["invite_id"]: item for item in self.call("GET", f"/organizations/{organization}/invites")["items"]}
+        self.assertEqual(listed[member_invite["invite_id"]]["uses"], 0)
+
+        promote = self.call("POST", f"/organizations/{organization}/invites", status=201,
+                            body={"role": "admin", "team_id": team, "team_roles": ["reviewer"]})
+        result = self.call("POST", "/invites/redeem", subject="plain", body={"code": promote["code"]})
+        self.assertEqual((result["status"], result["role"], result["team_id"]), ("joined", "admin", team))
+        grants = self.call("GET", f"/organizations/{organization}/teams/{team}/members")["items"]
+        plain = next(item for item in grants if item["identity_id"] == self.identity("plain"))
+        self.assertEqual((plain["roles"], plain["effective_active"]), (["reviewer", "viewer"], True))
+
+    def test_concurrent_redemption_cannot_exceed_max_uses(self):
+        organization, _ = self.organization()
+        code = self.call("POST", f"/organizations/{organization}/invites", body={}, status=201)["code"]
+        headers = [self.headers(f"racer-{index}") for index in range(6)]
+        with ThreadPoolExecutor(6) as pool:
+            statuses = list(pool.map(lambda header: self.client.post(
+                "/api/v1/invites/redeem", headers=header, json={"code": code}).status_code, headers))
+        self.assertEqual(statuses.count(200), 1, statuses)
+        self.assertTrue(set(statuses) <= {200, 404, 409}, statuses)
+        members = self.call("GET", f"/organizations/{organization}/members")["items"]
+        self.assertEqual(len(members), 2)
+
     def test_personal_workflows_remain_owner_private_even_inside_an_organization(self):
         organization, team = self.organization()
         self.member(organization, team, "viewer", ["viewer"])
