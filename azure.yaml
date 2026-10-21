@@ -1,0 +1,15 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/Azure/azure-dev/main/schemas/v1.0/azure.yaml.json
+name: agentspark
+metadata:
+  template: agentspark-staging@0.1.0
+infra:
+  provider: bicep
+  path: infra
+services:
+  web:
+    project: .
+    language: docker
+    host: containerapp
+    docker:
+      path: Dockerfile
+      remoteBuild: true

@@ -16,6 +16,29 @@ from app.utils.runtime import demo_mode, require_config
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
+REASONING_EFFORTS = ("minimal", "low", "medium", "high")
+
+
+def reasoning_effort() -> str | None:
+    """Reasoning deployments (e.g. gpt-5 family) reject `temperature`; setting an effort opts in."""
+    value = (os.environ.get("AZURE_OPENAI_REASONING_EFFORT") or "").strip().lower()
+    if not value:
+        return None
+    if value not in REASONING_EFFORTS:
+        logger.error("AZURE_OPENAI_REASONING_EFFORT must be one of: %s.", ", ".join(REASONING_EFFORTS))
+        raise DependencyUnavailable("openai")
+    return value
+
+
+def _timeout_seconds() -> float:
+    try:
+        value = float(os.environ.get("AZURE_OPENAI_TIMEOUT_SECONDS", "15"))
+    except ValueError:
+        value = 0
+    if not 1 <= value <= 120:
+        logger.error("AZURE_OPENAI_TIMEOUT_SECONDS must be between 1 and 120.")
+        raise DependencyUnavailable("openai")
+    return value
 
 
 @lru_cache(maxsize=4)
@@ -25,14 +48,16 @@ def get_chat_llm(temperature: float = 0.2):
     key, endpoint = require_config("openai", "AZURE_OPENAI_API_KEY", "AZURE_OPENAI_ENDPOINT")
     from langchain_openai import AzureChatOpenAI
 
+    effort = reasoning_effort()
+    sampling = {"reasoning_effort": effort} if effort else {"temperature": temperature}
     return AzureChatOpenAI(
         azure_deployment=os.environ.get("AZURE_OPENAI_CHAT_DEPLOYMENT", "gpt-4o"),
         openai_api_version=os.environ.get("AZURE_OPENAI_API_VERSION", "2024-08-01-preview"),
         azure_endpoint=endpoint,
         api_key=key,
-        temperature=temperature,
-        timeout=15,
+        timeout=_timeout_seconds(),
         max_retries=0,
+        **sampling,
     )
 
 
@@ -53,7 +78,8 @@ def structured_call(llm, system_prompt: str, user_content: str, schema: Type[T])
         logger.error("Structured generation requires a live OpenAI client.")
         raise DependencyUnavailable("openai")
     try:
-        result = invoke_llm(llm.with_structured_output(schema), messages)
+        # Strict json_schema (langchain's default) rejects models with optional/defaulted fields.
+        result = invoke_llm(llm.with_structured_output(schema, method="function_calling"), messages)
         return _validate_output(result, schema)
     except (ValueError, OutputParserException):
         logger.warning("Structured output was invalid; retrying once using JSON completion.")

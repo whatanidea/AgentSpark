@@ -7,15 +7,18 @@ from app.database.cosmos_client import db_client
 from app.database.tenant_directory import tenant_directory
 from app.rag.search_client import get_search_client
 from app.utils.errors import DependencyUnavailable
-from app.utils.llm import get_chat_llm, invoke_llm
+from app.utils.llm import get_chat_llm, invoke_llm, reasoning_effort
 from app.utils.runtime import demo_mode
 
 logger = logging.getLogger(__name__)
 
 
 def check_openai() -> None:
+    # Reasoning models spend hidden tokens before answering, so a 1-token budget can't complete.
+    limits = ({"max_completion_tokens": 16, "reasoning_effort": "minimal"} if reasoning_effort()
+              else {"max_tokens": 1})
     invoke_llm(
-        get_chat_llm(temperature=0.2).bind(max_tokens=1, timeout=5),
+        get_chat_llm(temperature=0.2).bind(timeout=5, **limits),
         [HumanMessage(content="Reply OK.")],
     )
 
