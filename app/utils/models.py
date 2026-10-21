@@ -56,9 +56,13 @@ ESSENTIAL_FACTS = {
 
 
 class FactEvidence(BaseModel):
-    status: Literal["supplied", "inferred", "missing"] = "missing"
-    source: Literal["interview", "intake", "demo_fixture", "none"] = "none"
-    quote: str = Field(default="", max_length=2000)
+    status: Literal["supplied", "inferred", "missing"] = Field(
+        default="missing", description="Whether the fact was supplied verbatim, inferred, or is missing"
+    )
+    source: Literal["interview", "intake", "demo_fixture", "none"] = Field(
+        default="none", description="Where the verbatim quote came from; none when there is no quote"
+    )
+    quote: str = Field(default="", max_length=2000, description="Exact verbatim quote backing a supplied fact")
 
 
 class WorkflowDiagnosis(BaseModel):

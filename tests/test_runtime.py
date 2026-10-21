@@ -121,15 +121,36 @@ class RuntimeTests(unittest.TestCase):
     def test_invalid_structured_output_has_one_real_json_retry(self):
         llm = Mock()
         llm.with_structured_output.return_value.invoke.side_effect = OutputParserException("invalid")
-        llm.invoke.return_value = SimpleNamespace(content='```json\n{"compute":"Azure Functions"}\n```')
+        llm.bind.return_value.invoke.return_value = SimpleNamespace(content='```json\n{"compute":"Azure Functions"}\n```')
         result = structured_call(llm, "system", "input", AzureServiceMapping)
         self.assertEqual(result.compute, "Azure Functions")
-        llm.invoke.assert_called_once()
+        llm.bind.assert_called_once_with(response_format={"type": "json_object"})
+        llm.bind.return_value.invoke.assert_called_once()
+        system = llm.bind.return_value.invoke.call_args.args[0][0].content
+        self.assertTrue(system.startswith("system"))
+        self.assertIn("JSON schema", system)
+        self.assertIn('"compute"', system)
+
+    def test_json_retry_recovers_from_invalid_function_arguments_and_logs_only_locations(self):
+        from app.utils.models import WorkflowDiagnosis
+
+        bad = {"evidence": {"steps": {"status": "inferred", "source": "inferred", "quote": "SECRET-QUOTE"}}}
+        good = '{"evidence": {"steps": {"status": "inferred", "source": "none", "quote": ""}}}'
+        llm = Mock()
+        llm.with_structured_output.return_value.invoke.side_effect = lambda _: WorkflowDiagnosis.model_validate(bad)
+        llm.bind.return_value.invoke.return_value = SimpleNamespace(content=good)
+        with self.assertLogs("app.utils.llm", level="WARNING") as logs:
+            result = structured_call(llm, "system", "input", WorkflowDiagnosis)
+        self.assertEqual(result.evidence["steps"].source, "none")
+        output = "\n".join(logs.output)
+        self.assertIn("evidence.steps.source:literal_error", output)
+        self.assertNotIn("SECRET-QUOTE", output)
+        self.assertNotIn("inferred", output)
 
     def test_invalid_json_is_an_explicit_failure_not_default_mapping(self):
         llm = Mock()
         llm.with_structured_output.return_value.invoke.side_effect = OutputParserException("invalid")
-        llm.invoke.return_value = SimpleNamespace(content="invalid")
+        llm.bind.return_value.invoke.return_value = SimpleNamespace(content="invalid")
         with self.assertLogs("app.utils.llm", level="WARNING"):
             with self.assertRaises(InvalidDependencyResponse):
                 structured_call(llm, "system", "input", AzureServiceMapping)
@@ -137,7 +158,7 @@ class RuntimeTests(unittest.TestCase):
     def test_empty_mapping_cannot_succeed_using_schema_defaults(self):
         llm = Mock()
         llm.with_structured_output.return_value.invoke.return_value = {}
-        llm.invoke.return_value = SimpleNamespace(content="{}")
+        llm.bind.return_value.invoke.return_value = SimpleNamespace(content="{}")
         with self.assertLogs("app.utils.llm", level="WARNING"):
             with self.assertRaises(InvalidDependencyResponse):
                 structured_call(llm, "system", "input", AzureServiceMapping)

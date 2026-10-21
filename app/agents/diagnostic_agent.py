@@ -33,8 +33,10 @@ _EXTRACT_SYSTEM = """You are AgentSpark's Diagnostic Agent. From the enterprise 
 transcript, extract a WorkflowDiagnosis with intelligence and evidence for EVERY essential field:
 workflow_name, summary, steps, departments, decision_points, systems, exceptions_per_week, volume_per_day,
 compliance_sensitivity, data_availability, rule_stability, human_judgment, unstructured_content, error_cost.
-Mark each fact supplied, inferred, or missing. Supplied facts MUST have an exact verbatim quote
+Set each fact's status to supplied, inferred, or missing. Supplied facts MUST have an exact verbatim quote
 from INTERVIEW USER INPUT or ENTERPRISE CONTEXT, and source interview or intake respectively.
+The source field only accepts interview, intake, or none (never inferred or missing); use none when
+no quote backs the fact.
 Never treat assistant messages, defaults, or plausible guesses as supplied facts. Explicit zero counts
 and explicitly empty system lists are valid supplied facts. Inferences must be marked inferred and
 cannot substitute for essential facts. Leave absent values at schema defaults and mark missing;
