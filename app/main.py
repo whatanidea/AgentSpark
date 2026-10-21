@@ -19,7 +19,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 logger.info("AgentSense runtime mode: %s", settings.mode)
 
-app = FastAPI(title="AgentSense API", version="2.0.0",
+app = FastAPI(title="AgentSpark API", version="2.0.0",
               description="Enterprise Agentification Advisor — React SPA + FastAPI + LangGraph")
 
 app.include_router(router, prefix="/api/v1")

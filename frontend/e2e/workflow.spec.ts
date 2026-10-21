@@ -2,6 +2,10 @@ import { expect, test, type Page } from "@playwright/test";
 
 async function intake(page: Page, sample?: string) {
   await page.goto("/");
+  await expect(page).toHaveTitle("AgentSpark — Enterprise AI Transformation Advisor");
+  await expect(page.getByText("AgentSpark", { exact: true })).toBeVisible();
+  await expect(page.getByText("AgentSense", { exact: true })).toHaveCount(0);
+  await expect(page.getByText("Tell AgentSpark about a workflow", { exact: false })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Enterprise Context", exact: true })).toBeVisible();
   if (sample) await page.getByRole("button", { name: sample, exact: true }).click();
   else await page.getByLabel("Business Domain", { exact: true }).fill("Fictional incomplete workflow");
@@ -59,11 +63,12 @@ test("human review survives reload and exports current evidence and scenarios", 
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "⬇ Export .md", exact: true }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe("AgentSense_Blueprint.md");
+  expect(download.suggestedFilename()).toBe("AgentSpark_Blueprint.md");
   const stream = await download.createReadStream();
   if (!stream) throw new Error("Markdown export stream is unavailable");
   let markdown = "";
   for await (const chunk of stream) markdown += chunk.toString("utf8");
+  expect(markdown).toMatch(/^# AgentSpark Blueprint\n/);
   for (const text of ["demo_fixture", "conservative", "optimistic", "SHA256", "not deployment-ready"]) {
     expect(markdown).toContain(text);
   }

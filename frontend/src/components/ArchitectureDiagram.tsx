@@ -10,7 +10,7 @@ export default function ArchitectureDiagram({ bp }: { bp: {
   return (
     <div className="rounded-2xl border border-violet-500/30 bg-violet-500/5 p-6 space-y-4 text-center">
       <h2 className="font-bold text-xl">{intel?.workflow_name} — proposed customer workflow</h2>
-      <p className="text-sm text-slate-400">Design constraints, not a deployed system or AgentSense's internal pipeline.</p>
+      <p className="text-sm text-slate-400">Design constraints, not a deployed system or AgentSpark's internal pipeline.</p>
       <div className="rounded-xl border border-white/10 p-3">Workflow input and validated case data</div>
       <p className="text-violet-300">↓</p>
       <div className="rounded-xl border border-violet-500/40 p-3">

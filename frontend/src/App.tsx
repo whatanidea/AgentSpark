@@ -135,7 +135,7 @@ export default function App() {
       <a className="sr-only focus:not-sr-only" href="#main-content">Skip to workflow</a>
       <aside className="md:w-64 shrink-0 border-r border-white/10 bg-[#0b0a18] flex flex-col">
         <div className="p-5 border-b border-white/10">
-          <div className="text-2xl font-extrabold text-violet-300">AgentSense</div>
+          <div className="text-2xl font-extrabold text-violet-300">AgentSpark</div>
           <p className="text-xs text-slate-400 mt-2">The agent that tells you where agents belong.</p>
           <p role="status" className="text-xs mt-3 text-amber-200">
             {runtimeError ? "Backend unavailable — retrying every 30 seconds"

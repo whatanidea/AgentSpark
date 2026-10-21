@@ -75,7 +75,7 @@ export default function Blueprint({ sessionId, active, canReview, secureReview, 
 
   function exportMarkdown(bp: any) {
     const s = bp.suitability_score || {};
-    const heading = `# AgentSense ${bp.status === "rejected" ? "Rejected Recommendation" : "Blueprint"}
+    const heading = `# AgentSpark ${bp.status === "rejected" ? "Rejected Recommendation" : "Blueprint"}
 
 **Status:** ${bp.status}${bp.provisional ? " — PROVISIONAL: NOT APPROVED" : ""}
 **Analysis:** ${bp.analysis_id}
@@ -136,7 +136,7 @@ ${bp.code_scaffold || ""}
     const blob = new Blob([md], { type: "text/markdown" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "AgentSense_Blueprint.md";
+    a.download = "AgentSpark_Blueprint.md";
     a.click();
     URL.revokeObjectURL(a.href);
   }

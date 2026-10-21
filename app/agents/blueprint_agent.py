@@ -27,7 +27,7 @@ class Blueprint(BaseModel):
     code_scaffold: str = Field(..., description="Illustrative untested scaffold, NOT deployment-ready code")
 
 
-_SYSTEM = """You are AgentSense's Blueprint Agent. Design the CUSTOMER workflow, never AgentSense's
+_SYSTEM = """You are AgentSpark's Blueprint Agent. Design the CUSTOMER workflow, never AgentSpark's
 diagnostic/scoring pipeline. Use ALL supplied context, workflow facts and evidence, prescribed design,
 Azure mapping, grounded pattern IDs/source references, ROI assumptions and scenarios, and policy outcome.
 The prescribed design/autonomy and any human gate are mandatory; do not escalate a copilot or RPA design
