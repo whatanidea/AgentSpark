@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { api, uid, type DemoScenario } from "../api";
+import { useState } from "react";
+import { api, type DemoScenario } from "../api";
 import { Card, Button } from "./ui";
 
 type Msg = { role: "user" | "assistant"; content: string; blocked?: boolean };
@@ -17,52 +17,34 @@ function greeting(c: any): string {
     `and how many human decision points are involved?`;
 }
 
-export default function Diagnose({ sessionId, setSessionId, context, goNext }: any) {
-  const [history, setHistory] = useState<Msg[]>([]);
+export default function Diagnose({ sessionId, context, initialHistory = [], demoMode, onRefresh, onBusyChange, goNext }: any) {
+  const [history, setHistory] = useState<Msg[]>(initialHistory.length ? initialHistory
+    : context ? [{ role: "assistant", content: greeting(context) }] : []);
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const [analyzable, setAnalyzable] = useState(false);
-
-  // When intake context arrives, open the interview with a context-aware greeting
-  // (display-only — not sent to the server, so it never pollutes the transcript).
-  useEffect(() => {
-    setHistory(context ? [{ role: "assistant", content: greeting(context) }] : []);
-    setAnalyzable(false);
-    setText("");
-  }, [context]);
+  const [analyzable, setAnalyzable] = useState(initialHistory.some((m: Msg) => m.role === "user"));
 
   async function send(message?: string, scenario?: DemoScenario) {
     const m = (message ?? text).trim();
-    if (!m || busy) return;
-    // Auto-create a session if the user jumped straight here (Intake is optional context).
-    let sid = sessionId;
-    if (!sid) {
-      sid = uid();
-      setSessionId?.(sid);
-    }
-    setHistory((h) => [...h, { role: "user", content: m }]);
+    if (!m || busy || !sessionId) return;
     setText("");
-    setBusy(true);
+    setBusy(true); onBusyChange(true);
     try {
-      const res = await api.chat(sid, m, scenario);
+      const res = await api.chat(sessionId, m, scenario);
       const blocked = res.status === "blocked";
-      setHistory((h) => [...h, { role: "assistant", content: res.response, blocked }]);
+      setHistory((h) => [...h, ...(blocked ? [] : [{ role: "user" as const, content: res.message }]),
+        { role: "assistant", content: res.response, blocked }]);
       // Only a genuine (non-blocked) exchange makes the workflow analyzable.
-      if (!blocked) setAnalyzable(true);
+      if (!blocked) { setAnalyzable(true); await onRefresh(); }
     } catch (e: any) {
       setHistory((h) => [...h, { role: "assistant", content: `Error: ${e.message}` }]);
     } finally {
-      setBusy(false);
+      setBusy(false); onBusyChange(false);
     }
   }
 
   async function useSample() {
-    try {
-      const health = await api.health();
-      await send(SUGGESTION, health.mode === "demo" ? "invoice" : undefined);
-    } catch (e: unknown) {
-      setHistory((h) => [...h, { role: "assistant", content: e instanceof Error ? e.message : "Cannot determine runtime mode." }]);
-    }
+    await send(SUGGESTION, demoMode ? "invoice" : undefined);
   }
 
   return (
@@ -93,7 +75,7 @@ export default function Diagnose({ sessionId, setSessionId, context, goNext }: a
       ) : null}
 
       <Card>
-        <div className="space-y-3 max-h-[46vh] overflow-y-auto pr-1">
+        <div role="log" aria-live="polite" aria-label="Diagnostic conversation" className="space-y-3 max-h-[46vh] overflow-y-auto pr-1">
           {!history.some((m) => m.role === "user") && (
             <div className="text-slate-500 text-sm">
               {history.length === 0 ? "No messages yet. " : ""}
@@ -118,6 +100,8 @@ export default function Diagnose({ sessionId, setSessionId, context, goNext }: a
 
         <div className="flex gap-2 mt-4">
           <input
+            aria-label="Describe your workflow"
+            maxLength={8000}
             className="flex-1 rounded-xl bg-white/5 border border-white/10 px-3 py-2.5 text-sm outline-none focus:border-violet-500/60"
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -125,7 +109,7 @@ export default function Diagnose({ sessionId, setSessionId, context, goNext }: a
             placeholder="Describe your workflow…"
             disabled={busy}
           />
-          <Button onClick={() => send()} disabled={busy}>Send</Button>
+          <Button onClick={() => send()} disabled={busy || !text.trim()}>Send</Button>
         </div>
         {analyzable && (
           <div className="mt-4">

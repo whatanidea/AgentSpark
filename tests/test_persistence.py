@@ -76,7 +76,9 @@ class CosmosPersistenceTests(unittest.TestCase):
         self.database = DatabaseClient()
         self.database.use_mock = False
         self.database.container = Mock()
-        self.document = {"id": "cosmos-session", "session_id": "cosmos-session", "_etag": "version-1"}
+        self.database.container.read.return_value = {"defaultTtl": -1}
+        self.document = {**WorkflowState(session_id="cosmos-session").model_dump(mode="json"),
+                         "id": "cosmos-session", "_etag": "version-1"}
 
     def test_create_and_replace_use_conditional_writes(self):
         state = WorkflowState(session_id="cosmos-session")

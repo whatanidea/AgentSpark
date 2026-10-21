@@ -118,10 +118,11 @@ class APIValidationTests(unittest.TestCase):
     def test_no_raw_exception_details_leak(self):
         client = TestClient(app, raise_server_exceptions=False)
         with patch.object(routes, "run_orchestration", side_effect=RuntimeError("secret-internal-value")):
-            with self.assertLogs("app.main", level="ERROR"):
+            with self.assertLogs("app.api.middleware", level="ERROR") as captured:
                 response = client.post("/api/v1/analyze/session")
         self.assertEqual(response.status_code, 500)
         self.assertNotIn("secret-internal-value", response.text)
+        self.assertNotIn("secret-internal-value", str(captured.output))
 
     def test_live_chat_failure_does_not_save_a_placeholder_exchange(self):
         session_id = str(uuid4())

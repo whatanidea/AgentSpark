@@ -4,32 +4,39 @@ import { Card, Button, Bar, Pill, Spinner, classColor } from "./ui";
 import AnalysisEvidence from "./AnalysisEvidence";
 import ROIReport, { DEFAULT_ROI_ASSUMPTIONS, ROIAssumptionForm } from "./ROIReport";
 
-export default function Analyze({ sessionId, active, goNext }: any) {
-  const [data, setData] = useState<any>(null);
+function analysisData(s: any) {
+  return !s || s.status === "init" ? null : {
+    ...s, score: s.suitability_score, recommendation: s.architecture_recommendation, patterns: s.retrieved_patterns,
+  };
+}
+
+export default function Analyze({ sessionId, active, initialSnapshot, onRefresh, onBusyChange, goNext }: any) {
+  const [data, setData] = useState<any>(analysisData(initialSnapshot));
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [assumptions, setAssumptions] = useState(DEFAULT_ROI_ASSUMPTIONS);
+  const [assumptions, setAssumptions] = useState(initialSnapshot?.roi_assumptions || DEFAULT_ROI_ASSUMPTIONS);
 
   useEffect(() => {
-    if (!active || !sessionId || !data?.analysis_id) return;
+    if (!active || !sessionId) return;
     let cancelled = false;
-    api.review(sessionId).then((review) => {
+    setBusy(true); onBusyChange(true);
+    api.session(sessionId).then((snapshot) => {
       if (cancelled) return;
-      if (review.analysis_id !== data.analysis_id) setData(null);
-      else setData((current: any) => ({ ...current, status: review.status, human_review: review.human_review }));
+      setData(analysisData(snapshot));
     }).catch((e: Error) => {
       if (!cancelled) { setData(null); setErr(e.message); }
-    });
-    return () => { cancelled = true; };
+    }).finally(() => { if (!cancelled) { setBusy(false); onBusyChange(false); } });
+    return () => { cancelled = true; onBusyChange(false); };
   }, [active, sessionId]);
 
   async function run() {
     if (!sessionId) return;
-    setBusy(true); setErr(""); setData(null);
+    setBusy(true); onBusyChange(true); setErr(""); setData(null);
     try {
       setData(await api.analyze(sessionId, assumptions));
+      await onRefresh();
     } catch (e: any) { setErr(e.message); }
-    finally { setBusy(false); }
+    finally { setBusy(false); onBusyChange(false); }
   }
 
   const score = data?.score;
@@ -51,7 +58,7 @@ export default function Analyze({ sessionId, active, goNext }: any) {
 
       {!sessionId && <Card><p className="text-amber-300 text-sm">⚠️ Chat with the Diagnostic Agent first to describe a workflow.</p></Card>}
       {busy && <Card><Spinner label="Running the 7-stage agent flow…" /></Card>}
-      {err && <Card><p className="text-rose-300 text-sm">❌ {err}</p></Card>}
+      {err && <Card><p role="alert" className="text-rose-300 text-sm">❌ {err}</p></Card>}
       <ROIAssumptionForm value={assumptions} onChange={setAssumptions} disabled={busy} />
       <AnalysisEvidence diagnosis={data?.diagnosis} scenario={data?.demo_scenario} />
       {data?.status && score && (

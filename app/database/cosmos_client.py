@@ -3,6 +3,7 @@ import os
 from copy import deepcopy
 from threading import RLock
 from uuid import uuid4
+from datetime import datetime, timezone
 
 from azure.core import MatchConditions
 from azure.core.exceptions import AzureError
@@ -12,8 +13,23 @@ from pydantic import ValidationError
 from app.utils.errors import ConcurrentUpdate, DependencyUnavailable, InvalidDependencyResponse, WorkflowNotFound
 from app.utils.models import WorkflowState
 from app.utils.runtime import demo_mode, require_config
+from app.security.auth import principal_context
+from app.security.guardrails import redact_data
 
 logger = logging.getLogger(__name__)
+PRIVATE_FIELDS = (
+    "enterprise_context", "chat_history", "diagnosis", "workflow_intelligence",
+    "architecture_recommendation", "blueprint", "trace", "guardrail_events", "human_review",
+    "suitability_score", "azure_mapping", "retrieved_patterns", "governance", "roi", "portfolio",
+)
+
+
+def private_document(data: dict) -> dict:
+    data = deepcopy(data)
+    for field in PRIVATE_FIELDS:
+        if field in data:
+            data[field] = redact_data(data[field])
+    return data
 
 
 class DatabaseClient:
@@ -40,13 +56,16 @@ class DatabaseClient:
     @staticmethod
     def _decode(data: dict) -> WorkflowState:
         try:
-            state = WorkflowState.model_validate(data)
+            document = private_document(data)
+            # Undated legacy documents must not gain a new retention window on each read.
+            document.setdefault("expires_at", "1970-01-01T00:00:00+00:00")
+            state = WorkflowState.model_validate(document)
             state._etag = data["_etag"]
             if not isinstance(state._etag, str) or not state._etag:
                 raise ValueError("Persisted session is missing its version")
             return state
         except (ValidationError, KeyError, ValueError) as exc:
-            logger.exception("Stored session could not be decoded.")
+            logger.error("Stored session could not be decoded; payload withheld.")
             raise InvalidDependencyResponse("cosmos") from exc
 
     def get_workflow_state(self, session_id: str, *, create_if_missing: bool = False) -> WorkflowState:
@@ -60,17 +79,28 @@ class DatabaseClient:
                 self.check_ready()
                 data = None
             except (AzureError, OSError) as exc:
-                logger.exception("Cosmos session read failed.")
+                logger.error("Cosmos session read failed; dependency details withheld.")
                 raise DependencyUnavailable("cosmos") from exc
         if data is None:
             if create_if_missing:
-                return WorkflowState(session_id=session_id)
+                return WorkflowState(session_id=session_id, owner_id=principal_context.get().owner_id)
             raise WorkflowNotFound()
-        return self._decode(data)
+        state = self._decode(data)
+        self._authorize(state)
+        return state
+
+    @staticmethod
+    def _authorize(state: WorkflowState) -> None:
+        if (state.owner_id != principal_context.get().owner_id
+                or state.expires_at.tzinfo is None
+                or state.expires_at <= datetime.now(timezone.utc)):
+            raise WorkflowNotFound()
 
     def save_workflow_state(self, state: WorkflowState) -> None:
-        document = state.model_dump(mode="json")
+        self._authorize(state)
+        document = private_document(state.model_dump(mode="json"))
         document["id"] = state.session_id
+        document["ttl"] = max(1, int((state.expires_at - datetime.now(timezone.utc)).total_seconds()))
         if self.use_mock:
             with self._lock:
                 current = self.mock_db.get(state.session_id)
@@ -100,19 +130,44 @@ class DatabaseClient:
             if exc.status_code in (409, 412) or (exc.status_code == 404 and state._etag is not None):
                 logger.warning("Cosmos session write conflict.")
                 raise ConcurrentUpdate() from exc
-            logger.exception("Cosmos session save failed.")
+            logger.error("Cosmos session save failed; dependency details withheld.")
             raise DependencyUnavailable("cosmos") from exc
         except (AzureError, OSError) as exc:
-            logger.exception("Cosmos session save failed.")
+            logger.error("Cosmos session save failed; dependency details withheld.")
+            raise DependencyUnavailable("cosmos") from exc
+
+    def delete_workflow_state(self, session_id: str) -> None:
+        state = self.get_workflow_state(session_id)
+        if self.use_mock:
+            with self._lock:
+                current = self.mock_db.get(session_id)
+                if current is None or current["_etag"] != state._etag:
+                    raise ConcurrentUpdate()
+                del self.mock_db[session_id]
+            return
+        try:
+            self._get_container().delete_item(
+                item=session_id, partition_key=session_id, etag=state._etag,
+                match_condition=MatchConditions.IfNotModified,
+            )
+        except exceptions.CosmosHttpResponseError as exc:
+            if exc.status_code in (404, 412):
+                raise ConcurrentUpdate() from exc
+            raise DependencyUnavailable("cosmos") from exc
+        except (AzureError, OSError) as exc:
             raise DependencyUnavailable("cosmos") from exc
 
     def check_ready(self) -> None:
         if self.use_mock:
             return
         try:
-            self._get_container().read()
+            properties = self._get_container().read()
+            ttl = properties.get("defaultTtl")
+            if not isinstance(ttl, int) or ttl == 0 or ttl < -1:
+                logger.error("Cosmos workflows container must enable per-document TTL.")
+                raise DependencyUnavailable("cosmos")
         except (AzureError, OSError) as exc:
-            logger.exception("Cosmos container check failed.")
+            logger.error("Cosmos container check failed; dependency details withheld.")
             raise DependencyUnavailable("cosmos") from exc
 
 

@@ -4,12 +4,13 @@ import logging
 from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.exceptions import RequestValidationError
 from dotenv import load_dotenv
 
 load_dotenv()  # Load variables from .env if present
 
 from app.api.routes import router
-from app.api.middleware import RequestSizeLimit
+from app.api.middleware import RequestSizeLimit, SecurityBoundary
 from app.utils.errors import ConcurrentUpdate, DependencyUnavailable, InvalidDependencyResponse, WorkflowNotFound
 from app.utils.health import readiness
 from app.utils.runtime import settings
@@ -23,6 +24,15 @@ app = FastAPI(title="AgentSense API", version="2.0.0",
 
 app.include_router(router, prefix="/api/v1")
 app.add_middleware(RequestSizeLimit)
+app.add_middleware(SecurityBoundary)
+
+
+@app.exception_handler(RequestValidationError)
+async def invalid_request(request: Request, exc: RequestValidationError):
+    return JSONResponse(status_code=422, content={"detail": [
+        {"loc": list(error["loc"]), "type": error["type"], "msg": error["msg"]}
+        for error in exc.errors()
+    ]})
 
 
 @app.exception_handler(DependencyUnavailable)
@@ -47,8 +57,8 @@ async def session_not_found(request: Request, exc: WorkflowNotFound):
 
 @app.exception_handler(Exception)
 async def unexpected_error(request: Request, exc: Exception):
-    logger.error("Unhandled request error on %s", request.url.path,
-                 exc_info=(type(exc), exc, exc.__traceback__))
+    logger.error("Unhandled request error (%s). Request content and exception details withheld.",
+                 type(exc).__name__)
     return JSONResponse(status_code=500, content={
         "detail": "An internal error occurred.", "code": "internal_error",
     })
@@ -89,7 +99,13 @@ if os.path.isdir(_DIST):
     @app.get("/{full_path:path}")
     def spa_fallback(full_path: str):
         # Serve real files if they exist, else fall back to index.html (SPA routing).
-        candidate = os.path.join(_DIST, full_path)
+        candidate = os.path.realpath(os.path.join(_DIST, full_path))
+        try:
+            contained = os.path.commonpath([os.path.realpath(_DIST), candidate]) == os.path.realpath(_DIST)
+        except ValueError:
+            contained = False
+        if not contained:
+            return JSONResponse(status_code=404, content={"detail": "Not found."})
         if os.path.isfile(candidate):
             return FileResponse(candidate)
         return _index()

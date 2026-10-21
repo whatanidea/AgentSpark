@@ -14,7 +14,7 @@ export function Card({ title, icon, children, className = "" }: any) {
   );
 }
 
-export function Button({ children, onClick, disabled, variant = "primary", className = "" }: any) {
+export function Button({ children, onClick, disabled, autoFocus = false, variant = "primary", className = "" }: any) {
   const styles =
     variant === "primary"
       ? "bg-gradient-to-r from-violet-600 to-indigo-600 hover:from-violet-500 hover:to-indigo-500 text-white"
@@ -23,7 +23,8 @@ export function Button({ children, onClick, disabled, variant = "primary", class
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`px-4 py-2.5 rounded-xl font-semibold text-sm transition disabled:opacity-40 disabled:cursor-not-allowed ${styles} ${className}`}
+      autoFocus={autoFocus}
+      className={`px-4 py-2.5 rounded-xl font-semibold text-sm transition focus-visible:outline focus-visible:outline-violet-400 disabled:opacity-40 disabled:cursor-not-allowed ${styles} ${className}`}
     >
       {children}
     </button>
@@ -55,7 +56,7 @@ export function classColor(cls: string) {
 
 export function Spinner({ label = "Working…" }: { label?: string }) {
   return (
-    <div className="flex items-center gap-3 text-slate-400 text-sm py-6">
+    <div role="status" className="flex items-center gap-3 text-slate-400 text-sm py-6">
       <span className="h-4 w-4 rounded-full border-2 border-violet-500/40 border-t-violet-400 animate-spin" />
       {label}
     </div>

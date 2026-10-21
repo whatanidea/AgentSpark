@@ -26,7 +26,7 @@ def check_search() -> None:
             logger.error("The live pattern index is empty; seed it before serving traffic.")
             raise DependencyUnavailable("search")
     except (AzureError, OSError) as exc:
-        logger.exception("Search readiness probe failed.")
+        logger.error("Search readiness probe failed; dependency details withheld.")
         raise DependencyUnavailable("search") from exc
 
 

@@ -34,11 +34,11 @@ def get_pattern(pattern_id: str) -> dict | None:
         try:
             client.get_document_count()
         except (AzureError, OSError) as exc:
-            logger.exception("Pattern lookup could not verify the Search index exists.")
+            logger.error("Pattern lookup could not verify the Search index; dependency details withheld.")
             raise DependencyUnavailable("search") from exc
         return None
     except (AzureError, OSError) as exc:
-        logger.exception("Azure AI Search pattern lookup failed.")
+        logger.error("Azure AI Search pattern lookup failed; dependency details withheld.")
         raise DependencyUnavailable("search") from exc
 
 
@@ -66,7 +66,7 @@ def retrieve_patterns(query: str, top_k: int = 4, required_ids: tuple[str, ...] 
             raise DependencyUnavailable("search")
         return _merge(required, docs, top_k)
     except (AzureError, OSError) as exc:
-        logger.exception("Azure AI Search retrieval failed.")
+        logger.error("Azure AI Search retrieval failed; query and exception content withheld.")
         raise DependencyUnavailable("search") from exc
 
 

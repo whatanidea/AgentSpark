@@ -193,8 +193,11 @@ class GovernanceFlowTests(unittest.TestCase):
     def test_failed_save_never_returns_successful_review(self):
         analysis = self.analyze()
         with patch.object(db_client, "save_workflow_state", side_effect=RuntimeError("storage unavailable")):
-            with self.assertRaisesRegex(RuntimeError, "storage unavailable"):
-                self.submit(analysis["analysis_id"])
+            with self.assertLogs("app.api.middleware", level="ERROR"):
+                response = self.submit(analysis["analysis_id"])
+            self.assertEqual(response.status_code, 500)
+            self.assertEqual(response.json()["code"], "internal_error")
+            self.assertNotIn("storage unavailable", response.text)
         self.assertEqual(db_client.get_workflow_state(self.session_id).status, "awaiting_human_review")
 
 

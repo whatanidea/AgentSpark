@@ -195,7 +195,9 @@ class RuntimeTests(unittest.TestCase):
         openai.assert_not_called()
 
     def test_live_readiness_missing_configuration_in_a_fresh_process(self):
-        environment = dict(os.environ, AGENTSENSE_MODE="live", PYTHONDONTWRITEBYTECODE="1")
+        environment = dict(os.environ, AGENTSENSE_MODE="live", PYTHONDONTWRITEBYTECODE="1",
+                           AGENTSENSE_AUTH_MODE="oidc", AUTH_ISSUER="https://issuer.example",
+                           AUTH_AUDIENCE="agentsense-api", AUTH_JWKS_URL="https://issuer.example/keys")
         for key in ("AZURE_OPENAI_API_KEY", "AZURE_OPENAI_ENDPOINT", "AZURE_SEARCH_KEY",
                     "AZURE_SEARCH_ENDPOINT", "COSMOS_DB_KEY", "COSMOS_DB_ENDPOINT"):
             environment[key] = "your_placeholder"
@@ -216,7 +218,7 @@ print(json.dumps({'health': health.json(), 'ready': ready.json(),
         self.assertEqual(payload["ready_status"], 503)
         self.assertFalse(payload["ready"]["ready"])
         self.assertEqual(set(payload["ready"]["dependencies"].values()), {"unavailable"})
-        self.assertEqual(payload["chat_status"], 503)
+        self.assertEqual(payload["chat_status"], 401)
 
     def test_openai_probe_works_with_real_sdk_and_mock_http(self):
         from langchain_openai import AzureChatOpenAI
