@@ -9,7 +9,7 @@ import httpx
 from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import SystemMessage, HumanMessage
 from openai import OpenAIError
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from app.utils.errors import DependencyUnavailable, InvalidDependencyResponse
 from app.utils.runtime import demo_mode, require_config
@@ -68,7 +68,7 @@ def invoke_llm(llm, messages):
     try:
         return llm.invoke(messages)
     except (OpenAIError, httpx.HTTPError, TimeoutError, OSError) as exc:
-        logger.error("OpenAI request failed; request and exception content withheld.")
+        logger.error("OpenAI request failed (%s); request and exception content withheld.", type(exc).__name__)
         raise DependencyUnavailable("openai") from exc
 
 
@@ -81,11 +81,15 @@ def structured_call(llm, system_prompt: str, user_content: str, schema: Type[T])
         # Strict json_schema (langchain's default) rejects models with optional/defaulted fields.
         result = invoke_llm(llm.with_structured_output(schema, method="function_calling"), messages)
         return _validate_output(result, schema)
-    except (ValueError, OutputParserException):
-        logger.warning("Structured output was invalid; retrying once using JSON completion.")
+    except (ValueError, OutputParserException) as exc:
+        logger.warning("Structured output was invalid (%s); retrying once using JSON completion.", _error_summary(exc))
 
+    json_messages = [
+        SystemMessage(content=system_prompt + _json_instruction(schema)),
+        HumanMessage(content=user_content),
+    ]
     try:
-        raw = invoke_llm(llm, messages).content
+        raw = invoke_llm(llm.bind(response_format={"type": "json_object"}), json_messages).content
         if not isinstance(raw, str):
             raise ValueError("Expected a text completion")
         raw = raw.strip()
@@ -96,8 +100,30 @@ def structured_call(llm, system_prompt: str, user_content: str, schema: Type[T])
             raw = raw.strip("` \n")
         return _validate_output(json.loads(raw), schema)
     except (ValueError, IndexError, OutputParserException) as exc:
-        logger.error("OpenAI did not produce valid structured output; completion withheld.")
+        logger.error("OpenAI did not produce valid structured output (%s); completion withheld.", _error_summary(exc))
         raise InvalidDependencyResponse("openai") from exc
+
+
+def _json_instruction(schema: Type[BaseModel]) -> str:
+    return (
+        "\n\nRespond with a single JSON object only, no prose or code fences. "
+        "It must validate against this JSON schema:\n"
+        + json.dumps(schema.model_json_schema(mode="validation"), separators=(",", ":"))
+    )
+
+
+def _error_summary(exc: BaseException) -> str:
+    """Field locations and error types only; model output may contain user data and is never logged."""
+    seen: set[int] = set()
+    while exc is not None and id(exc) not in seen:
+        seen.add(id(exc))
+        if isinstance(exc, ValidationError):
+            parts = [f"{'.'.join(map(str, e['loc'])) or '<root>'}:{e['type']}" for e in exc.errors()[:10]]
+            return f"{exc.error_count()} validation error(s): " + ", ".join(parts)
+        if isinstance(exc, json.JSONDecodeError):
+            return "invalid JSON"
+        exc = exc.__cause__ or exc.__context__
+    return type(exc).__name__ if exc is not None else "unknown"
 
 
 def _validate_output(value: object, schema: Type[T]) -> T:

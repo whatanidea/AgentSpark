@@ -283,7 +283,7 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'AZURE_OPENAI_CHAT_DEPLOYMENT', value: chatModel.name }
             { name: 'AZURE_OPENAI_API_VERSION', value: '2025-04-01-preview' }
             { name: 'AZURE_OPENAI_REASONING_EFFORT', value: 'low' }
-            { name: 'AZURE_OPENAI_TIMEOUT_SECONDS', value: '60' }
+            { name: 'AZURE_OPENAI_TIMEOUT_SECONDS', value: '120' }
             { name: 'AZURE_OPENAI_API_KEY', secretRef: 'azure-openai-api-key' }
           ]
           // `/ready` calls Azure OpenAI and is billable, so probes use `/health` only.
