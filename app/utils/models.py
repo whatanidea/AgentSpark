@@ -11,6 +11,7 @@ RiskLevel = Literal["Low", "Medium", "High", "Critical"]
 WorkflowStatus = Literal["init", "processing", "needs_clarification", "awaiting_human_review", "completed", "rejected"]
 DemoScenario = Literal["invoice", "support", "claims", "payroll"]
 SignalLevel = Literal["High", "Medium", "Low"]
+CloudProvider = Literal["azure", "aws"]
 SessionId = Annotated[str, StringConstraints(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$")]
 WorkflowLabel = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 
@@ -138,6 +139,15 @@ class AzureServiceMapping(BaseModel):
     rationale: str = ""
 
 
+class CloudServiceMapping(BaseModel):
+    compute: str
+    database: str
+    ai: str
+    search: str
+    orchestration: str
+    rationale: str
+
+
 # ──────────────────────────────────────────────────────────────
 # Governance — the 5th agent. Replaces Validation with an Enterprise Governance
 # rule engine that produces a comprehensive risk and compliance assessment.
@@ -232,6 +242,10 @@ class EnterpriseContext(BaseModel):
     existing_systems: str = ""
     pain_points: str = ""
     compliance_requirements: str = ""
+    target_cloud: CloudProvider = "azure"
+    preferred_region: str = Field(default="", max_length=100, pattern=r"^[a-z0-9-]*$")
+    data_residency_requirements: str = Field(default="", max_length=2000)
+    deployment_constraints: str = Field(default="", max_length=2000)
 
 
 # ──────────────────────────────────────────────────────────────
@@ -277,6 +291,7 @@ class WorkflowState(BaseModel):
     workflow_intelligence: Optional[WorkflowIntelligence] = None
     suitability_score: Optional[AgentSuitabilityScore] = None
     azure_mapping: Optional[Dict[str, Any]] = None
+    cloud_mapping: Optional[Dict[str, Any]] = None
     retrieved_patterns: List[Dict[str, Any]] = Field(default_factory=list)
     architecture_recommendation: Optional[Dict[str, Any]] = None
     governance: Optional[Dict[str, Any]] = None
@@ -296,6 +311,7 @@ class WorkflowState(BaseModel):
         self.workflow_intelligence = None
         self.suitability_score = None
         self.azure_mapping = None
+        self.cloud_mapping = None
         self.retrieved_patterns = []
         self.architecture_recommendation = None
         self.governance = None

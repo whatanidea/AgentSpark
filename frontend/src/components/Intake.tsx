@@ -35,7 +35,8 @@ const SAMPLES: Record<string, any> = {
   },
 };
 
-const EMPTY = { business_domain: "", team_size: "201-1000", existing_systems: "", pain_points: "", compliance_requirements: "Medium" };
+const EMPTY = { business_domain: "", team_size: "201-1000", existing_systems: "", pain_points: "", compliance_requirements: "Medium",
+  target_cloud: "", preferred_region: "", data_residency_requirements: "", deployment_constraints: "" };
 
 const SAMPLE_PRESENTATION: Record<string, { name: string; detail: string; icon: IconName }> = {
   invoice: { name: "Invoice Approval", detail: "Finance & accounts payable", icon: "finance" },
@@ -49,6 +50,7 @@ export default function Intake({ sessionId, initialContext, onSaved, onBusyChang
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<"demo" | "live" | null>(null);
+  const [confirmChange, setConfirmChange] = useState(false);
 
   useEffect(() => {
     api.health().then((health) => setMode(health.mode)).catch((e: Error) => setMsg(e.message));
@@ -57,6 +59,13 @@ export default function Intake({ sessionId, initialContext, onSaved, onBusyChang
   const set = (k: string) => (e: any) => setForm({ ...form, [k]: e.target.value });
 
   async function submit() {
+    if (!form.target_cloud) { setMsg("Select the target cloud for this assessment."); return; }
+    if (!/^[a-z0-9-]{0,100}$/.test(form.preferred_region)) { setMsg("Use lowercase letters, numbers and hyphens for the region."); return; }
+    if (sessionId && initialContext && !confirmChange && [
+      "target_cloud", "preferred_region", "data_residency_requirements", "deployment_constraints",
+    ].some(key => (initialContext[key] || (key === "target_cloud" ? "azure" : "")) !== form[key])) {
+      setConfirmChange(true); return;
+    }
     setBusy(true); onBusyChange(true);
     setMsg("");
     try {
@@ -86,7 +95,7 @@ export default function Intake({ sessionId, initialContext, onSaved, onBusyChang
             return (
               <button key={k} type="button" aria-label={k} aria-pressed={form.business_domain === SAMPLES[k].business_domain}
                 className="sample-tile" disabled={!mode || busy} onClick={() => setForm({
-                  ...EMPTY, ...SAMPLES[k], demo_scenario: mode === "demo" ? SAMPLES[k].demo_scenario : null,
+                  ...form, ...SAMPLES[k], demo_scenario: mode === "demo" ? SAMPLES[k].demo_scenario : null,
                 })}>
                 <span className="sample-icon"><Icon name={sample.icon} /></span>
                 <span className="min-w-0">
@@ -104,6 +113,35 @@ export default function Intake({ sessionId, initialContext, onSaved, onBusyChang
         {mode === "live" && <p className="text-xs text-slate-500 mt-3">Samples load intake templates only in live mode; missing facts require clarification.</p>}
       </Card>
 
+      <Card title="Deployment preferences" description="Choose the cloud for the customer's proposed solution, not AgentSpark's hosting.">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          <Field label="Target cloud">
+            <select aria-label="Target cloud" className={inp} required disabled={busy} value={form.target_cloud} onChange={event => {
+              setForm({ ...form, target_cloud: event.target.value, preferred_region: "" }); setConfirmChange(false);
+            }}>
+              <option value="">Select a cloud</option><option value="azure">Microsoft Azure</option><option value="aws">AWS</option>
+            </select>
+          </Field>
+          <Field label="Preferred region (optional)">
+            <input className={inp} disabled={busy} maxLength={100} pattern="[a-z0-9-]*" value={form.preferred_region}
+              placeholder={form.target_cloud === "aws" ? "e.g. us-east-1" : "e.g. westus3"} onChange={set("preferred_region")} />
+          </Field>
+          <Field label="Data residency requirements (optional)">
+            <textarea className={inp} disabled={busy} maxLength={2000} value={form.data_residency_requirements}
+              onChange={set("data_residency_requirements")} />
+          </Field>
+          <Field label="Existing cloud services or constraints (optional)">
+            <textarea className={inp} disabled={busy} maxLength={2000} value={form.deployment_constraints}
+              onChange={set("deployment_constraints")} />
+          </Field>
+        </div>
+        <p className="text-xs text-slate-500 mt-3">Assessment only. No cloud account connection or deployment. Region availability, model access, residency and pricing require separate validation. AgentSpark remains hosted on Azure and processes assessment data using its configured Azure services.</p>
+      </Card>
+      {confirmChange && <section role="alertdialog" aria-label="Confirm deployment preference change" className="notice block">
+        <p>Saving changed cloud preferences clears the current analysis, blueprint and approval. Existing archived decisions are retained unchanged.</p>
+        <Button disabled={busy} onClick={submit}>Confirm preferences and save intake</Button>
+        <Button variant="ghost" disabled={busy} onClick={() => setConfirmChange(false)}>Cancel</Button>
+      </section>}
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_250px] items-start gap-6">
       <Card title="Workflow details" description="Give your advisor the context it needs to ask better questions.">
         <fieldset disabled={busy} className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-5">
@@ -123,7 +161,7 @@ export default function Intake({ sessionId, initialContext, onSaved, onBusyChang
         </fieldset>
         <div className="flex items-center justify-between flex-wrap gap-4 mt-6 pt-5 border-t border-slate-100">
           <p className="text-xs text-slate-500">Next: a focused diagnostic interview</p>
-          <Button onClick={submit} disabled={busy || !form.business_domain}>{busy ? "Saving…" : "Submit Intake"}<span aria-hidden="true">→</span></Button>
+          <Button onClick={submit} disabled={busy || !form.business_domain || !form.target_cloud || confirmChange}>{busy ? "Saving…" : "Submit Intake"}<span aria-hidden="true">→</span></Button>
         </div>
         {msg && <p role="alert" className="mt-3 text-sm text-rose-700">{msg}</p>}
       </Card>

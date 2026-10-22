@@ -60,6 +60,8 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
       {!sessionId && <Card><p className="text-amber-800 text-sm">⚠️ Chat with the Diagnostic Agent first to describe a workflow.</p></Card>}
       {busy && <Card><Spinner label="Running the 7-stage agent flow…" /></Card>}
       {err && <Card><p role="alert" className="text-rose-700 text-sm">❌ {err}</p></Card>}
+      {data?.enterprise_context && <p className="notice">Assessment target: {data.enterprise_context.target_cloud === "aws" ? "AWS" : "Azure"}.
+        {" "}Region: {data.enterprise_context.preferred_region || "not specified"} (unverified). This does not change AgentSpark hosting or deploy resources.</p>}
       <ROIAssumptionForm value={assumptions} onChange={setAssumptions} disabled={busy} />
       <AnalysisEvidence diagnosis={data?.diagnosis} scenario={data?.demo_scenario} />
       {data?.status && score && (

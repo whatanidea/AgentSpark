@@ -13,9 +13,9 @@ const STATUS: Record<HomeStatus, { label: string; tone: "green" | "red" | "amber
 };
 const date = (value: string) => value ? new Date(value).toLocaleString() : "Time unavailable";
 
-export default function Home({ demo, retentionDays, workspaceName, canCreate, canDelete, onCreate, onOpen, onDeleted, onBusyChange }: {
+export default function Home({ demo, retentionDays, workspaceName, canCreate, onCreate, onOpen, onDeleted, onBusyChange }: {
   demo: boolean; retentionDays: number; onCreate: () => void;
-  workspaceName?: string; canCreate: boolean; canDelete: boolean;
+  workspaceName?: string; canCreate: boolean;
   onOpen: (session: string) => Promise<void>; onDeleted: (session: string) => void;
   onBusyChange: (busy: boolean) => void;
 }) {
@@ -85,6 +85,7 @@ export default function Home({ demo, retentionDays, workspaceName, canCreate, ca
       {decision ? <Button variant="ghost" disabled={busy} onClick={() => { setDecision(null); setError(""); }}>Back to Home</Button>
         : <Button disabled={busy || !canCreate} onClick={onCreate}>Create workflow <span aria-hidden="true">+</span></Button>}
     </header>
+    {!workspaceName && <p className="notice">Team workflows and pending reviews are listed in their team workspace. Select your team under Organizations &amp; teams, then choose Pending review.</p>}
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       {[
         [demo ? "Shared local demo" : workspaceName ? "Team-scoped access" : "Owner-isolated access",
@@ -113,13 +114,19 @@ export default function Home({ demo, retentionDays, workspaceName, canCreate, ca
             <h2 className="text-xl font-semibold text-slate-900 mt-3">{decision.summary.title}</h2>
             <p className="text-sm text-slate-500 mt-1">{decision.summary.domain}</p>
           </div>
-          <Button variant="ghost" disabled={busy || !canDelete} onClick={() => setDeleting(decision.summary)}>Delete workflow & history</Button>
+          <Button variant="ghost" disabled={busy || !decision.summary.can_delete} onClick={() => setDeleting(decision.summary)}>Delete workflow & history</Button>
         </div>
         <dl className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-5 pt-5 border-t border-slate-100 text-xs">
           <div><dt className="text-slate-500">Record saved</dt><dd className="text-slate-700 mt-1">{date(decision.summary.updated_at)}</dd></div>
           <div><dt className="text-slate-500">Archive expires</dt><dd className="text-slate-700 mt-1">{date(decision.summary.expires_at)}</dd></div>
           <div><dt className="text-slate-500">Analysis version</dt><dd className="font-mono text-slate-700 mt-1 break-all">{decision.summary.analysis_id}</dd></div>
         </dl>
+      </Card>
+      <Card title="Reviewed deployment target">
+        <p className="text-sm">{decision.details.deployment_preferences?.target_cloud === "aws" ? "AWS" : "Azure"} / {decision.details.deployment_preferences?.preferred_region || "Region not specified"} (unverified)</p>
+        <p className="text-sm mt-2">Data residency: {decision.details.deployment_preferences?.data_residency_requirements || "Not specified"}</p>
+        <p className="text-sm mt-2">Constraints: {decision.details.deployment_preferences?.deployment_constraints || "Not specified"}</p>
+        <p className="text-xs text-slate-500 mt-2">Advisory assessment only; no resources were deployed. AgentSpark remains hosted on Azure.</p>
       </Card>
       <Card title={review ? "Reviewer decision & comments" : "Automated policy decision"}>
         {review ? <>
@@ -172,7 +179,7 @@ export default function Home({ demo, retentionDays, workspaceName, canCreate, ca
               <td><Pill tone={STATUS[item.status].tone}>{STATUS[item.status].label}</Pill></td>
               <td className="whitespace-nowrap">{item.kind === "decision" ? "Decision snapshot" : item.legacy ? "Legacy session" : "Active session"}</td>
               <td className="whitespace-nowrap">{date(item.updated_at)}</td><td className="whitespace-nowrap">{date(item.expires_at)}</td>
-              <td><button disabled={busy || !canDelete} className="text-rose-700 hover:underline text-xs whitespace-nowrap"
+              <td><button disabled={busy || !item.can_delete} className="text-rose-700 hover:underline text-xs whitespace-nowrap"
                 aria-label={`Delete ${item.title} and history`} onClick={() => setDeleting(item)}>Delete</button></td>
             </tr>)}</tbody>
           </table>

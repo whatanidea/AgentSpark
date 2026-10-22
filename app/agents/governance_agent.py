@@ -174,7 +174,7 @@ class GovernanceAgent:
             }
         elif decision == "REJECT":
             result.rejection_package = {
-                "alternative": "Recommend using standard Azure Logic Apps or Power Automate without agentic loops.",
+                "alternative": "Use standard software or a deterministic approval workflow on the selected cloud without agentic loops.",
                 "rejection_reason": reason
             }
 

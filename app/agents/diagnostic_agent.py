@@ -61,6 +61,12 @@ class DiagnosticAgent:
             f"- Existing systems: {context.existing_systems or 'n/a'}\n"
             f"- Pain points: {context.pain_points or 'n/a'}\n"
             f"- Compliance requirements: {context.compliance_requirements or 'n/a'}\n"
+            f"- Target cloud (authoritative intake selection): {context.target_cloud}\n"
+            f"- Preferred region (unverified): {context.preferred_region or 'not specified'}\n"
+            f"- Data residency requirements: {context.data_residency_requirements or 'not specified'}\n"
+            f"- Deployment constraints: {context.deployment_constraints or 'not specified'}\n"
+            "Clarify relevant cloud constraints without changing the selected cloud. "
+            "This is an assessment, not a request to deploy or change AgentSpark hosting.\n"
         )
 
     def chat(self, user_message: str, chat_history: list, context: EnterpriseContext | None = None,

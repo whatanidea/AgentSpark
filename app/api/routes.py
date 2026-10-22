@@ -2,7 +2,8 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime, timezone
 from typing import Literal, Annotated
-from app.utils.models import HumanReview, SessionId, SignalLevel, DemoScenario, ROIAssumptions
+from app.utils.models import HumanReview, SessionId, SignalLevel, DemoScenario, ROIAssumptions, CloudProvider
+from app.agents.cloud_catalog import pattern_for_cloud
 from app.utils.runtime import demo_mode
 
 from app.database.cosmos_client import db_client
@@ -60,7 +61,10 @@ def personal_home(
 @router.get("/decisions/{session_id}/{analysis_id}")
 def archived_decision(session_id: SessionId, analysis_id: SessionId):
     record = db_client.get_decision(session_id, analysis_id)
-    return {"summary": record.home.model_dump(), "details": record.details}
+    allowed = (tenant_directory.permissions(record.organization_id, record.team_id)
+               if record.organization_id and record.team_id else {"write", "delete"})
+    can_delete = "delete" in allowed or ("write" in allowed and record.owner_id == principal_context.get().owner_id)
+    return {"summary": {**record.home.model_dump(), "can_delete": can_delete}, "details": record.details}
 
 
 @router.delete("/decisions/{session_id}/{analysis_id}")
@@ -81,6 +85,10 @@ class IntakeRequest(RequestModel):
     pain_points: str = Field(max_length=8000)
     compliance_requirements: SignalLevel
     demo_scenario: DemoScenario | None = None
+    target_cloud: CloudProvider | None = None
+    preferred_region: str = Field(default="", max_length=100, pattern=r"^[a-z0-9-]*$")
+    data_residency_requirements: str = Field(default="", max_length=2000)
+    deployment_constraints: str = Field(default="", max_length=2000)
 
 
 class ChatRequest(RequestModel):
@@ -105,7 +113,8 @@ class ReviewRequest(RequestModel):
 def save_intake(req: IntakeRequest):
     if req.demo_scenario is not None and not demo_mode():
         raise HTTPException(status_code=422, detail="Demo fixtures cannot be selected in live mode.")
-    for text in (req.business_domain, req.existing_systems, req.pain_points):
+    for text in (req.business_domain, req.existing_systems, req.pain_points,
+                 req.data_residency_requirements, req.deployment_constraints):
         if not scan_input(text).safe:
             raise HTTPException(status_code=422, detail="Intake contains instruction-override content. Please rephrase.")
     state = db_client.get_workflow_state(req.session_id, create_if_missing=True)
@@ -117,6 +126,13 @@ def save_intake(req: IntakeRequest):
     state.enterprise_context.existing_systems = redact_pii(req.existing_systems)
     state.enterprise_context.pain_points = redact_pii(req.pain_points)
     state.enterprise_context.compliance_requirements = req.compliance_requirements
+    if req.target_cloud is not None:
+        if req.target_cloud != state.enterprise_context.target_cloud:
+            state.enterprise_context.preferred_region = ""
+        state.enterprise_context.target_cloud = req.target_cloud
+    for field in ("preferred_region", "data_residency_requirements", "deployment_constraints"):
+        if field in req.model_fields_set:
+            setattr(state.enterprise_context, field, redact_pii(getattr(req, field)))
     db_client.save_workflow_state(state)
     return {"status": "success", "session_id": req.session_id,
             "enterprise_context": state.enterprise_context.model_dump()}
@@ -174,6 +190,8 @@ def analyze_workflow(session_id: SessionId, req: AnalyzeRequest | None = None):
         "analysis_id": s.analysis_id,
         "diagnosis": s.diagnosis.model_dump() if s.diagnosis else None,
         "demo_scenario": s.demo_scenario,
+        "enterprise_context": s.enterprise_context.model_dump(),
+        "cloud_mapping": s.cloud_mapping or s.azure_mapping,
     })
 
 
@@ -196,6 +214,7 @@ def get_blueprint(session_id: SessionId):
             (state.governance or {}).get("rejection_package") or {}
         ).get("alternative", "Use standard software or a deterministic approval workflow without agentic loops.")
     res["enterprise_context"] = state.enterprise_context.model_dump()
+    res["cloud_mapping"] = state.cloud_mapping or state.azure_mapping
     if state.suitability_score:
         res["suitability_score"] = state.suitability_score.model_dump()
     if state.workflow_intelligence:
@@ -228,9 +247,12 @@ def get_review(session_id: SessionId):
 
 @router.post("/review/{session_id}")
 def submit_review(session_id: SessionId, req: ReviewRequest):
-    reviewer = require_reviewer()
     state = db_client.get_workflow_state(session_id)
     db_client._authorize(state, "review")
+    if state.organization_id:
+        reviewer = principal_context.get().subject if auth_settings.mode != "local-demo" else None
+    else:
+        reviewer = require_reviewer()
     if not state.analysis_id:
         raise HTTPException(status_code=404, detail="No current analysis to review.")
     if state.analysis_id != req.analysis_id:
@@ -266,18 +288,20 @@ def guardrail_check(req: ChatRequest):
 def search_patterns(
     q: Annotated[str, Query(min_length=1, max_length=2000, pattern=r"\S")] = "agentic enterprise workflow",
     k: Annotated[int, Query(ge=1, le=50)] = 6,
+    target_cloud: CloudProvider = "azure",
 ):
     """Expose the RAG pattern library so judges can probe retrieval directly."""
     q = redact_pii(q)
-    return {"query": q, "retrieval_method": "keyword", "results": retrieve_patterns(q, top_k=k)}
+    return {"query": q, "retrieval_method": "keyword",
+            "results": [pattern_for_cloud(p, target_cloud) for p in retrieve_patterns(q, top_k=k)]}
 
 
 @router.get("/patterns/{pattern_id}")
-def pattern_source(pattern_id: SessionId):
+def pattern_source(pattern_id: SessionId, target_cloud: CloudProvider = "azure"):
     document = get_pattern(pattern_id)
     if document is None:
         raise HTTPException(status_code=404, detail="Pattern not found in the configured source.")
-    return document
+    return pattern_for_cloud(document, target_cloud)
 
 
 @router.get("/portfolio")

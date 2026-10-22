@@ -8,7 +8,7 @@ from pathlib import Path
 import sqlite3
 from typing import Any, Literal
 
-from pydantic import BaseModel, ValidationError, ValidationInfo, field_validator, model_validator
+from pydantic import BaseModel, Field, ValidationError, ValidationInfo, field_validator, model_validator
 
 from app.utils.errors import DependencyUnavailable, InvalidDependencyResponse
 from app.utils.models import SessionId, WorkflowState
@@ -22,6 +22,7 @@ def timestamp(value: datetime) -> str:
 
 
 class HomeItem(BaseModel):
+    owner_id: str = Field(default="", exclude=True)
     kind: Literal["session", "decision"]
     session_id: SessionId
     analysis_id: SessionId | None = None
@@ -69,6 +70,7 @@ class DecisionRecord(BaseModel):
                 or bool(self.organization_id) != bool(self.team_id)
                 or self.organization_id != self.home.organization_id or self.team_id != self.home.team_id):
             raise ValueError("Decision snapshot metadata is inconsistent.")
+        self.home.owner_id = self.owner_id
         return self
 
 
@@ -77,6 +79,7 @@ def summary(state: WorkflowState, now: datetime, *, archived: bool = False,
     status: HomeStatus = ("approved" if state.status == "completed" else "rejected" if state.status == "rejected"
                          else "pending_review" if state.status == "awaiting_human_review" else "draft")
     return HomeItem(
+        owner_id=state.owner_id,
         kind="decision" if archived else "session", session_id=state.session_id,
         analysis_id=state.analysis_id,
         title=state.workflow_intelligence.workflow_name if state.workflow_intelligence
@@ -97,6 +100,9 @@ def decision_record(state: WorkflowState, now: datetime, retention_days: int) ->
         organization_id=state.organization_id, team_id=state.team_id,
         home=summary(state, now, archived=True, expires_at=now + timedelta(days=retention_days)),
         details={
+            "deployment_preferences": {key: getattr(state.enterprise_context, key) for key in (
+                "target_cloud", "preferred_region", "data_residency_requirements", "deployment_constraints")},
+            "cloud_mapping": state.cloud_mapping or state.azure_mapping,
             "workflow_intelligence": state.workflow_intelligence.model_dump(mode="json") if state.workflow_intelligence else None,
             "suitability_score": state.suitability_score.model_dump(mode="json") if state.suitability_score else None,
             "governance": state.governance,

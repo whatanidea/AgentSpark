@@ -134,6 +134,27 @@ They omit complete transcripts and code scaffolds. Current live access is person
 and owner-isolated in personal scope; selected team workspaces use active
 organization membership and server-checked team permissions.
 
+### Azure and AWS assessment targets
+
+The target-cloud feature changes advisory assessments only. AgentSpark's Azure
+hosting, Cosmos persistence, Search source and OpenAI configuration are unchanged.
+Do not request customer AWS credentials or treat a blueprint approval as deployment
+authorization. New browser intakes require Azure or AWS explicitly; historical
+records default to Azure, and historical decision snapshots are not rewritten.
+
+`cloud_mapping` is the provider-neutral mapping. New Azure analyses also populate
+`azure_mapping` for compatibility; AWS analyses leave that legacy field empty.
+The existing pattern index does not need reseeding: AWS assessments use neutral
+design descriptions from the configured source with curated AWS implementation
+metadata, distinct hashes and provider-qualified source links. Missing required
+design sources still fail explicitly rather than falling back in live mode.
+
+Before rollout run the backend suite, frontend typecheck/build and Playwright.
+Acceptance-test both targets, preference-change invalidation, old Azure records
+and separate creator/reviewer identities on an AWS team workflow. Region/model
+availability and residency need separate customer validation; offline fixtures
+and mocked model tests do not establish live generation quality.
+
 ### Organization directory and team access
 
 Before upgrading a live deployment, provision a `directory` container in the
@@ -164,9 +185,11 @@ Acceptance-test separate verified identities for owner, administrator,
 contributor, reviewer, viewer and outsider. Verify personal/organization/team
 isolation on reads, writes, model-triggering operations, Home, archives and
 deletion. Owners/admins read/edit/delete across their organization's teams;
-contributors read/edit, reviewers read/review, and viewers only read.
-Review always requires an explicit team reviewer grant, the configured token
-role, and an identity other than the creator. Revocation must deny subsequent
+contributors read/edit and delete their own workflows/history, reviewers read/review, and viewers only read.
+Team review requires an explicit team reviewer grant and an identity other than
+the creator, without an additional token role. Personal review still requires
+the configured token role. Select the team workspace to see its pending reviews;
+personal Home never lists team records. Revocation must deny subsequent
 requests; rejoining must not restore grants from the previous membership.
 Invite people with single-purpose invite links (Organizations & teams > Invite
 links): pick role/team roles, expiry and maximum uses, send the link out of band,
@@ -243,8 +266,9 @@ configured by `AUTH_SPA_CLIENT_ID`, `AUTH_SPA_AUTHORITY` and `AUTH_SPA_SCOPE`;
 tokens are held in memory only and the pop-up returns to the blank `/auth-redirect.html`). For scripted tests, get a token with
 `az account get-access-token --tenant <tenant-id> --scope api://<AUTH_AUDIENCE>/access_as_user`
 and use "Use an access token instead".
-Reviewers additionally need the `AgentSense Reviewer` app role assigned in the
-enterprise application. Call `/ready` once after seeding; run acceptance with two
+Personal-workflow reviewers need the `AgentSense Reviewer` app role assigned in the
+enterprise application; team reviewers only need their in-app team reviewer grant.
+Call `/ready` once after seeding; run acceptance with two
 identities so creator/reviewer separation is exercised. `azd down --purge`
 deletes the whole environment.
 

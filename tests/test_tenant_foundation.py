@@ -86,12 +86,16 @@ class TenantFoundationTests(unittest.TestCase):
         self.call("PUT", f"/organizations/{organization}/teams/{team}/members/{identity}", body={"roles": roles})
         return identity
 
-    def workflow(self, organization=None, team=None, subject="owner"):
+    def draft(self, organization=None, team=None, subject="owner"):
         session = str(uuid4())
         self.call("POST", "/intake", organization=organization, team=team, subject=subject, body={
             "session_id": session, "business_domain": "Fictional team finance", "team_size": "1-50",
             "existing_systems": "Sample", "pain_points": "Sample only", "compliance_requirements": "High",
             "demo_scenario": "invoice"})
+        return session
+
+    def workflow(self, organization=None, team=None, subject="owner"):
+        session = self.draft(organization, team, subject)
         analysis = self.call("POST", f"/analyze/{session}", organization=organization, team=team, subject=subject)
         return session, analysis["analysis_id"]
 
@@ -163,9 +167,17 @@ class TenantFoundationTests(unittest.TestCase):
         session, analysis = self.workflow(organization, team, "creator")
         body = self.review_body(analysis)
         self.call("POST", f"/review/{session}", organization=organization, team=team, subject="creator", body=body, status=403)
-        self.call("POST", f"/review/{session}", organization=organization, team=team, subject="reviewer",
-                  body=body, reviewer=False, status=403)
-        reviewed = self.call("POST", f"/review/{session}", organization=organization, team=team, subject="reviewer", body=body)
+        pending = self.call("GET", "/home?status=pending_review", organization=organization, team=team,
+                            subject="reviewer", reviewer=False)
+        self.assertEqual([item["session_id"] for item in pending["items"]], [session])
+        snapshot = self.call("GET", f"/sessions/{session}", organization=organization, team=team,
+                             subject="reviewer", reviewer=False)
+        self.assertEqual(snapshot["permissions"], {"read": True, "write": False, "review": True, "delete": False})
+        blueprint = self.call("GET", f"/blueprint/{session}", organization=organization, team=team,
+                              subject="reviewer", reviewer=False)
+        self.assertTrue(blueprint["permissions"]["review"])
+        reviewed = self.call("POST", f"/review/{session}", organization=organization, team=team,
+                             subject="reviewer", body=body, reviewer=False)
         self.assertEqual(reviewed["human_review"]["reviewer"], "reviewer")
         self.assertEqual(reviewed["status"], "completed")
         self.call("POST", f"/review/{session}", organization=organization, team=team, subject="reviewer", body=body, status=409)
@@ -176,6 +188,118 @@ class TenantFoundationTests(unittest.TestCase):
         self.call("GET", f"/decisions/{session}/{analysis}", subject="creator", status=404)
         self.call("DELETE", f"/decisions/{session}/{analysis}", organization=organization, team=team)
         self.assertEqual(self.call("GET", "/home", organization=organization, team=team)["items"], [])
+
+    def test_aws_team_assessment_supports_independent_review_and_retains_target(self):
+        organization, team = self.organization()
+        self.member(organization, team, "creator", ["contributor", "reviewer"])
+        self.member(organization, team, "reviewer", ["reviewer"])
+        session = str(uuid4())
+        self.call("POST", "/intake", organization=organization, team=team, subject="creator", body={
+            "session_id": session, "business_domain": "Fictional AWS invoice review", "team_size": "1-50",
+            "existing_systems": "SAP", "pain_points": "Slow approvals", "compliance_requirements": "High",
+            "demo_scenario": "invoice", "target_cloud": "aws", "preferred_region": "eu-west-1"})
+        analysis = self.call("POST", f"/analyze/{session}", organization=organization, team=team,
+                             subject="creator")["analysis_id"]
+        body = self.review_body(analysis)
+        self.call("POST", f"/review/{session}", organization=organization, team=team,
+                  subject="creator", reviewer=False, body=body, status=403)
+        pending = self.call("GET", "/home?status=pending_review", organization=organization, team=team,
+                            subject="reviewer", reviewer=False)
+        self.assertEqual(pending["items"][0]["session_id"], session)
+        blueprint = self.call("GET", f"/blueprint/{session}", organization=organization, team=team,
+                              subject="reviewer", reviewer=False)
+        self.assertEqual(blueprint["target_cloud"], "aws")
+        self.assertTrue(blueprint["permissions"]["review"])
+        self.call("POST", f"/review/{session}", organization=organization, team=team,
+                  subject="reviewer", reviewer=False, body=body)
+        decision = self.call("GET", f"/decisions/{session}/{analysis}", organization=organization, team=team,
+                             subject="reviewer", reviewer=False)
+        self.assertEqual(decision["details"]["deployment_preferences"]["target_cloud"], "aws")
+        self.assertEqual(decision["details"]["deployment_preferences"]["preferred_region"], "eu-west-1")
+
+    def test_contributor_can_delete_own_drafts_but_not_other_team_workflows(self):
+        organization, team = self.organization()
+        identity = self.member(organization, team, "contributor", ["contributor", "reviewer", "viewer"])
+        own = self.draft(organization, team, "contributor")
+        other = self.draft(organization, team)
+        page = self.call("GET", "/home?status=draft", organization=organization, team=team,
+                         subject="contributor", reviewer=False)
+        self.assertEqual({item["session_id"]: item["can_delete"] for item in page["items"]},
+                         {own: True, other: False})
+        self.assertNotIn("owner_id", str(page))
+        for session, permitted in ((own, True), (other, False)):
+            snapshot = self.call("GET", f"/sessions/{session}", organization=organization, team=team,
+                                 subject="contributor", reviewer=False)
+            self.assertEqual(snapshot["permissions"]["delete"], permitted)
+        self.call("DELETE", f"/sessions/{other}", organization=organization, team=team,
+                  subject="contributor", reviewer=False, status=403)
+        self.call("DELETE", f"/sessions/{own}", organization=organization, team=team,
+                  subject="contributor", reviewer=False)
+        own = self.draft(organization, team, "contributor")
+        grant = self.call("GET", f"/organizations/{organization}/teams/{team}/members")["items"][0]
+        self.call("PUT", f"/organizations/{organization}/teams/{team}/members/{identity}",
+                  body={"roles": ["viewer"], "version": grant["version"]})
+        snapshot = self.call("GET", f"/sessions/{own}", organization=organization, team=team,
+                             subject="contributor", reviewer=False)
+        self.assertFalse(snapshot["permissions"]["delete"])
+        self.call("DELETE", f"/sessions/{own}", organization=organization, team=team,
+                  subject="contributor", reviewer=False, status=403)
+
+    def test_contributor_can_delete_own_archived_workflow_and_history(self):
+        organization, team = self.organization()
+        self.member(organization, team, "creator", ["contributor"])
+        self.member(organization, team, "reviewer", ["reviewer"])
+        session, analysis = self.workflow(organization, team, "creator")
+        self.call("POST", f"/review/{session}", organization=organization, team=team,
+                  subject="reviewer", reviewer=False, body=self.review_body(analysis))
+        self.database.mock_db.clear()
+        for subject, allowed in (("creator", True), ("reviewer", False), ("owner", True)):
+            page = self.call("GET", "/home?status=approved", organization=organization, team=team,
+                             subject=subject, reviewer=False)
+            self.assertEqual(page["items"][0]["can_delete"], allowed)
+            detail = self.call("GET", f"/decisions/{session}/{analysis}", organization=organization, team=team,
+                               subject=subject, reviewer=False)
+            self.assertEqual(detail["summary"]["can_delete"], allowed)
+            self.assertNotIn("owner_id", str(detail))
+        self.call("DELETE", f"/decisions/{session}/{analysis}", organization=organization, team=team,
+                  subject="creator", reviewer=False)
+        self.assertEqual(self.call("GET", "/home", organization=organization, team=team)["items"], [])
+
+    def test_team_review_grant_is_required_even_with_token_role_and_revokes_immediately(self):
+        organization, team = self.organization()
+        identity = self.member(organization, team, "reviewer", ["reviewer"])
+        self.member(organization, team, "contributor", ["contributor"])
+        session, analysis = self.workflow(organization, team, "contributor")
+        self.call("POST", f"/review/{session}", organization=organization, team=team,
+                  subject="contributor", body=self.review_body(analysis), status=403)
+        grant = next(item for item in self.call("GET", f"/organizations/{organization}/teams/{team}/members")["items"]
+                     if item["identity_id"] == identity)
+        self.call("PUT", f"/organizations/{organization}/teams/{team}/members/{identity}",
+                  body={"roles": ["viewer"], "version": grant["version"]})
+        self.call("POST", f"/review/{session}", organization=organization, team=team,
+                  subject="reviewer", body=self.review_body(analysis), status=403)
+        snapshot = self.call("GET", f"/sessions/{session}", organization=organization, team=team,
+                             subject="reviewer")
+        self.assertFalse(snapshot["permissions"]["review"])
+
+    def test_cosmos_home_projects_creator_for_per_workflow_delete_permissions(self):
+        organization, team = self.organization()
+        self.member(organization, team, "contributor", ["contributor"])
+        own = self.draft(organization, team, "contributor")
+        other = self.draft(organization, team)
+        documents = [self.database.mock_db[session] for session in (own, other)]
+        container = Mock()
+        container.query_items.side_effect = [
+            [{"home": document["home"], "owner_id": document["owner_id"]} for document in documents], []]
+        with patch.object(self.database, "use_mock", False), patch.object(self.database, "container", container):
+            page = self.call("GET", "/home?status=draft", organization=organization, team=team,
+                             subject="contributor", reviewer=False)
+        self.assertEqual({item["session_id"]: item["can_delete"] for item in page["items"]},
+                         {own: True, other: False})
+        query = container.query_items.call_args_list[0].kwargs["query"]
+        self.assertIn("c.home, c.owner_id", query)
+        self.assertIn("c.organization_id = @organization AND c.team_id = @team", query)
+        self.assertNotIn("owner_id", str(page))
 
     def test_membership_revocation_and_rejoin_do_not_restore_old_team_grants(self):
         organization, team = self.organization()

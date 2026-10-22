@@ -7,6 +7,10 @@ export function setAccessToken(token: string) { accessToken = token; }
 /** When set, each request asks the provider for a current token (silently refreshed by MSAL). */
 export function setTokenProvider(provider: typeof tokenProvider) { tokenProvider = provider; }
 export type Permissions = { read: boolean; write: boolean; review: boolean; delete: boolean };
+export type CloudProvider = "azure" | "aws";
+export type DeploymentPreferences = {
+  target_cloud: CloudProvider; preferred_region: string; data_residency_requirements: string; deployment_constraints: string;
+};
 export type WorkspaceSelection = {
   organization_id: string; team_id: string; organization_name: string; team_name: string; permissions: Permissions;
 };
@@ -46,6 +50,7 @@ export type AuthConfig = {
 };
 export type HomeStatus = "draft" | "pending_review" | "approved" | "rejected";
 export type HomeItem = {
+  can_delete: boolean;
   kind: "session" | "decision"; session_id: string; analysis_id: string | null;
   title: string; domain: string; status: HomeStatus; score: number | null;
   updated_at: string; expires_at: string; sort_key: string; legacy: boolean;
@@ -54,6 +59,8 @@ export type HomePage = { items: HomeItem[]; next_cursor: string | null; archive_
 export type ArchivedDecision = {
   summary: HomeItem;
   details: {
+    deployment_preferences?: DeploymentPreferences;
+    cloud_mapping?: Record<string, unknown> | null;
     workflow_intelligence: { summary: string; systems: string[] } | null;
     suitability_score: { agent_score: number; recommended_pattern: string; explanation: string } | null;
     human_review: { decision: "approve" | "reject"; reviewer: string; note: string; reviewed_at: string } | null;

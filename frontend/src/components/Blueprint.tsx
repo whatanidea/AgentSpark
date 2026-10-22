@@ -80,10 +80,20 @@ export default function Blueprint({ sessionId, active, canReview, secureReview, 
 
 **Status:** ${bp.status}${bp.provisional ? " — PROVISIONAL: NOT APPROVED" : ""}
 **Analysis:** ${bp.analysis_id}
+**Target cloud:** ${bp.enterprise_context?.target_cloud === "aws" ? "AWS" : "Azure"}
+**Preferred region (unverified):** ${bp.enterprise_context?.preferred_region || "Not specified"}
+**Data residency requirements:** ${bp.enterprise_context?.data_residency_requirements || "Not specified"}
+**Deployment constraints:** ${bp.enterprise_context?.deployment_constraints || "Not specified"}
 ${bp.human_review ? `**Human review:** ${bp.human_review.decision} by ${bp.human_review.reviewer} at ${bp.human_review.reviewed_at}\n**Review note:** ${bp.human_review.note}` : ""}
 
 Advisory recommendation only; approval does not execute or deploy a business workflow.
+${bp.assessment_limitations || "Region availability, model access, residency and prices are unverified. AgentSpark remains Azure-hosted."}
 ${bp.demo_scenario ? `Fictional demo fixture: ${bp.demo_scenario}; not extracted customer facts.` : ""}
+
+## Selected cloud service candidates
+\`\`\`json
+${JSON.stringify(bp.cloud_mapping, null, 2)}
+\`\`\`
 
 ## Evidence and provenance
 \`\`\`json
@@ -159,6 +169,17 @@ ${bp.code_scaffold || ""}
       {!sessionId && <Card><p className="text-amber-800 text-sm">⚠️ Run the analysis first.</p></Card>}
       {busy && <Card><Spinner label="Fetching blueprint…" /></Card>}
       {err && <Card><p role="alert" className="text-rose-700 text-sm">❌ {err}</p></Card>}
+      {bp && <Card title="Assessment deployment target">
+        <p className="font-semibold">{bp.enterprise_context?.target_cloud === "aws" ? "AWS" : "Azure"} / {bp.enterprise_context?.preferred_region || "Region not specified"} (unverified)</p>
+        <p className="text-sm mt-2">Data residency: {bp.enterprise_context?.data_residency_requirements || "Not specified"}</p>
+        <p className="text-sm mt-2">Constraints: {bp.enterprise_context?.deployment_constraints || "Not specified"}</p>
+        <p className="text-xs text-slate-500 mt-2">{bp.assessment_limitations || "Assessment only. AgentSpark remains Azure-hosted; availability, residency and pricing require validation."}</p>
+        {bp.cloud_mapping && <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
+          {["compute", "database", "ai", "search", "orchestration", "identity", "secrets", "monitoring"].map(key =>
+            <div key={key}><dt className="text-xs uppercase text-slate-500">{key}</dt>
+              <dd className="text-sm">{Array.isArray(bp.cloud_mapping[key]) ? bp.cloud_mapping[key].join(", ") : bp.cloud_mapping[key]}</dd></div>)}
+        </dl>}
+      </Card>}
       {bp && !bp.diagnosis && <Card><p className="text-amber-800 text-sm">Legacy analysis has no fact provenance. Rerun analysis before reviewing it.</p></Card>}
       <AnalysisEvidence diagnosis={bp?.diagnosis} scenario={bp?.demo_scenario} />
       {bp?.roi && <Card title="ROI assumptions and sensitivity"><ROIReport roi={bp.roi} /></Card>}
@@ -179,7 +200,7 @@ ${bp.code_scaffold || ""}
               <p className="text-sm mt-2"><b>Non-agentic alternative:</b> {bp.alternative}</p>
             </div>
           )}
-          {bp.provisional && !authorizedReview && <p role="status" className="mt-3 text-amber-800">Your identity cannot review this workflow. Team reviews require a reviewer grant, the configured token role in live mode, and a reviewer other than the creator.</p>}
+          {bp.provisional && !authorizedReview && <p role="status" className="mt-3 text-amber-800">Your identity cannot review this workflow. Team reviews require a reviewer grant and a reviewer other than the creator. Personal review requires the configured token role.</p>}
           {bp.provisional && authorizedReview && (
             <div className="mt-4 space-y-3">
               <p className="notice notice-warning">{secureReview ? "Review is attributed to the verified token identity; ownership, membership and role checks are enforced by the API."
