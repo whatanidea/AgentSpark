@@ -268,7 +268,7 @@ export default function App() {
               <details className="mt-0.5">
                 <summary className="text-slate-500">Privacy, access & retention details</summary>
                 <p className="mt-2">Pattern-based redaction is best-effort, not anonymization.
-                  {" "}{auth?.mode === "local-demo" ? "Local demo is unauthenticated and shared; do not expose it publicly." : "Personal workflows are owner-private. Team workflows require active membership and scoped permissions; review also requires the configured token role and cannot be performed by the creator."}
+                  {" "}{auth?.mode === "local-demo" ? "Local demo is unauthenticated and shared; do not expose it publicly." : "Personal workflows are owner-private. Team workflows require active membership and scoped permissions. Team reviewers cannot review their own workflows; personal review requires the configured token role."}
                   {" "}Session retention: {auth?.retention_hours ?? "…"} hours; decision snapshots: {auth?.archive_retention_days ?? "…"} days.
                   {" "}Deleting a workflow also deletes its decision archive. Only an opaque session pointer is kept in this tab.
                 </p>
@@ -276,6 +276,8 @@ export default function App() {
             </div>
           </div>
           {message && <p role="status" className="notice">{message}</p>}
+          {snapshot && <p className="text-xs text-slate-600">Assessment target: <strong>{snapshot.enterprise_context.target_cloud === "aws" ? "AWS" : "Azure"}</strong>
+            {" "} / Region: {snapshot.enterprise_context.preferred_region || "not specified"} (unverified). AgentSpark hosting is unchanged.</p>}
           {identity && !snapshot && readPointer() && <Button disabled={busy} variant="ghost" onClick={async () => {
             setBusy(true);
             try { await connect(); }
@@ -318,7 +320,7 @@ export default function App() {
               onInviteHandled={() => setPendingInvite("")} />}
             {view === "home" && <Home demo={auth?.mode === "local-demo"} retentionDays={auth?.archive_retention_days ?? 30}
               workspaceName={workspace ? `${workspace.organization_name} / ${workspace.team_name}` : undefined}
-              canCreate={workspace?.permissions.write !== false} canDelete={workspace?.permissions.delete !== false}
+              canCreate={workspace?.permissions.write !== false}
               onCreate={newWorkflow} onOpen={openWorkflow} onBusyChange={setBusy}
               onDeleted={(id) => {
                 if (id === sessionId) { forgetPointer(); setSnapshot(null); }
@@ -333,7 +335,7 @@ export default function App() {
               initialHistory={snapshot?.chat_history} onRefresh={refreshSession} onBusyChange={setBusy} goNext={() => void changeView("analyze")} /></fieldset>}
             {view === "analyze" && <fieldset disabled={!canWrite} className="min-w-0"><Analyze sessionId={sessionId} active initialSnapshot={snapshot}
               onRefresh={refreshSession} onBusyChange={setBusy} goNext={() => void changeView("blueprint")} /></fieldset>}
-            {view === "blueprint" && <Blueprint sessionId={sessionId} active canReview={identity.can_review && snapshot?.permissions.review}
+            {view === "blueprint" && <Blueprint sessionId={sessionId} active canReview={snapshot?.permissions.review === true}
               secureReview={auth?.mode === "oidc"} onRefresh={refreshSession} onBusyChange={setBusy} />}
             {view === "portfolio" && <Portfolio />}
           </div>}

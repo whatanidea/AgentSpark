@@ -52,7 +52,7 @@ class GraphState(TypedDict):
     roi_assumptions: ROIAssumptions
     workflow_intelligence: Optional[WorkflowIntelligence]
     suitability_score: Optional[AgentSuitabilityScore]
-    azure_mapping: Optional[Dict[str, Any]]
+    cloud_mapping: Optional[Dict[str, Any]]
     retrieved_patterns: List[Dict[str, Any]]
     recommendation: Optional[Dict[str, Any]]
     governance: Optional[Dict[str, Any]]
@@ -104,9 +104,11 @@ def score_workflow(state: GraphState) -> GraphState:
 
 def map_services(state: GraphState) -> GraphState:
     t = time.perf_counter()
-    logger.info("[3/7] Mapping Agent → Azure service mapping")
-    state["azure_mapping"] = mapping_agent.map_services(state["workflow_intelligence"], state["suitability_score"])
-    _trace(state, "Mapping Agent", f"Mapped Azure stack (AI: {state['azure_mapping'].get('ai')}).", t)
+    logger.info("[3/7] Mapping Agent: target cloud service mapping")
+    state["cloud_mapping"] = mapping_agent.map_services(
+        state["workflow_intelligence"], state["suitability_score"], state["enterprise_context"])
+    _trace(state, "Mapping Agent",
+           f"Mapped {state['cloud_mapping']['cloud_name']} candidates (AI: {state['cloud_mapping'].get('ai')}).", t)
     return state
 
 
@@ -114,8 +116,9 @@ def generate_recommendations(state: GraphState) -> GraphState:
     t = time.perf_counter()
     logger.info("[4/7] Recommendation Agent → RAG-grounded design")
     rec = recommendation_agent.generate_recommendation(
-        state["suitability_score"], state["azure_mapping"], state["workflow_intelligence"],
+        state["suitability_score"], state["cloud_mapping"], state["workflow_intelligence"],
         diagnosis=state["diagnosis"],
+        target_cloud=state["enterprise_context"].target_cloud,
     )
     state["retrieved_patterns"] = rec.pop("_retrieved_patterns", [])
     state["recommendation"] = rec
@@ -155,7 +158,7 @@ def create_blueprint(state: GraphState) -> GraphState:
     state["blueprint"] = blueprint_agent.generate_blueprint(
         state["suitability_score"], state["recommendation"],
         intelligence=state["workflow_intelligence"], context=state["enterprise_context"],
-        mapping=state["azure_mapping"], governance=state["governance"], roi=state["roi"],
+        mapping=state["cloud_mapping"], governance=state["governance"], roi=state["roi"],
         diagnosis=state["diagnosis"],
     )
     gov = state.get("governance") or {}
@@ -221,7 +224,7 @@ def run_orchestration(session_id: str, roi_assumptions: ROIAssumptions | None = 
         "roi_assumptions": db_state.roi_assumptions,
         "workflow_intelligence": None,
         "suitability_score": None,
-        "azure_mapping": None,
+        "cloud_mapping": None,
         "retrieved_patterns": [],
         "recommendation": None,
         "governance": None,
@@ -242,10 +245,11 @@ def run_orchestration(session_id: str, roi_assumptions: ROIAssumptions | None = 
     db_state.workflow_intelligence = result["workflow_intelligence"]
     db_state.diagnosis = result["diagnosis"]
     db_state.suitability_score = result["suitability_score"]
-    db_state.azure_mapping = result["azure_mapping"]
+    db_state.cloud_mapping = result["cloud_mapping"]
+    db_state.azure_mapping = result["cloud_mapping"] if db_state.enterprise_context.target_cloud == "azure" else None
     db_state.retrieved_patterns = result["retrieved_patterns"]
     db_state.architecture_recommendation = {
-        "mapping": result["azure_mapping"],
+        "mapping": result["cloud_mapping"],
         "strategy": result["recommendation"],
         "patterns": result["retrieved_patterns"],
     } if result["recommendation"] is not None else None

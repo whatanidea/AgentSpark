@@ -1,7 +1,7 @@
 export default function ArchitectureDiagram({ bp }: { bp: {
   workflow_intelligence?: { workflow_name: string; systems: string[] };
   suitability_score?: { recommended_pattern: string; autonomy_level: string; requires_hitl: boolean };
-  architecture_recommendation?: { mapping?: Record<string, string> };
+  architecture_recommendation?: { mapping?: Record<string, unknown> };
   governance?: { decision: string };
 } }) {
   const intel = bp.workflow_intelligence;
@@ -24,9 +24,12 @@ export default function ArchitectureDiagram({ bp }: { bp: {
       <p className="text-teal-600" aria-hidden="true">↓</p>
       <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm">Existing systems: {intel?.systems.join(", ") || "None"} · Audit records</div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-xs text-left">
-        {Object.entries(mapping || {}).map(([key, value]) => (
-          <div key={key} className="rounded-lg border border-slate-200 bg-white p-3 leading-relaxed"><b className="text-teal-800">{key}:</b> {value}</div>
-        ))}
+        {["compute", "database", "ai", "search", "orchestration"].map(key => {
+          const value = mapping?.[key];
+          return typeof value === "string" ? (
+            <div key={key} className="rounded-lg border border-slate-200 bg-white p-3 leading-relaxed"><b className="text-teal-800">{key}:</b> {value}</div>
+          ) : null;
+        })}
       </div>
     </div>
   );

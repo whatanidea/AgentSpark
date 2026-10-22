@@ -275,7 +275,7 @@ class CosmosDecisionContractTests(ArchiveFixture, unittest.TestCase):
         container.query_items.return_value = []
         self.assertEqual(self.database.list_home("approved", "", 20)["items"], [])
         call = container.query_items.call_args_list[0].kwargs
-        self.assertIn("SELECT TOP 21 VALUE c.home", call["query"])
+        self.assertIn("SELECT TOP 21 c.home, c.owner_id", call["query"])
         self.assertIn("c.owner_id = @owner", call["query"])
         self.assertIn("c.home.sort_key < @cursor", call["query"])
         self.assertNotIn("OFFSET", call["query"])

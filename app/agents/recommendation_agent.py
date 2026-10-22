@@ -3,7 +3,8 @@ import logging
 
 from pydantic import BaseModel, Field
 
-from app.utils.models import AgentSuitabilityScore, WorkflowIntelligence, WorkflowDiagnosis, AutonomyLevel, DesignFamily, ESSENTIAL_FACTS
+from app.utils.models import AgentSuitabilityScore, WorkflowIntelligence, WorkflowDiagnosis, AutonomyLevel, DesignFamily, ESSENTIAL_FACTS, CloudProvider
+from app.agents.cloud_catalog import pattern_for_cloud
 from app.utils.llm import get_chat_llm, structured_call
 from app.utils.runtime import demo_mode
 from app.utils.errors import InvalidDependencyResponse
@@ -42,7 +43,9 @@ and human gate are authoritative constraints from the deterministic readiness sc
 Use ONLY IDs in retrieved_patterns, include every required_pattern_id, and match the prescribed
 design and autonomy exactly. Do not recommend multi-agent or autonomous systems for Low or
 Not Suitable workflows. Cite the supplied patterns; never invent names, IDs, or sources.
-Discuss limitations and the need for validation; completeness is NOT confidence in correctness."""
+Discuss limitations and the need for validation; completeness is NOT confidence in correctness.
+Use the selected cloud mapping and implementation references, not a different cloud's services.
+Preserve external customer integrations without treating them as the target hosting platform."""
 
 
 class RecommendationAgent:
@@ -52,15 +55,16 @@ class RecommendationAgent:
     def build_query(self, intel: WorkflowIntelligence, score: AgentSuitabilityScore) -> str:
         return f"{intel.workflow_name}. {intel.summary}. {score.recommended_pattern}. Compliance {intel.compliance_sensitivity}."
 
-    def generate_recommendation(self, score: AgentSuitabilityScore, azure_mapping: dict,
+    def generate_recommendation(self, score: AgentSuitabilityScore, cloud_mapping: dict,
                                 intel: WorkflowIntelligence, patterns: list | None = None,
-                                diagnosis: WorkflowDiagnosis | None = None) -> dict:
+                                diagnosis: WorkflowDiagnosis | None = None, target_cloud: CloudProvider = "azure") -> dict:
         family, primary = _DESIGNS[score.classification]
         required = (primary, "p04") if score.requires_hitl and family != "standard_software" else (primary,)
         if patterns is None:
             patterns = retrieve_patterns(self.build_query(intel, score), top_k=4, required_ids=required)
         # Only readiness-compatible patterns enter generation, even if lexical retrieval ranks another design highly.
         patterns = [p for p in patterns if p.get("id") in required]
+        patterns = [pattern_for_cloud(p, target_cloud) for p in patterns]
         by_id = {p["id"]: p for p in patterns}
         if not all(pattern_id in by_id for pattern_id in required):
             logger.error("Recommendation lacks grounding for the required design.")
@@ -81,7 +85,8 @@ class RecommendationAgent:
             )
         else:
             payload = json.dumps({"constraints": constraints, "workflow": intel.model_dump(),
-                                  "score": score.model_dump(), "azure_services": azure_mapping,
+                                  "score": score.model_dump(), "cloud_services": cloud_mapping,
+                                  "target_cloud": target_cloud,
                                   "retrieved_patterns": patterns})
             result = structured_call(get_chat_llm(temperature=0.2), _SYSTEM, payload, Recommendation)
         if (result.design_family != family or result.autonomy_level != score.autonomy_level
@@ -92,6 +97,7 @@ class RecommendationAgent:
             logger.error("Recommendation contradicted readiness constraints or invented a pattern citation.")
             raise InvalidDependencyResponse("openai")
         out = result.model_dump()
+        out["target_cloud"] = target_cloud
         out["automation_strategy"] = f"{score.recommended_pattern} for {intel.workflow_name}; autonomy: {score.autonomy_level}."
         out["recommended_patterns"] = [by_id[key]["name"] for key in result.pattern_ids]
         out["pattern_references"] = [by_id[key] for key in result.pattern_ids]

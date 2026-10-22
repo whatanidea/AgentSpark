@@ -1,8 +1,10 @@
 import { expect, test, type Page } from "@playwright/test";
+import { randomUUID } from "node:crypto";
 
-async function intake(page: Page, sample?: string) {
+async function intake(page: Page, sample?: string, cloud = "azure") {
   await page.goto("/");
   await page.getByRole("button", { name: "1 · Enterprise Intake", exact: true }).click();
+  await page.getByLabel("Target cloud", { exact: true }).selectOption(cloud);
   await expect(page).toHaveTitle("AgentSpark — Enterprise AI Transformation Advisor");
   await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
   await expect(page.locator("html")).toHaveCSS("color-scheme", "light");
@@ -129,6 +131,8 @@ test("light workspace supports keyboard focus, sample selection and readable pri
   await expect(sample).toHaveAttribute("aria-pressed", "true");
   await expect(domain).toHaveValue("Financial Services — Accounts Payable");
   const submit = page.getByRole("button", { name: "Submit Intake", exact: true });
+  await expect(submit).toBeDisabled();
+  await page.getByLabel("Target cloud", { exact: true }).selectOption("azure");
   await expect(submit).toBeEnabled();
   await expect(submit).toHaveCSS("background-color", "rgb(15, 118, 110)");
   await expect(submit).toHaveCSS("color", "rgb(255, 255, 255)");
@@ -242,6 +246,7 @@ test("team workspace restores its scope, prevents self-review and stays separate
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole("button", { name: "Use Browser finance", exact: true }).click();
   await page.getByRole("button", { name: "Create workflow", exact: false }).click();
+  await page.getByLabel("Target cloud", { exact: true }).selectOption("azure");
   await page.getByRole("button", { name: "🧾 Invoice Approval (Finance)", exact: true }).click();
   await page.getByRole("button", { name: "Submit Intake", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Diagnostic Interview", exact: true })).toBeVisible();
@@ -271,6 +276,102 @@ test("team workspace restores its scope, prevents self-review and stays separate
   await page.getByRole("button", { name: "Confirm delete", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Open Invoice Approval Pending review", exact: true })).toHaveCount(0);
+});
+
+test("team member can delete an own draft and open reviews without a global reviewer role", async ({ page }) => {
+  const organizationResponse = await page.request.post("/api/v1/organizations", { data: { name: "Member permissions test" } });
+  expect(organizationResponse.status()).toBe(201);
+  const organization = (await organizationResponse.json()).organization_id;
+  const teamResponse = await page.request.post(`/api/v1/organizations/${organization}/teams`, { data: { name: "Member finance" } });
+  expect(teamResponse.status()).toBe(201);
+  const team = (await teamResponse.json()).team_id;
+  const headers = { "X-Organization-ID": organization, "X-Team-ID": team };
+  const draft = randomUUID();
+  const pending = randomUUID();
+  for (const session of [draft, pending]) {
+    const response = await page.request.post("/api/v1/intake", { headers, data: {
+      session_id: session, business_domain: session === draft ? "Own draft" : "Other creator review", team_size: "1-50",
+      existing_systems: "Sample", pain_points: "Sample", compliance_requirements: "High", demo_scenario: "invoice",
+    } });
+    expect(response.status()).toBe(200);
+  }
+  expect((await page.request.post(`/api/v1/analyze/${pending}`, { headers })).status()).toBe(200);
+  // Simulate an independent team member in the shared-demo browser fixture.
+  await page.route("**/api/v1/auth/me", route => route.fulfill({ json: { identity: "local-demo", can_review: false } }));
+  await page.route("**/api/v1/organizations?*", route => route.fulfill({ json: {
+    items: [{ organization_id: organization, name: "Member permissions test", role: "member" }], next_cursor: null,
+  } }));
+  await page.route(`**/api/v1/organizations/${organization}/teams?*`, route => route.fulfill({ json: {
+    items: [{ team_id: team, name: "Member finance", permissions: ["read", "write", "review"] }], next_cursor: null,
+  } }));
+  await page.route("**/api/v1/home?*", async route => {
+    const response = await route.fetch();
+    const result = await response.json();
+    await route.fulfill({ json: { ...result, items: result.items.map((item: { session_id: string }) => ({
+      ...item, can_delete: item.session_id === draft,
+    })) } });
+  });
+  for (const path of [`sessions/${pending}`, `blueprint/${pending}`]) {
+    await page.route(`**/api/v1/${path}`, async route => {
+      const response = await route.fetch();
+      await route.fulfill({ json: { ...await response.json(),
+        permissions: { read: true, write: true, review: true, delete: false } } });
+    });
+  }
+  await page.goto("/");
+  await page.getByRole("button", { name: "Organizations & teams", exact: true }).click();
+  await page.getByRole("button", { name: "Use Member finance", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Delete Own draft and history", exact: true })).toBeEnabled();
+  await expect(page.getByRole("button", { name: "Delete Invoice Approval and history", exact: true })).toBeDisabled();
+  await page.getByRole("button", { name: "Delete Own draft and history", exact: true }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Delete workflow & history", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Delete Own draft and history", exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Pending review", exact: true }).click();
+  await page.getByRole("button", { name: "Open Invoice Approval Pending review", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Approve recommendation", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Delete workflow", exact: true })).toBeDisabled();
+});
+
+test("AWS assessment restores, exports, archives and invalidates approval when cloud changes", async ({ page }) => {
+  await intake(page, "🧾 Invoice Approval (Finance)", "aws");
+  const result = await analyze(page);
+  expect(result.cloud_mapping.target_cloud).toBe("aws");
+  expect(result.cloud_mapping.ai).toBe("Amazon Bedrock");
+  await page.getByRole("button", { name: "4 · Blueprint & Review", exact: true }).click();
+  await expect(page.locator("dd").filter({ hasText: /^Amazon Bedrock$/ })).toBeVisible();
+  await page.getByLabel("Reviewer", { exact: true }).fill("Fictional AWS reviewer");
+  await page.getByLabel("Review rationale", { exact: true }).fill("Reviewed AWS assessment and human gates.");
+  await page.getByRole("button", { name: "Approve recommendation", exact: true }).click();
+  await expect(page.getByText("Recommendation approved by a human reviewer", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("Workflow restored from the server.", { exact: true })).toBeVisible();
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "⬇ Export .md", exact: true }).click();
+  const download = await downloadPromise;
+  const stream = await download.createReadStream();
+  if (!stream) throw new Error("Export stream missing");
+  let markdown = "";
+  for await (const chunk of stream) markdown += chunk.toString();
+  expect(markdown).toContain("**Target cloud:** AWS");
+  expect(markdown).toContain("Amazon Bedrock");
+  expect(markdown).toContain("Azure-hosted");
+  await page.getByRole("button", { name: "Home", exact: true }).click();
+  await page.getByRole("button", { name: "Approved", exact: true }).click();
+  await page.getByRole("button", { name: "Open Invoice Approval Approved", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Reviewed deployment target", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "1 · Enterprise Intake", exact: true }).click();
+  await expect(page.getByLabel("Target cloud", { exact: true })).toHaveValue("aws");
+  await page.getByLabel("Target cloud", { exact: true }).selectOption("azure");
+  await page.getByRole("button", { name: "Submit Intake", exact: true }).click();
+  const dialog = page.getByRole("alertdialog", { name: "Confirm deployment preference change", exact: true });
+  await expect(dialog).toBeVisible();
+  await dialog.getByRole("button", { name: "Confirm preferences and save intake", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Diagnostic Interview", exact: true })).toBeVisible();
+  const pointer = await page.evaluate(() => JSON.parse(sessionStorage.getItem("agentsense.session.v1")!));
+  const snapshot = await (await page.request.get(`/api/v1/sessions/${pointer.session}`)).json();
+  expect(snapshot.enterprise_context.target_cloud).toBe("azure");
+  expect(snapshot.analysis_id).toBeNull();
+  expect(snapshot.human_review).toBeNull();
 });
 
 test("invite links join a team without exchanging identity IDs and are single-use", async ({ page }) => {

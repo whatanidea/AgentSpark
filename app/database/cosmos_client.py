@@ -23,7 +23,7 @@ logger = logging.getLogger(__name__)
 PRIVATE_FIELDS = (
     "enterprise_context", "chat_history", "diagnosis", "workflow_intelligence",
     "architecture_recommendation", "blueprint", "trace", "guardrail_events", "human_review",
-    "suitability_score", "azure_mapping", "retrieved_patterns", "governance", "roi", "portfolio",
+    "suitability_score", "azure_mapping", "cloud_mapping", "retrieved_patterns", "governance", "roi", "portfolio",
 )
 
 
@@ -112,7 +112,8 @@ class DatabaseClient:
         if (organization or "") != workspace.organization_id or (team or "") != workspace.team_id:
             raise WorkflowNotFound()
         if organization and team:
-            tenant_directory.require(organization, team, action)
+            required = "write" if action == "delete" and owner == principal_context.get().owner_id else action
+            tenant_directory.require(organization, team, required)
             if action == "review" and owner == principal_context.get().owner_id:
                 from fastapi import HTTPException
                 raise HTTPException(403, "Team workflow creators cannot review their own workflows.")
@@ -123,7 +124,9 @@ class DatabaseClient:
     def permissions(state: WorkflowState):
         allowed = (tenant_directory.permissions(state.organization_id, state.team_id)
                    if state.organization_id and state.team_id else {"read", "write", "review", "delete"})
-        reviewer = (auth.auth_settings.mode == "local-demo"
+        if state.owner_id == principal_context.get().owner_id and "write" in allowed:
+            allowed.add("delete")
+        reviewer = (bool(state.organization_id) or auth.auth_settings.mode == "local-demo"
                     or auth.auth_settings.reviewer_role in principal_context.get().roles)
         return {action: action in allowed and (action != "review" or (
             reviewer and (not state.organization_id or state.owner_id != principal_context.get().owner_id)))
@@ -302,7 +305,9 @@ class DatabaseClient:
     def list_home(self, status: str = "all", cursor: str = "", limit: int = 20):
         owner = principal_context.get().owner_id
         workspace = workspace_context.get()
-        if workspace.organization_id:
+        allowed = (tenant_directory.permissions(workspace.organization_id, workspace.team_id)
+                   if workspace.organization_id else {"read", "write", "delete"})
+        if "read" not in allowed:
             tenant_directory.require(workspace.organization_id, workspace.team_id, "read")
         scope_filter = ("c.organization_id = @organization AND c.team_id = @team" if workspace.organization_id
                         else "c.owner_id = @owner AND (NOT IS_DEFINED(c.organization_id) OR IS_NULL(c.organization_id))")
@@ -310,8 +315,8 @@ class DatabaseClient:
         if self.use_mock:
             with self._lock:
                 active = [
-                    HomeItem.model_validate(document.get("home") or summary(
-                        self._decode(document), now, legacy=True).model_dump())
+                    HomeItem.model_validate({**(document.get("home") or summary(
+                        self._decode(document), now, legacy=True).model_dump()), "owner_id": document["owner_id"]})
                     for document in self.mock_db.values()
                     if (document.get("organization_id") or "") == workspace.organization_id
                     and (document.get("team_id") or "") == workspace.team_id
@@ -331,8 +336,9 @@ class DatabaseClient:
                     {"name": "@organization", "value": workspace.organization_id}, {"name": "@team", "value": workspace.team_id},
                 ]
                 records = [] if cursor.startswith("legacy:") else [
-                    HomeItem.model_validate(item) for item in self._get_container().query_items(
-                        query=f"SELECT TOP {limit + 1} VALUE c.home FROM c WHERE {scope_filter} "
+                    HomeItem.model_validate({**item["home"], "owner_id": item["owner_id"]})
+                    for item in self._get_container().query_items(
+                        query=f"SELECT TOP {limit + 1} c.home, c.owner_id FROM c WHERE {scope_filter} "
                         "AND c.home_visible = true AND c.home.expires_at > @now "
                         "AND (@status = 'all' OR c.home.status = @status) "
                         "AND (@cursor = '' OR c.home.sort_key < @cursor) ORDER BY c.home.sort_key DESC",
@@ -365,7 +371,7 @@ class DatabaseClient:
             except (AzureError, OSError) as exc:
                 logger.error("Personal workflow listing failed; dependency details withheld.")
                 raise DependencyUnavailable("cosmos") from exc
-            except ValidationError as exc:
+            except (ValidationError, KeyError, TypeError) as exc:
                 logger.error("Personal workflow summary is invalid; payload withheld.")
                 raise InvalidDependencyResponse("cosmos") from exc
         page = records[:limit]
@@ -373,7 +379,8 @@ class DatabaseClient:
                or (item.team_id or "") != workspace.team_id for item in page):
             logger.error("Home summary scope is inconsistent; payload withheld.")
             raise InvalidDependencyResponse("cosmos")
-        return {"items": [item.model_dump() for item in page],
+        return {"items": [{**item.model_dump(), "can_delete": "delete" in allowed or (
+                    "write" in allowed and item.owner_id == owner)} for item in page],
                 "next_cursor": page[-1].sort_key if len(records) > limit else None,
                 "archive_retention_days": self.archive.retention_days}
 

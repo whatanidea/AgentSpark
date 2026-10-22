@@ -70,8 +70,8 @@ outcomes. The Blueprint screen contains the review controls.
 self-reported reviewers; never expose it publicly. Live/production requires
 validated OIDC bearer tokens and isolates every session read/write/delete to its
 owner in the personal workspace. Team workspaces require active organization
-membership and team permissions. Team review requires an explicit reviewer grant,
-the configured token role, and a reviewer other than the workflow creator;
+membership and team permissions. Team review requires an explicit reviewer grant
+and a reviewer other than the workflow creator;
 personal review still requires its owner and the token role. The verified subject
 replaces the submitted reviewer name. ETags and analysis IDs
 provide concurrency protection, not authorization. Reviews remain advisory rather
@@ -154,7 +154,7 @@ Configure these values before upgrading a deployment:
 | `AUTH_ISSUER` | Exact trusted HTTPS issuer, including any tenant/version/trailing-slash convention |
 | `AUTH_AUDIENCE` | Audience for access tokens issued specifically for this API |
 | `AUTH_JWKS_URL` | Trusted issuer's HTTPS signing-key endpoint; keys are cached for five minutes |
-| `AUTH_REVIEWER_ROLE` | Role claim required to review; default `AgentSense.Reviewer` |
+| `AUTH_REVIEWER_ROLE` | Role claim required for personal workflow review; default `AgentSense.Reviewer` |
 | `SESSION_RETENTION_HOURS` | Absolute lifetime for new sessions, integer 1–720; default 24 |
 
 Bearer validation allows **RS256 only**, validates issuer/audience/signature and
@@ -165,8 +165,29 @@ hashes of issuer and subject; knowing a session ID grants no access. Foreign,
 expired, and missing sessions return indistinguishable 404 responses.
 `GET /api/v1/auth/config`, `/health`, `/ready`, and static assets are public;
 all other `/api/` requests require authentication in OIDC mode. Personal review
-requires ownership and the configured token role; team review additionally follows
+requires ownership and the configured token role; team review instead follows
 the independent-review rules below.
+
+### Assessment target cloud
+
+Enterprise Intake requires a target cloud selection: **Azure** or **AWS**. This
+selects the customer's proposed solution platform, not AgentSpark's hosting.
+AgentSpark still runs on Azure and processes assessments using its configured
+Azure dependencies. No AWS credentials, account connection or provisioning are
+introduced by an AWS assessment.
+
+Optional region, residency requirements and existing-cloud constraints accompany
+the interview, mapping and blueprint. Service mappings use curated candidates;
+AWS pattern implementations retain the original design provenance plus candidate
+documentation references and their own content hash. Region availability, model
+access, residency and pricing are not verified. Costs remain unpriced drivers
+unless supplied assumptions are explicitly identified. Scaffolds are illustrative,
+untested and not deployment-ready.
+
+Changing deployment preferences and saving intake clears the current analysis,
+blueprint and approval. Archived decisions retain the preferences reviewed at the
+time. Legacy records and API callers without a cloud selection retain Azure
+behavior; an omitted cloud does not reset an existing AWS selection.
 
 ### Organizations and team workspaces
 
@@ -191,14 +212,14 @@ identity-provider directory lookup are not implemented.
 | Membership or team role | Team workflow permissions |
 |---|---|
 | Organization owner / administrator | Read, create/edit, and delete across the organization's teams |
-| Contributor | Read and create/edit in the assigned team |
+| Contributor | Read and create/edit in the assigned team; delete their own workflows and decision history |
 | Reviewer | Read and review in the assigned team |
 | Viewer | Read only in the assigned team |
 
 Team roles can be combined. Owners/administrators need an explicit team reviewer
 grant to review; no team member, including the founding owner, can review a
-workflow they created. OIDC review also requires `AUTH_REVIEWER_ROLE` in the
-verified token. Local demo uses one shared identity, so it cannot demonstrate
+workflow they created. Team reviewer grants are authoritative: no additional
+`AUTH_REVIEWER_ROLE` token claim is needed for team review. Local demo uses one shared identity, so it cannot demonstrate
 independent team approval; use separate verified identities for that acceptance test.
 
 The owner manages administrators; administrators manage ordinary memberships and

@@ -503,7 +503,7 @@ class Phase3APITests(unittest.TestCase):
         self.assertEqual(bp["roi"], result["roi"])
         self.assertEqual(bp["diagnosis"], result["diagnosis"])
         self.assertEqual(bp["demo_scenario"], "claims")
-        self.assertIn("No live Azure pricing was queried", bp["cost_estimate"])
+        self.assertIn("No live cloud pricing was queried", bp["cost_estimate"])
 
     def test_live_blueprint_receives_full_context_instead_of_only_score(self):
         diagnosis = confirmed_diagnosis()
@@ -530,7 +530,7 @@ class Phase3APITests(unittest.TestCase):
         payload = json.loads(generate.call_args.args[2])
         self.assertEqual(payload["workflow"], intel.model_dump())
         self.assertEqual(payload["context"], context.model_dump())
-        self.assertEqual(payload["azure_mapping"], mapping)
+        self.assertEqual(payload["cloud_mapping"], mapping)
         self.assertEqual(payload["governance"], governance)
         self.assertEqual(payload["roi"], roi)
         self.assertEqual(payload["diagnosis"], diagnosis.model_dump())
