@@ -20,7 +20,7 @@ router = APIRouter()
 @router.get("/auth/config")
 def auth_config():
     return {"mode": auth_settings.mode, "retention_hours": int(os.getenv("SESSION_RETENTION_HOURS", "24")),
-            "archive_retention_days": db_client.archive.retention_days}
+            "archive_retention_days": db_client.archive.retention_days, "sign_in": auth_settings.sign_in()}
 
 
 @router.get("/auth/me")

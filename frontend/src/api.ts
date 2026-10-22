@@ -2,7 +2,10 @@
 // serves this SPA and the API from the same origin, so relative URLs just work.
 const BASE = "/api/v1";
 let accessToken = "";
+let tokenProvider: (() => Promise<string>) | null = null;
 export function setAccessToken(token: string) { accessToken = token; }
+/** When set, each request asks the provider for a current token (silently refreshed by MSAL). */
+export function setTokenProvider(provider: typeof tokenProvider) { tokenProvider = provider; }
 export type Permissions = { read: boolean; write: boolean; review: boolean; delete: boolean };
 export type WorkspaceSelection = {
   organization_id: string; team_id: string; organization_name: string; team_name: string; permissions: Permissions;
@@ -37,7 +40,10 @@ export function parseInviteCode(value: string): string {
 export function inviteLink(code: string): string {
   return `${window.location.origin}${window.location.pathname}#invite=${code}`;
 }
-export type AuthConfig = { mode: "local-demo" | "oidc"; retention_hours: number; archive_retention_days: number };
+export type SignInConfig = { client_id: string; authority: string; scope: string };
+export type AuthConfig = {
+  mode: "local-demo" | "oidc"; retention_hours: number; archive_retention_days: number; sign_in?: SignInConfig | null;
+};
 export type HomeStatus = "draft" | "pending_review" | "approved" | "rejected";
 export type HomeItem = {
   kind: "session" | "decision"; session_id: string; analysis_id: string | null;
@@ -121,11 +127,12 @@ export function uid(): string {
 }
 
 async function request(path: string, method = "GET", body?: unknown) {
+  const token = tokenProvider ? (await tokenProvider().catch(() => "")) || accessToken : accessToken;
   const r = await fetch(`${BASE}${path}`, {
     method, cache: "no-store",
     headers: { ...(body === undefined ? {} : { "Content-Type": "application/json" }),
       ...(workspace ? { "X-Organization-ID": workspace.organization_id, "X-Team-ID": workspace.team_id } : {}),
-      ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}) },
+      ...(token ? { Authorization: "Bearer " + token } : {}) },
     body: body === undefined ? undefined : JSON.stringify(body),
   });
   if (!r.ok) {

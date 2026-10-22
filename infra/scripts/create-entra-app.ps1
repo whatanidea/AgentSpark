@@ -8,12 +8,19 @@
     - app role          AgentSense.Reviewer (assignable to users)
   Azure CLI is pre-authorized so staging testers can run:
     az account get-access-token --scope api://<appId>/access_as_user
+  The same registration is the browser sign-in client: it gets SPA redirect URIs (auth code + PKCE) and
+  tenant-wide consent to its own access_as_user scope, so invited users only see the Microsoft sign-in page.
   The client ID is stored in the azd environment as AUTH_AUDIENCE.
 #>
 param(
-    [string]$DisplayName = 'AgentSpark Staging API'
+    [string]$DisplayName = 'AgentSpark Staging API',
+    # Browser sign-in pop-ups return here, e.g. https://<app>.azurecontainerapps.io/auth-redirect.html
+    [string[]]$SpaRedirectUris = @('http://localhost:5173/auth-redirect.html', 'http://localhost:8000/auth-redirect.html')
 )
 $ErrorActionPreference = 'Stop'
+$PSNativeCommandUseErrorActionPreference = $true
+# `pwsh -File` passes "a,b" as one string; accept both forms.
+$SpaRedirectUris = @($SpaRedirectUris | ForEach-Object { $_ -split ',' } | ForEach-Object Trim | Where-Object { $_ })
 $azureCliAppId = '04b07795-8ddb-461a-bbee-02f9e1bf7b46'
 
 $appId = az ad app list --display-name $DisplayName --query '[0].appId' -o tsv
@@ -59,13 +66,37 @@ try {
     $preAuth | ConvertTo-Json -Depth 10 | Set-Content $tmp -Encoding utf8
     az rest --method PATCH --url "https://graph.microsoft.com/v1.0/applications/$objectId" `
         --headers 'Content-Type=application/json' --body "@$tmp" | Out-Null
+
+    $spa = @{
+        spa = @{ redirectUris = @($SpaRedirectUris) }
+        requiredResourceAccess = @(@{ resourceAppId = $appId; resourceAccess = @(@{ id = $scopeId; type = 'Scope' }) })
+    }
+    $spa | ConvertTo-Json -Depth 10 | Set-Content $tmp -Encoding utf8
+    az rest --method PATCH --url "https://graph.microsoft.com/v1.0/applications/$objectId" `
+        --headers 'Content-Type=application/json' --body "@$tmp" | Out-Null
 }
 finally {
     Remove-Item $tmp -ErrorAction SilentlyContinue
 }
 
-if (-not (az ad sp list --filter "appId eq '$appId'" --query '[0].id' -o tsv)) {
-    az ad sp create --id $appId | Out-Null
+$spId = az ad sp list --filter "appId eq '$appId'" --query '[0].id' -o tsv
+if (-not $spId) {
+    $spId = az ad sp create --id $appId --query id -o tsv
+}
+
+# Tenant-wide (admin) consent for the browser client to call its own API scope; requires an admin role.
+$grant = az rest --method GET --url "https://graph.microsoft.com/v1.0/oauth2PermissionGrants?`$filter=clientId eq '$spId' and resourceId eq '$spId'" --query 'value[0].id' -o tsv
+if (-not $grant) {
+    $tmp = New-TemporaryFile
+    try {
+        @{ clientId = $spId; resourceId = $spId; consentType = 'AllPrincipals'; scope = 'access_as_user' } |
+            ConvertTo-Json | Set-Content $tmp -Encoding utf8
+        az rest --method POST --url 'https://graph.microsoft.com/v1.0/oauth2PermissionGrants' `
+            --headers 'Content-Type=application/json' --body "@$tmp" | Out-Null
+    }
+    finally {
+        Remove-Item $tmp -ErrorAction SilentlyContinue
+    }
 }
 
 azd env set AUTH_AUDIENCE $appId | Out-Null

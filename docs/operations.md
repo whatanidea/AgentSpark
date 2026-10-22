@@ -174,9 +174,10 @@ and revoke unused links when no longer needed. Links carry a 256-bit secret in t
 URL fragment; only its SHA-256 is stored, redemption requires an authenticated
 identity, is atomic against `max_uses`, never downgrades access, and only owners
 can issue administrator invites. For Entra staging, first add the person to the
-tenant (B2B guest invitation) so they can obtain a token, then send the invite
-link. Adding members by opaque identity ID remains available; email delivery and
-SSO provisioning are not supplied. Do not interpret workspace headers or disabled UI
+tenant (B2B guest invitation), then send the invite link; they open it, choose
+**Sign in with Microsoft** (a pop-up, so the invite stays on the page), and select
+**Join organization**. Adding members by opaque
+identity ID remains available; email delivery and SSO provisioning are not supplied. Do not interpret workspace headers or disabled UI
 buttons as authorization.
 
 Browser/backend gates use isolated temporary archives and remove their own files.
@@ -216,6 +217,8 @@ azd env new agentspark-stg --subscription <subscription-id> --location westus3
 azd provision --preview                     # review the what-if first
 azd up                                      # provision + remote ACR build + deploy
 ./infra/scripts/seed-search.ps1 -Python <venv python>   # create and seed patterns-index
+# enable browser sign-in at the app URL (SPA redirect URI + tenant-wide consent; needs an Entra admin)
+./infra/scripts/create-entra-app.ps1 -SpaRedirectUris "https://<app-fqdn>/auth-redirect.html,http://localhost:5173/auth-redirect.html"
 ```
 
 If `azd deploy` fails with ACR `InvalidCorrelationRequestId` (seen with azd
@@ -235,8 +238,11 @@ found verbatim (ignoring whitespace and typographic punctuation) in the user
 input. If the second attempt also fails, `/analyze` returns 502. App logs name
 the affected facts, not their content.
 
-Get a test token with
-`az account get-access-token --scope api://<AUTH_AUDIENCE>/access_as_user`.
+Users sign in with **Sign in with Microsoft** (MSAL pop-up, authorization code + PKCE,
+configured by `AUTH_SPA_CLIENT_ID`, `AUTH_SPA_AUTHORITY` and `AUTH_SPA_SCOPE`;
+tokens are held in memory only and the pop-up returns to the blank `/auth-redirect.html`). For scripted tests, get a token with
+`az account get-access-token --tenant <tenant-id> --scope api://<AUTH_AUDIENCE>/access_as_user`
+and use "Use an access token instead".
 Reviewers additionally need the `AgentSense Reviewer` app role assigned in the
 enterprise application. Call `/ready` once after seeding; run acceptance with two
 identities so creator/reviewer separation is exercised. `azd down --purge`
