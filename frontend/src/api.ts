@@ -62,6 +62,7 @@ export type ArchivedDecision = {
     deployment_preferences?: DeploymentPreferences;
     cloud_mapping?: Record<string, unknown> | null;
     evidence_report?: EvidenceReport | null;
+    readiness_report?: ImplementationReadinessReport | null;
     workflow_intelligence: { summary: string; systems: string[] } | null;
     suitability_score: { agent_score: number; recommended_pattern: string; explanation: string } | null;
     human_review: { decision: "approve" | "reject"; reviewer: string; note: string; reviewed_at: string } | null;
@@ -91,12 +92,55 @@ export type EvidenceReport = {
   limitations: string;
 };
 export type EvidenceRegisterResponse = { revision: number; entries: EvidenceEntry[]; permissions: Permissions };
+export type ReadinessCheckId = "integration_access" | "data_quality" | "security_privacy" |
+  "human_oversight" | "cloud_prerequisites" | "operations";
+export type ReadinessCheckInput = {
+  id: ReadinessCheckId; status: "unknown" | "needs_validation" | "blocked" | "ready";
+  finding: string; evidence_ids: string[]; owner: string;
+  owner_status: "unassigned" | "proposed" | "client_confirmed"; owner_confirmation_reference: string;
+  next_action: string; completion_criteria: string;
+};
+export type PilotPlan = { scope: string; success_metrics: string; failure_handling: string; authorization_boundaries: string };
+export type ReadinessAssessment = { checks: ReadinessCheckInput[]; pilot: PilotPlan };
+export type ReadinessCatalogItem = {
+  id: ReadinessCheckId; title: string; question: string; completion_criteria: string; depends_on: ReadinessCheckId[];
+};
+export type ImplementationReadinessReport = {
+  revision: number; evidence_revision: number; assessed_at: string;
+  decision: "ready" | "ready_with_conditions" | "blocked" | "not_assessed"; rationale: string;
+  target_cloud: CloudProvider; preferred_region: string;
+  workflow_context: { systems: string[] | string; data_residency_requirements: string; deployment_constraints: string };
+  checks: (ReadinessCheckInput & ReadinessCatalogItem & {
+    reported_status: ReadinessCheckInput["status"]; validation_needs: string[];
+    evidence: { id: string; statement: string; source_reference: string; confirmation: EvidenceEntry["confirmation"] }[];
+  })[];
+  blockers: ReadinessCheckId[];
+  actions: {
+    check_id: ReadinessCheckId | "pilot_definition"; priority: "P0" | "P1"; action: string; owner: string;
+    owner_status: ReadinessCheckInput["owner_status"]; depends_on: ReadinessCheckId[];
+    completion_criteria: string; evidence_ids: string[];
+  }[];
+  pilot: PilotPlan; missing_pilot_fields: (keyof PilotPlan)[]; pilot_entry_criteria: string[]; limitations: string;
+};
+export type ImplementationReadinessResponse = {
+  revision: number; evidence_revision: number; assessment: ReadinessAssessment;
+  catalog: ReadinessCatalogItem[]; report: ImplementationReadinessReport; evidence_entries: EvidenceEntry[];
+  permissions: Permissions;
+  review: ReadinessReviewContext;
+};
+export type ReadinessReviewContext = {
+  analysis_id: string | null; status: string;
+  human_review: { decision: "approve" | "reject"; reviewer: string; note: string; reviewed_at: string } | null;
+};
 export type SessionSnapshot = {
   session_id: string;
   enterprise_context: Record<string, string>;
   evidence_register: EvidenceEntry[];
   evidence_revision: number;
   evidence_report: EvidenceReport | null;
+  readiness_assessment: ReadinessAssessment;
+  readiness_revision: number;
+  readiness_report: ImplementationReadinessReport | null;
   chat_history: { role: "user" | "assistant"; content: string }[];
   status: string;
   expires_at: string;
@@ -210,6 +254,11 @@ export const api = {
     request(`/sessions/${encodeURIComponent(id)}/evidence`, "PUT", { revision, entries }),
   confirmEvidence: (id: string, entry: string, revision: number, method: string): Promise<EvidenceRegisterResponse> =>
     post(`/sessions/${encodeURIComponent(id)}/evidence/${encodeURIComponent(entry)}/confirm`, { revision, method }),
+  implementationReadiness: (id: string): Promise<ImplementationReadinessResponse> =>
+    get(`/sessions/${encodeURIComponent(id)}/implementation-readiness`),
+  saveImplementationReadiness: (id: string, revision: number, evidence_revision: number,
+    assessment: ReadinessAssessment): Promise<ImplementationReadinessResponse> =>
+    request(`/sessions/${encodeURIComponent(id)}/implementation-readiness`, "PUT", { revision, evidence_revision, assessment }),
   deleteSession: (id: string) => request(`/sessions/${encodeURIComponent(id)}`, "DELETE"),
   home: (status = "all", cursor = ""): Promise<HomePage> => get(`/home?${new URLSearchParams({ status, cursor })}`),
   decision: (session: string, analysis: string): Promise<ArchivedDecision> =>

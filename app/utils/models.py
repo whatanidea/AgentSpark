@@ -312,6 +312,58 @@ class EvidenceEntry(EvidenceInput):
     confirmation: Optional[EvidenceConfirmation] = None
 
 
+ReadinessCheckId = Literal["integration_access", "data_quality", "security_privacy",
+                           "human_oversight", "cloud_prerequisites", "operations"]
+ReadinessCheckStatus = Literal["unknown", "needs_validation", "blocked", "ready"]
+EvidenceId = Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")]
+
+
+class ReadinessCheckInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    id: ReadinessCheckId
+    status: ReadinessCheckStatus = "unknown"
+    finding: str = Field(default="", max_length=1000)
+    evidence_ids: List[EvidenceId] = Field(default_factory=list, max_length=10)
+    owner: str = Field(default="", max_length=200)
+    owner_status: Literal["unassigned", "proposed", "client_confirmed"] = "unassigned"
+    owner_confirmation_reference: str = Field(default="", max_length=500)
+    next_action: str = Field(default="", max_length=1000)
+    completion_criteria: str = Field(default="", max_length=1000)
+
+    @model_validator(mode="after")
+    def consistent_check(self):
+        if len(set(self.evidence_ids)) != len(self.evidence_ids):
+            raise ValueError("Evidence links must be unique.")
+        if self.status != "unknown" and not self.finding:
+            raise ValueError("An assessed check requires a finding.")
+        if bool(self.owner) != (self.owner_status != "unassigned"):
+            raise ValueError("Name an owner for proposed or client-confirmed assignments; otherwise use unassigned.")
+        if (self.owner_status == "client_confirmed") != bool(self.owner_confirmation_reference):
+            raise ValueError("Only client-confirmed ownership requires a confirmation reference.")
+        return self
+
+
+class PilotPlan(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    scope: str = Field(default="", max_length=1000)
+    success_metrics: str = Field(default="", max_length=1000)
+    failure_handling: str = Field(default="", max_length=1000)
+    authorization_boundaries: str = Field(default="", max_length=1000)
+
+
+class ReadinessAssessment(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    checks: List[ReadinessCheckInput] = Field(default_factory=list, max_length=6)
+    pilot: PilotPlan = Field(default_factory=PilotPlan)
+
+    @field_validator("checks")
+    @classmethod
+    def unique_checks(cls, value):
+        if len({check.id for check in value}) != len(value):
+            raise ValueError("Readiness check IDs must be unique.")
+        return value
+
+
 class WorkflowState(BaseModel):
     _etag: Optional[str] = PrivateAttr(default=None)
     session_id: SessionId
@@ -324,6 +376,9 @@ class WorkflowState(BaseModel):
     evidence_register: List[EvidenceEntry] = Field(default_factory=list, max_length=50)
     evidence_revision: int = Field(default=0, ge=0)
     evidence_report: Optional[Dict[str, Any]] = None
+    readiness_assessment: ReadinessAssessment = Field(default_factory=ReadinessAssessment)
+    readiness_revision: int = Field(default=0, ge=0)
+    readiness_report: Optional[Dict[str, Any]] = None
     chat_history: List[Dict[str, str]] = Field(default_factory=list)
     demo_scenario: Optional[DemoScenario] = None
     diagnosis: Optional[WorkflowDiagnosis] = None
@@ -348,6 +403,7 @@ class WorkflowState(BaseModel):
 
     def invalidate_analysis(self) -> None:
         self.evidence_report = None
+        self.readiness_report = None
         self.diagnosis = None
         self.workflow_intelligence = None
         self.suitability_score = None
@@ -364,3 +420,13 @@ class WorkflowState(BaseModel):
         self.human_review = None
         self.decision_recorded_at = None
         self.status = "init"
+
+    def invalidate_readiness_context(self) -> None:
+        """Retain drafts, but require renewed validation after workflow context changes."""
+        for check in self.readiness_assessment.checks:
+            if check.status == "ready":
+                check.status = "needs_validation"
+            if check.owner_status == "client_confirmed":
+                check.owner_status = "proposed"
+                check.owner_confirmation_reference = ""
+        self.readiness_revision += 1

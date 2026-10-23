@@ -24,6 +24,9 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   patterns, estimated ROI scenarios, and policy outcome.
 - **Record evidence:** distinguish client statements, source-supported findings,
   assumptions, and open questions; record reviewer attestations and validation needs.
+- **Assess delivery readiness:** identify integration, data, security, oversight,
+  cloud and operational blockers; record owners and pilot entry criteria separately
+  from agent suitability.
 - **Collaborate:** use organization/team workspaces, invite links, and independent
   creator/reviewer approval.
 - **Retain decisions:** export Markdown blueprints and inspect archived decisions

@@ -32,6 +32,7 @@ from app.utils.models import (
     ROIEstimate, WorkflowStatus, WorkflowDiagnosis, DemoScenario, ROIAssumptions, EvidenceEntry,
 )
 from app.utils.evidence import build_evidence_report
+from app.utils.readiness import build_readiness_report
 from app.agents.diagnostic_agent import diagnostic_agent
 from app.agents.mapping_agent import mapping_agent
 from app.agents.recommendation_agent import recommendation_agent
@@ -274,6 +275,7 @@ def run_orchestration(session_id: str, roi_assumptions: ROIAssumptions | None = 
     db_state.trace = result["trace"]
     db_state.status = result["status"]
     db_state.analysis_id = str(uuid4()) if result["status"] != "needs_clarification" else None
+    db_state.readiness_report = build_readiness_report(db_state)
     db_state.human_review = None
     db_state.decision_recorded_at = None
     

@@ -9,15 +9,17 @@ import Portfolio from "./components/Portfolio";
 import Home from "./components/Home";
 import Workspaces from "./components/Workspaces";
 import EvidenceRegister from "./components/EvidenceRegister";
+import ImplementationReadiness from "./components/ImplementationReadiness";
 import Icon from "./components/Icon";
 import { Button } from "./components/ui";
 
-type View = "home" | "intake" | "diagnose" | "evidence" | "analyze" | "blueprint" | "workspaces" | "portfolio";
+type View = "home" | "intake" | "diagnose" | "evidence" | "readiness" | "analyze" | "blueprint" | "workspaces" | "portfolio";
 const NAV: { id: View; label: string }[] = [
   { id: "home", label: "Home" },
   { id: "intake", label: "1 · Enterprise Intake" },
   { id: "diagnose", label: "2 · Diagnostic Interview" },
   { id: "evidence", label: "Evidence & assumptions" },
+  { id: "readiness", label: "Implementation readiness" },
   { id: "analyze", label: "3 · Workflow Analysis" },
   { id: "blueprint", label: "4 · Blueprint & Review" },
   { id: "workspaces", label: "Organizations & teams" },
@@ -336,6 +338,8 @@ export default function App() {
               demoMode={runtime?.mode === "demo"}
               initialHistory={snapshot?.chat_history} onRefresh={refreshSession} onBusyChange={setBusy} goNext={() => void changeView("analyze")} /></fieldset>}
             {view === "evidence" && <EvidenceRegister sessionId={sessionId} hasAnalysis={!!snapshot?.analysis_id}
+              onRefresh={refreshSession} onBusyChange={setBusy} />}
+            {view === "readiness" && <ImplementationReadiness sessionId={sessionId} hasAnalysis={!!snapshot?.analysis_id}
               onRefresh={refreshSession} onBusyChange={setBusy} />}
             {view === "analyze" && <fieldset disabled={!canWrite} className="min-w-0"><Analyze sessionId={sessionId} active initialSnapshot={snapshot}
               onRefresh={refreshSession} onBusyChange={setBusy} goNext={() => void changeView("blueprint")} /></fieldset>}

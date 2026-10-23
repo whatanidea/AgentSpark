@@ -5,6 +5,7 @@ import Markdown from "./Markdown";
 import ArchitectureDiagram from "./ArchitectureDiagram";
 import AnalysisEvidence from "./AnalysisEvidence";
 import { EvidenceSummary, evidenceMarkdown } from "./EvidenceRegister";
+import { ReadinessSummary, readinessMarkdown } from "./ImplementationReadiness";
 import ROIReport, { roiMarkdown } from "./ROIReport";
 
 export default function Blueprint({ sessionId, active, canReview, secureReview, onRefresh, onBusyChange }: any) {
@@ -102,6 +103,7 @@ ${JSON.stringify(bp.diagnosis, null, 2)}
 \`\`\`
 
 ${evidenceMarkdown(bp.evidence_report)}
+${readinessMarkdown(bp.readiness_report, { analysis_id: bp.analysis_id, status: bp.status, human_review: bp.human_review })}
 
 ## Grounded pattern sources (keyword retrieval + required design IDs)
 ${(bp.retrieved_patterns || []).map((p: { id: string; name: string; source_ref?: string; content_sha256?: string }) =>
@@ -173,6 +175,7 @@ ${bp.code_scaffold || ""}
       {busy && <Card><Spinner label="Fetching blueprint…" /></Card>}
       {err && <Card><p role="alert" className="text-rose-700 text-sm">❌ {err}</p></Card>}
       {bp && <EvidenceSummary report={bp.evidence_report} />}
+      {bp && <ReadinessSummary report={bp.readiness_report} />}
       {bp && <Card title="Assessment deployment target">
         <p className="font-semibold">{bp.enterprise_context?.target_cloud === "aws" ? "AWS" : "Azure"} / {bp.enterprise_context?.preferred_region || "Region not specified"} (unverified)</p>
         <p className="text-sm mt-2">Data residency: {bp.enterprise_context?.data_residency_requirements || "Not specified"}</p>

@@ -3,6 +3,7 @@ import { api } from "../api";
 import { Card, Button, Bar, Pill, Spinner, classColor } from "./ui";
 import AnalysisEvidence from "./AnalysisEvidence";
 import { EvidenceSummary } from "./EvidenceRegister";
+import { ReadinessSummary } from "./ImplementationReadiness";
 import ROIReport, { DEFAULT_ROI_ASSUMPTIONS, ROIAssumptionForm } from "./ROIReport";
 
 function analysisData(s: any) {
@@ -66,6 +67,7 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
       <ROIAssumptionForm value={assumptions} onChange={setAssumptions} disabled={busy} />
       <AnalysisEvidence diagnosis={data?.diagnosis} scenario={data?.demo_scenario} />
       {data && <EvidenceSummary report={data.evidence_report} />}
+      {data && <ReadinessSummary report={data.readiness_report} />}
       {data?.status && score && (
         <Card title="Recommendation status">
           <p className="text-sm">
