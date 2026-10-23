@@ -8,10 +8,11 @@ recommendations, an estimated business case, and a reviewable blueprint.
 
 ## Architecture
 
-![AgentSpark architecture overview](docs/architecture.png)
+![AgentSpark agentic architecture overview](docs/agentspark-architecture.png)
 
-[View the SVG](docs/architecture.svg). This is a conceptual overview; current
-retrieval is keyword-based, and model/hosting configuration is covered in the
+[View the full-size diagram](docs/agentspark-architecture.png). This is a conceptual
+overview, not an as-deployed specification: current retrieval is keyword-based,
+and the diagram's model/hosting labels are illustrative. Current configuration is covered in the
 [assessment reference](docs/assessment-reference.md) and [operations runbook](docs/operations.md).
 
 ## What you can do
