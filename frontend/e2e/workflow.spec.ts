@@ -52,6 +52,74 @@ test("incomplete demo input withholds scores and estimates", async ({ page }) =>
   await expect(page.getByText("Clarification required — score, ROI and blueprint are withheld.", { exact: true })).toBeVisible();
 });
 
+test("PDF reports download for provisional and approved blueprints without replacing Markdown export", async ({ page }) => {
+  await intake(page, "🧾 Invoice Approval (Finance)", "aws");
+  const analysis = await analyze(page);
+  await page.getByRole("button", { name: "4 · Blueprint & Review", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Export PDF", exact: true })).toBeEnabled();
+  async function downloadPdf(status: string) {
+    const downloading = page.waitForEvent("download");
+    const responding = page.waitForResponse(response => response.url().includes("/pdf?"));
+    await page.getByRole("button", { name: "Export PDF", exact: true }).click();
+    const response = await responding;
+    expect(response.status()).toBe(200);
+    expect(response.headers()["content-type"]).toBe("application/pdf");
+    expect(response.headers()["cache-control"]).toContain("no-store");
+    expect(new URL(response.url()).searchParams.get("analysis_id")).toBe(analysis.analysis_id);
+    expect(new URL(response.url()).searchParams.get("status")).toBe(status);
+    const download = await downloading;
+    expect(download.suggestedFilename()).toBe("AgentSpark_Assessment.pdf");
+    const stream = await download.createReadStream();
+    if (!stream) throw new Error("PDF download stream unavailable");
+    const chunks: Buffer[] = [];
+    for await (const chunk of stream) chunks.push(Buffer.from(chunk));
+    const document = Buffer.concat(chunks);
+    expect(document.subarray(0, 5).toString()).toBe("%PDF-");
+    expect(document.toString("latin1").trimEnd()).toMatch(/%%EOF$/);
+    expect(document.length).toBeGreaterThan(10000);
+    await expect(page.getByRole("button", { name: "⬇ Export .md", exact: true })).toBeEnabled();
+  }
+  await downloadPdf("awaiting_human_review");
+  await page.getByLabel("Reviewer", { exact: true }).fill("Fictional PDF browser reviewer");
+  await page.getByLabel("Review rationale", { exact: true }).fill("Approved advisory design with unresolved pilot prerequisites");
+  await page.getByRole("button", { name: "Approve recommendation", exact: true }).click();
+  await expect(page.getByText("Recommendation approved by a human reviewer", { exact: true })).toBeVisible();
+  await downloadPdf("completed");
+});
+
+test("PDF export refreshes stale analyses and reports download failures instead of saving JSON", async ({ page }) => {
+  await intake(page, "🧾 Invoice Approval (Finance)");
+  const original = await analyze(page);
+  await page.getByRole("button", { name: "4 · Blueprint & Review", exact: true }).click();
+  await expect(page.getByRole("button", { name: "Export PDF", exact: true })).toBeEnabled();
+  const pointer = JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!);
+  const response = await page.request.post(`/api/v1/analyze/${pointer.session}`);
+  expect(response.status()).toBe(200);
+  const updated = await response.json();
+  expect(updated.analysis_id).not.toBe(original.analysis_id);
+  let downloads = 0;
+  page.on("download", () => { downloads += 1; });
+  await page.getByRole("button", { name: "Export PDF", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Recommendation changed");
+  expect(downloads).toBe(0);
+  const pattern = "**/blueprint/*/pdf?**";
+  for (const failure of [
+    { status: 200, body: { unexpected: "not a PDF" }, message: "unexpected response" },
+    { status: 409, body: { detail: "Recommendation changed during PDF generation" }, message: "changed during PDF generation" },
+    { status: 503, body: { detail: "PDF renderer unavailable" }, message: "PDF renderer unavailable" },
+  ]) {
+    await page.route(pattern, route => route.fulfill({
+      status: failure.status, contentType: "application/json", body: JSON.stringify(failure.body),
+    }));
+    await page.getByRole("button", { name: "Export PDF", exact: true }).click();
+    await expect(page.getByRole("alert")).toContainText(failure.message);
+    expect(downloads).toBe(0);
+    await page.unroute(pattern);
+    await page.getByRole("button", { name: "Generate / Fetch", exact: true }).click();
+    await expect(page.getByRole("button", { name: "Export PDF", exact: true })).toBeEnabled();
+  }
+});
+
 test("implementation readiness persists blockers, exports and retains the reviewed snapshot", async ({ page }) => {
   await intake(page, "🧾 Invoice Approval (Finance)", "aws");
   await page.getByRole("button", { name: "Implementation readiness", exact: true }).click();

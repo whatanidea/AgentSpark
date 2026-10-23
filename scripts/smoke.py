@@ -2,7 +2,7 @@
 import argparse
 from html.parser import HTMLParser
 import json
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 from uuid import uuid4
 
@@ -73,12 +73,17 @@ def smoke(origin, expected_mode, demo_workflow=False):
             blueprint = request(origin, "/api/v1/blueprint/" + session)
             if blueprint.get("provisional") is not True or blueprint.get("scaffold_status") != "illustrative_untested":
                 raise RuntimeError("Blueprint approval/scaffold boundary failed.")
+            pdf = request(origin, "/api/v1/blueprint/" + session + "/pdf?" + urlencode({
+                "analysis_id": blueprint["analysis_id"], "status": blueprint["status"],
+            }))
+            if not isinstance(pdf, bytes) or not pdf.startswith(b"%PDF-") or not pdf.rstrip().endswith(b"%%EOF"):
+                raise RuntimeError("Blueprint PDF report was not served as a complete PDF.")
             if request(origin, path).get("analysis_id") != result.get("analysis_id"):
                 raise RuntimeError("Workflow snapshot was not persisted.")
         finally:
             request(origin, path, "DELETE")
     print(f"Release smoke passed: {expected_mode}, SPA + {len(assets.urls)} assets"
-          + (" + fictional workflow lifecycle." if demo_workflow else "."))
+          + (" + fictional workflow lifecycle and PDF export." if demo_workflow else "."))
 
 
 def main():

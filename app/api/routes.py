@@ -1,4 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query
+from fastapi.responses import Response
 from pydantic import BaseModel, Field, ConfigDict, ValidationError
 from datetime import datetime, timezone
 from typing import Literal, Annotated
@@ -7,6 +8,7 @@ from app.utils.models import (
     EvidenceInput, EvidenceEntry, EvidenceConfirmation, ReadinessAssessment,
 )
 from app.utils.readiness import build_readiness_report, readiness_catalog
+from app.utils.pdf_report import build_blueprint_pdf
 from app.agents.cloud_catalog import pattern_for_cloud
 from app.utils.runtime import demo_mode
 
@@ -379,6 +381,25 @@ def get_blueprint(session_id: SessionId):
     if state.token_usage:
         res["token_usage"] = state.token_usage.model_dump() if hasattr(state.token_usage, "model_dump") else state.token_usage
     return redact_data(res)
+
+
+@router.get("/blueprint/{session_id}/pdf")
+def download_blueprint_pdf(
+    session_id: SessionId,
+    analysis_id: SessionId,
+    status: Literal["awaiting_human_review", "completed", "rejected"],
+):
+    snapshot = get_blueprint(session_id)
+    if snapshot["analysis_id"] != analysis_id or snapshot["status"] != status:
+        raise HTTPException(409, "Recommendation changed. Fetch and review the current version before exporting.")
+    document = build_blueprint_pdf(snapshot)
+    current = db_client.get_workflow_state(session_id)
+    if current.analysis_id != analysis_id or current.status != status:
+        raise HTTPException(409, "Recommendation changed during PDF generation. Fetch the current version before exporting.")
+    return Response(document, media_type="application/pdf", headers={
+        "Content-Disposition": 'attachment; filename="AgentSpark_Assessment.pdf"',
+        "Pragma": "no-cache",
+    })
 
 
 @router.get("/review/{session_id}")

@@ -186,6 +186,36 @@ class TenantFoundationTests(unittest.TestCase):
         self.call("PUT", path, subject="personal", body=body, reviewer=False)
         self.assertEqual(self.client.get("/api/v1" + path).status_code, 401)
 
+    def test_pdf_export_preserves_authentication_workspace_and_read_permissions(self):
+        organization, team = self.organization()
+        self.member(organization, team, "creator", ["contributor"])
+        self.member(organization, team, "reviewer", ["reviewer"])
+        self.member(organization, team, "viewer", ["viewer"])
+        session, analysis_id = self.workflow(organization, team, "creator")
+        snapshot = self.call("GET", f"/blueprint/{session}", organization=organization, team=team, subject="viewer")
+        path = f"/api/v1/blueprint/{session}/pdf"
+        params = {"analysis_id": analysis_id, "status": snapshot["status"]}
+        for subject in ("creator", "reviewer", "viewer"):
+            response = self.client.get(path, params=params,
+                headers=self.headers(subject, organization, team, reviewer=False))
+            self.assertEqual(response.status_code, 200, response.text if response.status_code != 200 else "")
+            self.assertTrue(response.content.startswith(b"%PDF-"))
+        for headers, expected in (({}, 401), (self.headers("outsider", organization, team), 404),
+                                  (self.headers("creator"), 404)):
+            response = self.client.get(path, params=params, headers=headers)
+            self.assertEqual(response.status_code, expected, response.text)
+        grant = next(item for item in self.call("GET", f"/organizations/{organization}/teams/{team}/members")["items"]
+                     if item["identity_id"] == self.identity("viewer"))
+        self.call("PUT", f"/organizations/{organization}/teams/{team}/members/{self.identity('viewer')}",
+                  body={"roles": ["viewer"], "active": False, "version": grant["version"]})
+        response = self.client.get(path, params=params, headers=self.headers("viewer", organization, team))
+        self.assertEqual(response.status_code, 404, response.text)
+        personal, personal_analysis = self.workflow(subject="personal")
+        response = self.client.get(f"/api/v1/blueprint/{personal}/pdf",
+            params={"analysis_id": personal_analysis, "status": "awaiting_human_review"},
+            headers=self.headers("other"))
+        self.assertEqual(response.status_code, 404, response.text)
+
     def test_self_service_owner_and_directory_survive_real_process_restart(self):
         organization, _ = self.organization()
         organizations = self.call("GET", "/organizations")

@@ -31,6 +31,8 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   creator/reviewer approval.
 - **Retain decisions:** export Markdown blueprints and inspect archived decisions
   with the evidence and deployment preferences reviewed at the time.
+- **Download a PDF report:** use **Export PDF** in Blueprint & Review for the current
+  assessment, including evidence, implementation readiness, ROI and approval status.
 
 **Flow:** Intake -> Diagnostic interview -> Evidence & assumptions -> Analysis ->
 Blueprint & review -> Decision archive.
@@ -65,6 +67,7 @@ configuration and does not silently fall back to demo.
 ## Validate changes
 
 ```powershell
+python -m pip install -r requirements-tools.txt
 python scripts/check.py
 npm --prefix frontend run test:e2e
 ```

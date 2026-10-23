@@ -10,6 +10,7 @@ httpx==0.28.1
 python-dotenv==1.2.2
 typing-extensions==4.15.0
 PyJWT[crypto]==2.10.1
+reportlab==5.0.1
 
 # Orchestration + LLM
 langgraph==1.2.0

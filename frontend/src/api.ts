@@ -200,7 +200,7 @@ export function uid(): string {
   });
 }
 
-async function request(path: string, method = "GET", body?: unknown) {
+async function requestResponse(path: string, method = "GET", body?: unknown): Promise<Response> {
   const token = tokenProvider ? (await tokenProvider().catch(() => "")) || accessToken : accessToken;
   const r = await fetch(`${BASE}${path}`, {
     method, cache: "no-store",
@@ -217,7 +217,10 @@ async function request(path: string, method = "GET", body?: unknown) {
     if (r.status === 401) window.dispatchEvent(new Event("agentsense-auth-expired"));
     throw new ApiError(r.status, `${r.status}: ${detail}`);
   }
-  return r.json();
+  return r;
+}
+async function request(path: string, method = "GET", body?: unknown) {
+  return (await requestResponse(path, method, body)).json();
 }
 const get = (path: string) => request(path);
 const post = (path: string, body: unknown) => request(path, "POST", body);
@@ -279,6 +282,13 @@ export const api = {
   chat: (session_id: string, message: string, demo_scenario?: DemoScenario) => post("/chat", { session_id, message, demo_scenario }),
   analyze: (session_id: string, roi_assumptions?: ROIAssumptions) => post(`/analyze/${session_id}`, { roi_assumptions }),
   blueprint: (session_id: string) => get(`/blueprint/${session_id}`),
+  blueprintPdf: async (id: string, analysis_id: string, status: string): Promise<Blob> => {
+    const response = await requestResponse(`/blueprint/${encodeURIComponent(id)}/pdf?${new URLSearchParams({ analysis_id, status })}`);
+    if (!response.headers.get("Content-Type")?.startsWith("application/pdf")) {
+      throw new ApiError(502, "PDF export returned an unexpected response. Fetch the blueprint and retry.");
+    }
+    return response.blob();
+  },
   review: (session_id: string) => get(`/review/${session_id}`),
   submitReview: (session_id: string, body: ReviewRequest) => post(`/review/${session_id}`, body),
   portfolio: () => get("/portfolio"),

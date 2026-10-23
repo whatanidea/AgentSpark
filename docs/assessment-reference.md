@@ -113,6 +113,41 @@ blocked for delivery, and a human architecture approval does not resolve readine
 blockers or authorize a pilot. No infrastructure, dependency or database migration
 is required. Existing workflow retention, privacy, access and deletion rules apply.
 
+### Downloadable PDF assessment reports
+
+After analysis, open **Blueprint & Review**, fetch the current blueprint and select
+**Export PDF**. Markdown export remains available. The downloadable
+`AgentSpark_Assessment.pdf` includes workflow/suitability, cloud service candidates,
+governance and reviewer attestation, ROI assumptions/scenarios, evidence and
+diagnostic provenance, implementation readiness/actions/pilot criteria, grounded
+sources, architecture, cost estimate, roadmap and illustrative scaffold.
+
+Provisional reports prominently state **PROVISIONAL - NOT APPROVED** on every page.
+Approved reports distinguish advisory/policy approval from human attestation.
+Rejected reports include the rejection/alternative, not architecture or scaffold
+content. Legacy missing snapshots and unknown operating costs are labeled rather
+than filled with invented values. PDF export does not change or approve a workflow.
+
+`GET /api/v1/blueprint/{session_id}/pdf` requires the current `analysis_id` and
+`status` (`awaiting_human_review`, `completed`, or `rejected`) as query parameters.
+Existing authentication, owner/workspace read access and expiry checks apply;
+viewers can download what they can read, but cannot gain write/review permissions.
+The UI refreshes before export; the server checks version/status before and after
+generation, rejecting concurrent changes with 409. Invalidated/missing workflows
+return 404. Errors remain JSON, never a success-shaped PDF download.
+
+PDFs are generated in memory with ReportLab and returned as an attachment with
+`application/pdf` and existing no-store/security headers. No PDFs are retained on
+the server or in archives. Downloaded copies are outside server deletion/retention
+control: handle them according to your organization's data policy.
+
+Pagination, repeated page status/analysis headers, wrapped text and tables support
+long reports. Embedded bundled fonts need no OS font installation. Unsupported
+glyphs are shown explicitly as `[U+XXXX]` code points, not silently dropped.
+Markdown headings/lists/pipe tables/code are supported; HTML and remote media are
+inert text and never fetched. Mermaid is included as labeled source, not a rendered
+diagram. The endpoint exports the current assessment, not historical Home records.
+
 ### Governance and human review
 
 AgentSpark approves **advisory recommendations**, not execution or deployment of a

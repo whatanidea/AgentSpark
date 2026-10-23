@@ -110,6 +110,29 @@ class SmokeTests(unittest.TestCase):
                 smoke("https://example.org", "live", demo_workflow=True)
         self.assertTrue(all(len(call.args) == 2 for call in request.call_args_list))
 
+    def test_fictional_workflow_smoke_requires_pdf_and_cleans_up_after_failure(self):
+        for pdf, valid in ((b"%PDF-1.4\n%%EOF\n", True), (b"%PDF-1.4\n", False),
+                           ({"detail": "not a PDF"}, False), (b"<html>error</html>", False)):
+            def response(origin, path, method="GET", body=None):
+                if "/pdf?" in path:
+                    self.assertTrue(path.endswith("?analysis_id=fixture-analysis&status=awaiting_human_review"))
+                    return pdf
+                if path == "/api/v1/auth/config":
+                    return {"mode": "local-demo"}
+                if path.startswith("/api/v1/"):
+                    return {"analysis_id": "fixture-analysis", "status": "awaiting_human_review",
+                            "diagnosis": {"missing_facts": []}, "provisional": True,
+                            "scaffold_status": "illustrative_untested"}
+                return self.responses(path)
+            with self.subTest(pdf=pdf), patch("scripts.smoke.request", side_effect=response) as request:
+                if valid:
+                    smoke("http://127.0.0.1:8000", "demo", demo_workflow=True)
+                else:
+                    with self.assertRaisesRegex(RuntimeError, "complete PDF"):
+                        smoke("http://127.0.0.1:8000", "demo", demo_workflow=True)
+                self.assertTrue(request.call_args.args[1].startswith("/api/v1/sessions/smoke-"))
+                self.assertEqual(request.call_args.args[2], "DELETE")
+
 
 class DeliveryConfigurationTests(unittest.TestCase):
     def test_public_package_image_and_release_artifacts_use_agentspark(self):
