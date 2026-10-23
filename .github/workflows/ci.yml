@@ -67,16 +67,16 @@ jobs:
           load: true
           push: false
           platforms: linux/amd64
-          tags: agentsense:${{ github.sha }}
+          tags: agentspark:${{ github.sha }}
           build-args: VCS_REF=${{ github.sha }}
       - name: Verify non-root image, fail-closed startup and read-only demo lifecycle
         env:
-          IMAGE: agentsense:${{ github.sha }}
+          IMAGE: agentspark:${{ github.sha }}
         run: |
           set -euo pipefail
           test "$(docker image inspect "$IMAGE" --format '{{.Config.User}}')" = "10001:10001"
           set +e
-          timeout 30s docker run --rm --name agentsense-unconfigured "$IMAGE" > unconfigured.log 2>&1
+          timeout 30s docker run --rm --name agentspark-unconfigured "$IMAGE" > unconfigured.log 2>&1
           status=$?
           set -e
           if [ "$status" = 0 ] || [ "$status" = 124 ]; then
@@ -84,7 +84,7 @@ jobs:
             exit 1
           fi
           grep -q "Set AGENTSENSE_MODE=demo or live in production" unconfigured.log
-          docker run --detach --name agentsense-smoke --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m \
+          docker run --detach --name agentspark-smoke --read-only --tmpfs /tmp:rw,noexec,nosuid,size=64m \
             --tmpfs /home/agentsense/.agentspark:rw,noexec,nosuid,size=16m,uid=10001,gid=10001 \
             --cap-drop ALL --security-opt no-new-privileges \
             -e ENVIRONMENT=development -e AGENTSENSE_MODE=demo -e AGENTSENSE_AUTH_MODE=local-demo \
@@ -94,31 +94,31 @@ jobs:
             sleep 2
           done
           python3 scripts/smoke.py --url http://127.0.0.1:8000 --expect-mode demo --demo-workflow
-          docker exec agentsense-smoke python -c \
+          docker exec agentspark-smoke python -c \
             "from pathlib import Path; assert not any(Path('/app').rglob('.env*')); assert not Path('/app/.git').exists(); assert not Path('/app/tests').exists()"
       - name: Stop disposable smoke container
         if: always()
         run: |
           set -euo pipefail
-          for name in agentsense-smoke agentsense-unconfigured; do
+          for name in agentspark-smoke agentspark-unconfigured; do
             containers=$(docker ps -aq --filter "name=^${name}$")
             if [ -n "$containers" ]; then docker rm --force "$containers"; fi
           done
       - name: Prepare immutable release archive and metadata
         env:
-          IMAGE: agentsense:${{ github.sha }}
+          IMAGE: agentspark:${{ github.sha }}
           REVISION: ${{ github.sha }}
         run: |
           set -euo pipefail
           mkdir release
-          docker image save "$IMAGE" | gzip > release/agentsense-linux-amd64.tar.gz
+          docker image save "$IMAGE" | gzip > release/agentspark-linux-amd64.tar.gz
           docker image inspect "$IMAGE" > release/image-inspect.json
           cp requirements.lock frontend/package-lock.json release/
           python3 -c 'import json, os; from pathlib import Path; Path("release/release.json").write_text(json.dumps({"revision": os.environ["REVISION"], "image": os.environ["IMAGE"], "platform": "linux/amd64", "deployed": False}, indent=2) + "\n")'
-          (cd release && sha256sum agentsense-linux-amd64.tar.gz image-inspect.json requirements.lock package-lock.json release.json > SHA256SUMS)
+          (cd release && sha256sum agentspark-linux-amd64.tar.gz image-inspect.json requirements.lock package-lock.json release.json > SHA256SUMS)
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: agentsense-${{ github.sha }}-linux-amd64
+          name: agentspark-${{ github.sha }}-linux-amd64
           path: release/
           if-no-files-found: error
           retention-days: 3

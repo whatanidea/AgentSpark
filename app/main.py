@@ -18,7 +18,7 @@ from app.utils.runtime import settings
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-logger.info("AgentSense runtime mode: %s", settings.mode)
+logger.info("AgentSpark runtime mode: %s", settings.mode)
 
 app = FastAPI(title="AgentSpark API", version="2.0.0",
               description="Enterprise Agentification Advisor — React SPA + FastAPI + LangGraph")

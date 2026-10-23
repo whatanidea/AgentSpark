@@ -1,4 +1,4 @@
-# Pinned to the exact versions AgentSense is built and tested against.
+# Pinned to the exact versions AgentSpark is built and tested against.
 # (Verified: test_e2e_scenario.py + evals/run_evals.py pass on these.)
 
 # Web / API

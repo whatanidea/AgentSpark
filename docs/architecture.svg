@@ -25,7 +25,7 @@
   <rect x="16" y="16" width="1568" height="1128" rx="22" fill="none" stroke="#ece9f7" stroke-width="2"/>
 
   <!-- Title -->
-  <text x="48" y="68" font-size="40" font-weight="800" fill="url(#brand)">AgentSense</text>
+  <text x="48" y="68" font-size="40" font-weight="800" fill="url(#brand)">AgentSpark</text>
   <text x="305" y="68" font-size="20" font-weight="600" fill="#475569">— Agentic Architecture</text>
   <text x="48" y="92" font-size="14" fill="#94a3b8">Enterprise AI Transformation Advisor · 7-stage multi-agent flow on the Microsoft Azure AI stack</text>
   <text x="1552" y="60" text-anchor="end" font-size="13" font-weight="700" fill="#7c3aed">Shriram K Vasudevan</text>

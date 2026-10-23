@@ -1,5 +1,43 @@
 # Delivery and operations runbook
 
+## Repository identity and compatibility
+
+The repository is now [whatanidea/AgentSpark](https://github.com/whatanidea/AgentSpark).
+GitHub renamed the existing repository in place: commits, branches, issues, and
+pull requests are retained. Existing clones can update their origin without
+recloning or rewriting history:
+
+```powershell
+git remote set-url origin https://github.com/whatanidea/AgentSpark.git
+```
+
+The Compose service is now `agentspark`; use `docker compose up --build agentspark`
+for service-specific commands. The container UID/GID, legacy internal account,
+archive path, and `decision_archive` volume are unchanged. Keep the same Compose
+project name when moving/renaming a checkout (`docker compose -p <existing-project>
+up --build`), so Docker reuses the existing named archive volume. Do not use
+`down --volumes` as a rebranding step.
+
+Runtime environment keys (`AGENTSENSE_*`), reviewer role value
+(`AgentSense.Reviewer`), Cosmos database default (`agentsense_db`), and browser
+session/event identifiers remain compatible. Public package/image/release names
+use AgentSpark. Older retained release archives keep their original filenames;
+use the matching release metadata and checksum manifest rather than renaming them.
+No Entra registration or Azure resource is changed merely by merging this PR.
+
+### Fork connection and attribution
+
+The upstream fork connection and Git history are intentionally preserved.
+[GitHub's detachment documentation](https://docs.github.com/en/pull-requests/how-tos/work-with-forks/detaching-a-fork)
+warns that self-service detachment loses PRs, issues, and other repository metadata.
+Deleting/recreating the repository has similar losses and is not a safe alternative.
+To request detachment while retaining that metadata, contact
+[GitHub Support](https://support.github.com/request/fork) and obtain explicit
+confirmation of what they can preserve before authorizing any action.
+No metadata-preserving detachment is assumed or claimed here.
+Original author credits and provenance references remain; rebranding does not
+remove attribution.
+
 ## What Phase 6 does (and does not do)
 
 The [delivery workflow](../.github/workflows/ci.yml) validates pull requests, `main`
@@ -295,7 +333,9 @@ configured by `AUTH_SPA_CLIENT_ID`, `AUTH_SPA_AUTHORITY` and `AUTH_SPA_SCOPE`;
 tokens are held in memory only and the pop-up returns to the blank `/auth-redirect.html`). For scripted tests, get a token with
 `az account get-access-token --tenant <tenant-id> --scope api://<AUTH_AUDIENCE>/access_as_user`
 and use "Use an access token instead".
-Personal-workflow reviewers need the `AgentSense Reviewer` app role assigned in the
+Personal-workflow reviewers need the reviewer app role (value `AgentSense.Reviewer`,
+display name `AgentSpark Reviewer` for updated registrations; older registrations
+may still display `AgentSense Reviewer`) assigned in the
 enterprise application; team reviewers only need their in-app team reviewer grant.
 Call `/ready` once after seeding; run acceptance with two
 identities so creator/reviewer separation is exercised. `azd down --purge`
@@ -307,13 +347,13 @@ After quality gates, CI builds `linux/amd64`, checks non-root operation, verifie
 unconfigured production startup fails, and runs a complete fictional workflow
 against a read-only, capability-dropped container. A successful run uploads:
 
-- `agentsense-linux-amd64.tar.gz`: `docker save` archive of the tested image.
+- `agentspark-linux-amd64.tar.gz`: `docker save` archive of the tested image.
 - `image-inspect.json`: image ID, labels, runtime settings and layer metadata.
 - Runtime and frontend dependency locks.
 - `release.json`: exact tested Git revision, image tag/platform, `deployed: false`.
 - `SHA256SUMS`: integrity checks for those files.
 
-The artifact is named `agentsense-<tested-sha>-linux-amd64` and expires after
+The artifact is named `agentspark-<tested-sha>-linux-amd64` and expires after
 **three days** to bound hosted artifact storage. Before expiry, an authorized
 release owner must retain the approved archive and metadata in the organization's
 approved immutable release storage if a long-term release/rollback is needed.
@@ -334,7 +374,7 @@ Get-Content SHA256SUMS | ForEach-Object {
     throw "Release checksum mismatch: $name"
   }
 }
-docker load --input agentsense-linux-amd64.tar.gz
+docker load --input agentspark-linux-amd64.tar.gz
 $release = Get-Content release.json -Raw | ConvertFrom-Json
 docker image inspect $release.image
 ```

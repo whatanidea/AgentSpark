@@ -1,5 +1,5 @@
 """
-End-to-end scenario test for AgentSense.
+End-to-end scenario test for AgentSpark.
 
 Runs the full pipeline (intake → diagnostic → 7-stage orchestration → review)
 against the real FastAPI app via TestClient. Forces MOCK MODE so it is fully

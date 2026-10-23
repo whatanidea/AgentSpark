@@ -14,7 +14,7 @@ RUN python -m venv /opt/venv \
 
 FROM python:3.12-slim-bookworm AS runtime
 ARG VCS_REF=unknown
-LABEL org.opencontainers.image.title="AgentSense" \
+LABEL org.opencontainers.image.title="AgentSpark" \
       org.opencontainers.image.revision=$VCS_REF
 ENV PATH="/opt/venv/bin:${PATH}" \
     PYTHONDONTWRITEBYTECODE=1 \

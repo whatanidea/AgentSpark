@@ -1,4 +1,5 @@
 import os
+import json
 from pathlib import Path
 import re
 import unittest
@@ -111,6 +112,35 @@ class SmokeTests(unittest.TestCase):
 
 
 class DeliveryConfigurationTests(unittest.TestCase):
+    def test_public_package_image_and_release_artifacts_use_agentspark(self):
+        package = json.loads((ROOT / "frontend" / "package.json").read_text())
+        lock = json.loads((ROOT / "frontend" / "package-lock.json").read_text())
+        self.assertEqual(package["name"], "agentspark-frontend")
+        self.assertEqual(lock["name"], package["name"])
+        self.assertEqual(lock["packages"][""]["name"], package["name"])
+        dockerfile = (ROOT / "Dockerfile").read_text()
+        self.assertIn('org.opencontainers.image.title="AgentSpark"', dockerfile)
+        workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
+        self.assertIn("tags: agentspark:${{ github.sha }}", workflow)
+        self.assertIn("release/agentspark-linux-amd64.tar.gz", workflow)
+        self.assertIn("sha256sum agentspark-linux-amd64.tar.gz", workflow)
+        self.assertIn("name: agentspark-${{ github.sha }}-linux-amd64", workflow)
+        self.assertNotIn("agentsense-linux-amd64", workflow)
+
+    def test_rebranding_preserves_storage_and_legacy_configuration_contracts(self):
+        from app.security.auth import AuthSettings
+        from app.utils.runtime import load_settings
+        self.assertEqual(AuthSettings("local-demo").reviewer_role, "AgentSense.Reviewer")
+        with patch.dict(os.environ, {"AGENTSENSE_MODE": "demo"}):
+            self.assertEqual(load_settings().mode, "demo")
+        dockerfile = (ROOT / "Dockerfile").read_text()
+        self.assertIn("DEMO_ARCHIVE_PATH=/home/agentsense/.agentspark/decisions.sqlite3", dockerfile)
+        app_source = (ROOT / "frontend" / "src" / "App.tsx").read_text()
+        self.assertIn('"agentsense.session.v1"', app_source)
+        architecture = (ROOT / "docs" / "architecture.svg").read_text(encoding="utf-8")
+        self.assertIn(">AgentSpark</text>", architecture)
+        self.assertIn("Shriram K Vasudevan", architecture)
+
     def test_actions_are_immutable_read_only_and_packaging_depends_on_quality(self):
         workflow = yaml.load((ROOT / ".github" / "workflows" / "ci.yml").read_text(), Loader=yaml.BaseLoader)
         self.assertEqual(workflow["permissions"], {"contents": "read"})
@@ -124,7 +154,7 @@ class DeliveryConfigurationTests(unittest.TestCase):
         self.assertNotIn("secrets.", (ROOT / ".github" / "workflows" / "ci.yml").read_text())
 
     def test_compose_does_not_shadow_the_built_frontend_or_expose_shared_demo_publicly(self):
-        service = yaml.safe_load((ROOT / "docker-compose.yml").read_text())["services"]["agentsense"]
+        service = yaml.safe_load((ROOT / "docker-compose.yml").read_text())["services"]["agentspark"]
         self.assertEqual(service["volumes"], ["decision_archive:/home/agentsense/.agentspark"])
         self.assertEqual(service["ports"], ["127.0.0.1:8000:8000"])
         self.assertTrue(service["read_only"])
