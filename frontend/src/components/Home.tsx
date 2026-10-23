@@ -4,6 +4,7 @@ import { Button, Card, Pill, Spinner } from "./ui";
 import Icon from "./Icon";
 import Markdown from "./Markdown";
 import ROIReport from "./ROIReport";
+import { EvidenceSummary } from "./EvidenceRegister";
 
 const STATUS: Record<HomeStatus, { label: string; tone: "green" | "red" | "amber" | "slate" }> = {
   draft: { label: "Draft / clarification", tone: "slate" },
@@ -128,6 +129,7 @@ export default function Home({ demo, retentionDays, workspaceName, canCreate, on
         <p className="text-sm mt-2">Constraints: {decision.details.deployment_preferences?.deployment_constraints || "Not specified"}</p>
         <p className="text-xs text-slate-500 mt-2">Advisory assessment only; no resources were deployed. AgentSpark remains hosted on Azure.</p>
       </Card>
+      <EvidenceSummary report={decision.details.evidence_report} />
       <Card title={review ? "Reviewer decision & comments" : "Automated policy decision"}>
         {review ? <>
           <p className="text-sm font-medium text-slate-800">{review.decision === "approve" ? "Approved" : "Rejected"} by {review.reviewer}</p>

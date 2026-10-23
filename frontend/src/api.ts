@@ -61,6 +61,7 @@ export type ArchivedDecision = {
   details: {
     deployment_preferences?: DeploymentPreferences;
     cloud_mapping?: Record<string, unknown> | null;
+    evidence_report?: EvidenceReport | null;
     workflow_intelligence: { summary: string; systems: string[] } | null;
     suitability_score: { agent_score: number; recommended_pattern: string; explanation: string } | null;
     human_review: { decision: "approve" | "reject"; reviewer: string; note: string; reviewed_at: string } | null;
@@ -71,9 +72,31 @@ export type ArchivedDecision = {
   };
 };
 export type Identity = { identity: string; can_review: boolean };
+export type EvidenceInput = {
+  id: string; kind: "client_fact" | "supported_finding" | "assumption" | "open_question";
+  statement: string; source_reference: string; reporting_period: string; related_facts: string[];
+};
+export type EvidenceEntry = EvidenceInput & {
+  created_by: string; created_at: string; updated_by: string; updated_at: string;
+  confirmation: { confirmed_by: string; confirmed_at: string; method: string } | null;
+};
+export type EvidenceReport = {
+  revision: number; entries: EvidenceEntry[];
+  findings: { fact: string; value: unknown; provenance: { status: string; source: string; quote: string }; evidence_ids: string[] }[];
+  recommendation_basis: {
+    classification: string | null; agent_score: number | null; recommended_pattern: string | null;
+    basis: string; evidence_ids: string[];
+  };
+  validation_checklist: { evidence_id: string; statement: string; action: string }[];
+  limitations: string;
+};
+export type EvidenceRegisterResponse = { revision: number; entries: EvidenceEntry[]; permissions: Permissions };
 export type SessionSnapshot = {
   session_id: string;
   enterprise_context: Record<string, string>;
+  evidence_register: EvidenceEntry[];
+  evidence_revision: number;
+  evidence_report: EvidenceReport | null;
   chat_history: { role: "user" | "assistant"; content: string }[];
   status: string;
   expires_at: string;
@@ -182,6 +205,11 @@ export const api = {
   authConfig: (): Promise<AuthConfig> => get("/auth/config"),
   me: (): Promise<Identity> => get("/auth/me"),
   session: (id: string): Promise<SessionSnapshot> => get(`/sessions/${encodeURIComponent(id)}`),
+  evidence: (id: string): Promise<EvidenceRegisterResponse> => get(`/sessions/${encodeURIComponent(id)}/evidence`),
+  saveEvidence: (id: string, revision: number, entries: EvidenceInput[]): Promise<EvidenceRegisterResponse> =>
+    request(`/sessions/${encodeURIComponent(id)}/evidence`, "PUT", { revision, entries }),
+  confirmEvidence: (id: string, entry: string, revision: number, method: string): Promise<EvidenceRegisterResponse> =>
+    post(`/sessions/${encodeURIComponent(id)}/evidence/${encodeURIComponent(entry)}/confirm`, { revision, method }),
   deleteSession: (id: string) => request(`/sessions/${encodeURIComponent(id)}`, "DELETE"),
   home: (status = "all", cursor = ""): Promise<HomePage> => get(`/home?${new URLSearchParams({ status, cursor })}`),
   decision: (session: string, analysis: string): Promise<ArchivedDecision> =>
