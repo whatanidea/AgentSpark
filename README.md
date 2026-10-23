@@ -1,3 +1,5 @@
+![AgentSpark agentic architecture overview](docs/agentspark-architecture.png)
+
 # AgentSpark - The Agent for All your Agentic Needs.
 
 > **The agent that tells you where agents belong.**
