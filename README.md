@@ -1,3 +1,5 @@
+![AgentSpark agentic architecture overview](docs/agentspark-architecture.png)
+
 # AgentSpark
 
 **The agent that tells you where agents belong.**
@@ -7,8 +9,6 @@ It turns a workflow interview into a scored assessment, cloud-specific architect
 recommendations, an estimated business case, and a reviewable blueprint.
 
 ## Architecture
-
-![AgentSpark agentic architecture overview](docs/agentspark-architecture.png)
 
 [View the full-size diagram](docs/agentspark-architecture.png). This is a conceptual
 overview, not an as-deployed specification: current retrieval is keyword-based,
