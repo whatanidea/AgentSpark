@@ -33,6 +33,7 @@ from app.utils.models import (
 )
 from app.utils.evidence import build_evidence_report
 from app.utils.readiness import build_readiness_report
+from app.utils.interview import effective_diagnosis
 from app.agents.diagnostic_agent import diagnostic_agent
 from app.agents.mapping_agent import mapping_agent
 from app.agents.recommendation_agent import recommendation_agent
@@ -81,7 +82,7 @@ def _trace(state: GraphState, agent: str, detail: str, started: float, status: s
 def extract_intelligence(state: GraphState) -> GraphState:
     t = time.perf_counter()
     logger.info("[1/7] Diagnostic Agent → extracting workflow intelligence")
-    diagnosis = diagnostic_agent.analyze_chat_history(
+    diagnosis = state.get("diagnosis") or diagnostic_agent.analyze_chat_history(
         state["chat_history"], state.get("enterprise_context"), state.get("demo_scenario"),
     )
     state["diagnosis"] = diagnosis
@@ -232,7 +233,7 @@ def run_orchestration(session_id: str, roi_assumptions: ROIAssumptions | None = 
         "enterprise_context": db_state.enterprise_context,
         "chat_history": db_state.chat_history,
         "demo_scenario": db_state.demo_scenario,
-        "diagnosis": None,
+        "diagnosis": effective_diagnosis(db_state) if db_state.interview_diagnosis or db_state.interview_answers else None,
         "evidence_register": db_state.evidence_register,
         "evidence_revision": db_state.evidence_revision,
         "evidence_report": None,

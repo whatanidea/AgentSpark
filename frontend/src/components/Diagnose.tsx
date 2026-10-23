@@ -1,124 +1,177 @@
-import { useState } from "react";
-import { api, type DemoScenario } from "../api";
+import { useEffect, useState } from "react";
+import { api, type DemoScenario, type InterviewProgress } from "../api";
 import { Card, Button } from "./ui";
 
 type Msg = { role: "user" | "assistant"; content: string; blocked?: boolean };
+type Props = {
+  sessionId: string; context?: Record<string, string>; initialHistory?: Msg[]; demoMode: boolean;
+  hasAnalysis: boolean; onRefresh: () => Promise<void>; onBusyChange: (busy: boolean) => void; goNext: () => void;
+};
+const SUGGESTION = "Fictional invoice example: We process 500 invoices/day across Finance and Legal. " +
+  "There are 6 decision points, we use SAP, Email and DocuSign, 25 exceptions/week need manual review, " +
+  "and compliance sensitivity is High.";
 
-const SUGGESTION =
-  "We process 500 invoices/day across Finance and Legal. There are 6–8 decision points, we use SAP, Email and DocuSign, ~25 exceptions/week need manual review, and compliance sensitivity is high.";
-
-function greeting(c: any): string {
-  const where = c?.business_domain ? ` in ${c.business_domain}` : "";
-  const sys = c?.existing_systems ? ` running ${c.existing_systems}` : "";
-  const comp = c?.compliance_requirements && c.compliance_requirements !== "Low"
-    ? ` I'll keep your ${c.compliance_requirements} compliance requirements in mind.` : "";
-  return `Thanks for the intake — I can see you're${where}${sys}.${comp} ` +
-    `Let's pinpoint one workflow to evaluate: what is it, roughly how many times does it run per day, ` +
-    `and how many human decision points are involved?`;
-}
-
-export default function Diagnose({ sessionId, context, initialHistory = [], demoMode, onRefresh, onBusyChange, goNext }: any) {
-  const [history, setHistory] = useState<Msg[]>(initialHistory.length ? initialHistory
-    : context ? [{ role: "assistant", content: greeting(context) }] : []);
+export default function Diagnose({ sessionId, context, initialHistory = [], demoMode, hasAnalysis,
+  onRefresh, onBusyChange, goNext }: Props) {
+  const [history, setHistory] = useState<Msg[]>(initialHistory);
+  const [progress, setProgress] = useState<InterviewProgress | null>(null);
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [text, setText] = useState("");
   const [busy, setBusy] = useState(false);
-  const [analyzable, setAnalyzable] = useState(initialHistory.some((m: Msg) => m.role === "user"));
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+  const [dirty, setDirty] = useState(false);
+  const [showChecklist, setShowChecklist] = useState(false);
+  const [showAll, setShowAll] = useState(false);
 
-  async function send(message?: string, scenario?: DemoScenario) {
-    const m = (message ?? text).trim();
-    if (!m || busy || !sessionId) return;
-    setText("");
+  function accept(value: InterviewProgress) {
+    setProgress(value); setAnswers(value.answers); setDirty(false);
+  }
+  useEffect(() => {
+    if (!sessionId) return;
+    let cancelled = false;
     setBusy(true); onBusyChange(true);
+    api.interview(sessionId).then(value => { if (!cancelled) accept(value); })
+      .catch((e: unknown) => { if (!cancelled) setError(e instanceof Error ? e.message : "Could not load interview."); })
+      .finally(() => { if (!cancelled) { setBusy(false); onBusyChange(false); } });
+    return () => { cancelled = true; onBusyChange(false); };
+  }, [sessionId, onBusyChange]);
+
+  async function send(value = text, scenario?: DemoScenario) {
+    const input = value.trim();
+    if (!input || busy || dirty || !progress?.can_chat) return;
+    setBusy(true); onBusyChange(true); setError(""); setMessage("");
     try {
-      const res = await api.chat(sessionId, m, scenario);
-      const blocked = res.status === "blocked";
-      setHistory((h) => [...h, ...(blocked ? [] : [{ role: "user" as const, content: res.message }]),
-        { role: "assistant", content: res.response, blocked }]);
-      // Only a genuine (non-blocked) exchange makes the workflow analyzable.
-      if (!blocked) { setAnalyzable(true); await onRefresh(); }
-    } catch (e: any) {
-      setHistory((h) => [...h, { role: "assistant", content: `Error: ${e.message}` }]);
-    } finally {
-      setBusy(false); onBusyChange(false);
-    }
+      const response = await api.chat(sessionId, input, scenario);
+      if (response.status === "blocked") {
+        setHistory(current => [...current, { role: "assistant", content: response.response, blocked: true }]);
+      } else {
+        setHistory(current => [...current, { role: "user", content: response.message },
+          { role: "assistant", content: response.response }]);
+        accept(response.interview);
+        setText("");
+        await onRefresh();
+      }
+    } catch (e) { setError(e instanceof Error ? e.message : "Interview request failed. Reload before retrying."); }
+    finally { setBusy(false); onBusyChange(false); }
   }
-
-  async function useSample() {
-    await send(SUGGESTION, demoMode ? "invoice" : undefined);
+  async function reload() {
+    if (dirty && !window.confirm("Discard unsaved checklist changes and reload?")) return;
+    setBusy(true); onBusyChange(true); setError(""); setMessage("");
+    try {
+      accept(await api.interview(sessionId));
+      const snapshot = await api.session(sessionId);
+      setHistory(snapshot.chat_history);
+      await onRefresh();
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not reload interview."); }
+    finally { setBusy(false); onBusyChange(false); }
   }
-
-  return (
-    <div className="space-y-6">
-      <header className="page-header">
-        <div className="eyebrow mb-2">Step 02 / Discover the workflow</div>
-        <h1>Diagnostic Interview</h1>
-        <p className="mt-2">
-          Describe the workflow. Every message is screened by the security guardrail before it reaches the AI.
-        </p>
-      </header>
-
-      {context ? (
-        <div className="rounded-xl border border-teal-200 bg-teal-50 px-4 py-3 text-sm leading-relaxed">
-          <span className="font-semibold text-teal-800">Context from Intake:</span>{" "}
-          <span className="text-slate-600">
-            {[context.business_domain, context.team_size, context.existing_systems]
-              .filter(Boolean).join(" · ")}
-            {context.compliance_requirements ? ` · Compliance: ${context.compliance_requirements}` : ""}
-          </span>
+  async function save() {
+    if (!progress || !dirty) return;
+    if (hasAnalysis && !window.confirm("Changing interview answers clears the current analysis and approval. Archived decisions remain unchanged. Continue?")) return;
+    setBusy(true); onBusyChange(true); setError(""); setMessage("");
+    try {
+      accept(await api.saveInterview(sessionId, progress.version, answers));
+      await onRefresh();
+      setMessage("Answers saved. Readiness findings remain unverified drafts. Run analysis to refresh the report and PDF.");
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not save answers. Reload before retrying."); }
+    finally { setBusy(false); onBusyChange(false); }
+  }
+  const visibleFields = progress?.fields.filter(field => showAll || progress.missing_fields.includes(field.id)) || [];
+  const groups = [...new Set(visibleFields.map(field => field.group))];
+  return <div className="space-y-6">
+    <header className="page-header">
+      <div className="eyebrow mb-2">Step 02 / Discover the workflow</div>
+      <h1>Diagnostic Interview</h1>
+      <p className="mt-2">Up to 10 grouped interview rounds cover suitability, deployment constraints and draft readiness.
+        Already captured answers are skipped. No evidence or readiness is verified automatically.</p>
+    </header>
+    {context && <Card title="Context from Intake">
+      <p>{[context.business_domain, context.team_size, context.existing_systems].filter(Boolean).join(" / ")}</p>
+      <p>Target cloud: {context.target_cloud} / Compliance: {context.compliance_requirements || "Not specified"}</p>
+    </Card>}
+    {!sessionId && <p className="notice">Save Enterprise Intake before starting the interview.</p>}
+    {error && <p role="alert" className="notice text-rose-700">{error}</p>}
+    {message && <p role="status" className="notice">{message}</p>}
+    {progress && <>
+      <Card title={`Interview rounds: ${progress.rounds_used} / ${progress.max_rounds}`}>
+        <progress aria-label="Interview rounds used" value={progress.rounds_used} max={progress.max_rounds} className="w-full" />
+        <p>{progress.missing_facts.length} required workflow facts and {progress.missing_fields.length - progress.missing_facts.length} readiness/deployment/pilot answers outstanding.</p>
+        {progress.limit_reached ? <p className="notice" role="status">
+          The 10-round interview limit is reached. Automatic questions have stopped.
+          Complete remaining answers in the editable checklist below; unknowns will not be invented.
+        </p> : progress.can_chat ? <ol className="list-decimal pl-5 mt-3">
+          {progress.questions.map(question => <li key={question}>{question}</li>)}
+        </ol> : <p>Interview capture complete. Review the checklist, then run analysis.</p>}
+        <div className="flex flex-wrap gap-3 mt-3">
+          <Button variant="ghost" onClick={() => setShowChecklist(value => !value)} disabled={busy}>
+            Review answers / complete checklist
+          </Button>
+          <Button variant="ghost" onClick={reload} disabled={busy}>Reload interview</Button>
         </div>
-      ) : !sessionId ? (
-        <Card>
-          <p className="text-slate-600 text-sm">
-            💡 Tip: completing <b>Enterprise Intake</b> first gives the agent richer context — but you can
-            start chatting here directly and a session will be created automatically.
-          </p>
-        </Card>
-      ) : null}
-
-      <Card title="Your conversation" description="Share the steps, decisions, and exceptions that make this workflow challenging.">
-        <div role="log" aria-live="polite" aria-label="Diagnostic conversation" className="space-y-5 max-h-[46vh] overflow-y-auto pr-1">
-          {!history.some((m) => m.role === "user") && (
-            <div className="text-slate-500 text-sm">
-              {history.length === 0 ? "No messages yet. " : ""}
-              <button className="text-teal-700 underline underline-offset-4 hover:text-teal-900" onClick={useSample} disabled={busy}>
-                Use invoice sample (selects fictional fixture in demo) →
-              </button>
-            </div>
-          )}
-          {history.map((m, i) => (
-            <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[90%] md:max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed break-words ${
-                m.role === "user" ? "bg-teal-50 border border-teal-200 text-teal-950"
-                : m.blocked ? "bg-rose-50 border border-rose-200 text-rose-800"
-                : "bg-slate-50 border border-slate-200 text-slate-700"
-              }`}>
-                <p className="text-[10px] uppercase tracking-wide font-semibold mb-1.5">{m.role === "user" ? "You" : m.blocked ? "Security guardrail" : "AgentSpark"}</p>
-                {m.content}
-              </div>
-            </div>
-          ))}
-          {busy && <div className="text-slate-500 text-sm">…thinking</div>}
-        </div>
-
-        <div className="flex gap-3 mt-6 pt-5 border-t border-slate-100">
-          <input
-            aria-label="Describe your workflow"
-            maxLength={8000}
-            className="form-control flex-1"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && send()}
-            placeholder="Describe your workflow…"
-            disabled={busy}
-          />
-          <Button onClick={() => send()} disabled={busy || !text.trim()}>Send</Button>
-        </div>
-        {analyzable && (
-          <div className="mt-4">
-            <Button variant="ghost" onClick={goNext}>Run Analysis →</Button>
-          </div>
-        )}
       </Card>
-    </div>
-  );
+      <Card title="Your conversation" description="Answer the grouped questions together. Every message is screened before extraction.">
+        <div role="log" aria-live="polite" aria-label="Diagnostic conversation" className="space-y-5 max-h-[46vh] overflow-y-auto pr-1">
+          {!history.some(item => item.role === "user") && <button className="text-teal-700 underline"
+            onClick={() => void send(SUGGESTION, demoMode ? "invoice" : undefined)}
+            disabled={busy || dirty || !progress.can_chat}>
+            Use invoice sample (selects fictional fixture in demo) →
+          </button>}
+          {history.map((item, index) => <div key={index} className={`rounded-xl p-4 text-sm whitespace-pre-wrap break-words ${
+            item.blocked ? "bg-rose-50 text-rose-800" : item.role === "user" ? "bg-teal-50" : "bg-slate-50"}`}>
+            <p className="font-semibold">{item.role === "user" ? "You" : item.blocked ? "Security guardrail" : "AgentSpark"}</p>
+            {item.content}
+          </div>)}
+          {busy && <p>Loading or saving interview...</p>}
+        </div>
+        <div className="flex gap-3 mt-5">
+          <input aria-label="Describe your workflow" maxLength={8000} className="form-control flex-1" value={text}
+            onChange={event => setText(event.target.value)} onKeyDown={event => {
+              if (event.key === "Enter" && !event.nativeEvent.isComposing) void send();
+            }} placeholder="Answer the grouped questions..." disabled={busy || dirty || !progress.can_chat} />
+          <Button onClick={() => void send()} disabled={busy || dirty || !progress.can_chat || !text.trim()}>Send</Button>
+        </div>
+      </Card>
+      {(showChecklist || progress.limit_reached || !progress.can_chat) && <Card title="Editable interview checklist">
+        <p className="notice">Only unanswered fields are shown by default. Counts must be whole numbers.
+          Separate department/system names with commas; enter none for an explicitly empty list.
+          Blank answers remain unresolved. Readiness text is saved as Needs validation, not verified evidence.
+          Checklist edits take precedence over free-text extraction; correct those values here.
+          Saving changed answers clears the current analysis and approval.</p>
+        {demoMode && <p className="notice">Demo chat uses a fictional fixture; enter your own draft readiness in this checklist.</p>}
+        <label className="flex gap-2 mt-3"><input type="checkbox" checked={showAll}
+          onChange={event => setShowAll(event.target.checked)} />Show captured answers too</label>
+        <form onSubmit={event => { event.preventDefault(); void save(); }}>
+          <fieldset disabled={busy || !progress.permissions.write} className="space-y-4 mt-4">
+            {groups.map(group => <details key={group} open>
+              <summary className="font-semibold">{group}</summary>
+              <div className="grid gap-4 md:grid-cols-2 mt-3">
+                {visibleFields.filter(field => field.group === group).map(field => <label key={field.id} className="text-sm">
+                  <span className="font-semibold">{field.label}</span>
+                  <span className="block text-slate-500">{field.question}</span>
+                  {field.kind === "select" ? <select className="form-control mt-1" value={answers[field.id] || ""}
+                    onChange={event => { setAnswers(current => ({ ...current, [field.id]: event.target.value })); setDirty(true); }}>
+                    <option value="">Not supplied</option>
+                    {field.options.map(option => <option key={option}>{option}</option>)}
+                  </select> : field.kind === "number" ?
+                    <input className="form-control mt-1" type="number" min={0} step={1} value={answers[field.id] || ""}
+                      onChange={event => { setAnswers(current => ({ ...current, [field.id]: event.target.value })); setDirty(true); }} /> :
+                    <textarea className="form-control mt-1" maxLength={field.max_length} value={answers[field.id] || ""}
+                      onChange={event => { setAnswers(current => ({ ...current, [field.id]: event.target.value })); setDirty(true); }} />}
+                </label>)}
+              </div>
+            </details>)}
+            {!visibleFields.length && <p>No unanswered fields. Enable Show captured answers too to review or correct them.</p>}
+            <Button type="submit" disabled={!dirty}>Save interview answers</Button>
+            {dirty && <p className="text-amber-800">Unsaved changes. Save or reload before continuing the interview or analysis.</p>}
+          </fieldset>
+        </form>
+      </Card>}
+      <Button variant="ghost" onClick={goNext} disabled={busy || dirty || progress.missing_facts.length > 0}>
+        Run Analysis →
+      </Button>
+      {progress.missing_facts.length > 0 && <p className="text-sm">Score, ROI and blueprint still require the missing workflow facts.
+        Readiness gaps remain explicit and do not fabricate suitability inputs.</p>}
+    </>}
+  </div>;
 }

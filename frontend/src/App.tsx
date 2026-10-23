@@ -336,6 +336,7 @@ export default function App() {
               onBusyChange={setBusy} /></fieldset>}
             {view === "diagnose" && <fieldset disabled={!canWrite} className="min-w-0"><Diagnose sessionId={sessionId} context={snapshot?.enterprise_context}
               demoMode={runtime?.mode === "demo"}
+              hasAnalysis={!!snapshot?.analysis_id}
               initialHistory={snapshot?.chat_history} onRefresh={refreshSession} onBusyChange={setBusy} goNext={() => void changeView("analyze")} /></fieldset>}
             {view === "evidence" && <EvidenceRegister sessionId={sessionId} hasAnalysis={!!snapshot?.analysis_id}
               onRefresh={refreshSession} onBusyChange={setBusy} />}

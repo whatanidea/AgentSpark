@@ -52,6 +52,71 @@ test("incomplete demo input withholds scores and estimates", async ({ page }) =>
   await expect(page.getByText("Clarification required — score, ROI and blueprint are withheld.", { exact: true })).toBeVisible();
 });
 
+test("guided interview stops at ten rounds and completes via a saved checklist", async ({ page }) => {
+  await intake(page, undefined, "aws");
+  for (let round = 1; round <= 10; round += 1) {
+    await page.getByRole("textbox", { name: "Describe your workflow", exact: true }).fill(`Fictional answer ${round}`);
+    await page.getByRole("button", { name: "Send", exact: true }).click();
+    await expect(page.getByText(`Interview rounds: ${round} / 10`, { exact: true })).toBeVisible();
+  }
+  await expect(page.getByRole("textbox", { name: "Describe your workflow", exact: true })).toBeDisabled();
+  await expect(page.getByText("The 10-round interview limit is reached.", { exact: false }).first()).toBeVisible();
+  await page.reload();
+  await page.getByRole("button", { name: "2 · Diagnostic Interview", exact: true }).click();
+  await expect(page.getByText("Interview rounds: 10 / 10", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Editable interview checklist", exact: true })).toBeVisible();
+  const pointer = JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!);
+  const response = await page.request.get(`/api/v1/sessions/${pointer.session}/interview`);
+  const progress = await response.json();
+  const facts: Record<string, string> = {
+    workflow_name: "Fictional insurance claims", summary: "Summarize evidence for a human examiner.",
+    steps: "8", departments: "Claims Operations, Finance", decision_points: "3", systems: "Claims portal, Policy system",
+    exceptions_per_week: "30", volume_per_day: "100", compliance_sensitivity: "High",
+    data_availability: "Medium", rule_stability: "Evolving", human_judgment: "High",
+    unstructured_content: "High", error_cost: "High",
+  };
+  for (const field of progress.fields.filter((item: { id: string }) => progress.missing_fields.includes(item.id))) {
+    const value = field.id.startsWith("fact.") ? facts[field.id.slice(5)] :
+      field.id === "context.preferred_region" ? "us-east-1" : "Fictional proposed control; validation is outstanding.";
+    const input = page.getByRole(field.kind === "select" ? "combobox" : field.kind === "number" ? "spinbutton" : "textbox",
+      { name: new RegExp(`^${field.label}`) });
+    if (field.kind === "select") await input.selectOption(value);
+    else await input.fill(value);
+  }
+  await page.getByRole("button", { name: "Save interview answers", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Answers saved." })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Run Analysis →", exact: true })).toBeEnabled();
+  const result = await analyze(page);
+  expect(result.diagnosis.missing_facts).toEqual([]);
+  expect(result.readiness_report.decision).toBe("ready_with_conditions");
+  expect(result.readiness_report.checks.every((check: { status: string }) => check.status === "needs_validation")).toBe(true);
+  expect(result.enterprise_context.preferred_region).toBe("us-east-1");
+  expect(result.enterprise_context.data_residency_requirements).toContain("validation is outstanding");
+});
+
+test("guided interview skips fixture facts and rejects a stale checklist without losing edits", async ({ page }) => {
+  await intake(page, "🧾 Invoice Approval (Finance)", "aws");
+  await expect(page.getByText("0 required workflow facts", { exact: false })).toBeVisible();
+  const pointer = JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!);
+  const path = `/api/v1/sessions/${pointer.session}/interview`;
+  const initial = await (await page.request.get(path)).json();
+  expect(initial.questions.length).toBeLessThanOrEqual(3);
+  expect(initial.questions.some((question: string) => question.includes("workflow called"))).toBe(false);
+  await page.getByRole("button", { name: "Review answers / complete checklist", exact: true }).click();
+  await page.getByRole("textbox", { name: /^Pilot scope/ }).fill("Unsaved fictional pilot draft");
+  const external = await page.request.put(path, { data: {
+    version: initial.version, answers: { "pilot.success_metrics": "Externally updated fictional metric" },
+  } });
+  expect(external.status()).toBe(200);
+  await page.getByRole("button", { name: "Save interview answers", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("reload before saving");
+  await expect(page.getByRole("textbox", { name: /^Pilot scope/ })).toHaveValue("Unsaved fictional pilot draft");
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Reload interview", exact: true }).click();
+  await expect(page.getByRole("alert")).toHaveCount(0);
+  await expect(page.getByRole("textbox", { name: /^Pilot scope/ })).toHaveValue("");
+});
+
 test("PDF reports download for provisional and approved blueprints without replacing Markdown export", async ({ page }) => {
   await intake(page, "🧾 Invoice Approval (Finance)", "aws");
   const analysis = await analyze(page);

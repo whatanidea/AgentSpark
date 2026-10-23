@@ -176,6 +176,24 @@ class TenantFoundationTests(unittest.TestCase):
                   body={"roles": ["viewer"], "version": grant["version"]})
         self.call("PUT", path, subject="creator", body={**body, "revision": saved["revision"]}, status=403, **scope)
 
+    def test_interview_checklist_enforces_team_and_personal_permissions(self):
+        organization, team = self.organization()
+        self.member(organization, team, "creator", ["contributor"])
+        self.member(organization, team, "viewer", ["viewer"])
+        session = self.draft(organization, team, "creator")
+        path = f"/sessions/{session}/interview"
+        scope = {"organization": organization, "team": team}
+        current = self.call("GET", path, subject="viewer", **scope)
+        body = {"version": current["version"], "answers": {"pilot.scope": "Fictional synthetic claims"}}
+        self.call("PUT", path, subject="viewer", body=body, status=403, **scope)
+        self.call("PUT", path, subject="outsider", body=body, status=404, **scope)
+        self.call("PUT", path, subject="creator", body=body, reviewer=False, **scope)
+        self.call("GET", path, subject="creator", status=404)
+        personal = self.draft(subject="personal")
+        personal_path = f"/sessions/{personal}/interview"
+        self.call("GET", personal_path, subject="other", status=404)
+        self.assertEqual(self.client.get("/api/v1" + personal_path).status_code, 401)
+
     def test_personal_readiness_is_owner_private_and_requires_authentication(self):
         session = self.draft(subject="personal")
         path = f"/sessions/{session}/implementation-readiness"

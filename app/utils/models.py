@@ -60,7 +60,7 @@ class FactEvidence(BaseModel):
     status: Literal["supplied", "inferred", "missing"] = Field(
         default="missing", description="Whether the fact was supplied verbatim, inferred, or is missing"
     )
-    source: Literal["interview", "intake", "demo_fixture", "none"] = Field(
+    source: Literal["interview", "intake", "checklist", "demo_fixture", "none"] = Field(
         default="none", description="Where the verbatim quote came from; none when there is no quote"
     )
     quote: str = Field(default="", max_length=2000, description="Exact verbatim quote backing a supplied fact")
@@ -92,6 +92,16 @@ class WorkflowDiagnosis(BaseModel):
             return ["Select an explicit demo sample in Enterprise Context, or use the invoice sample in Diagnostic. "
                     "Demo mode does not extract facts from arbitrary interview text."]
         return [ESSENTIAL_FACTS[key] for key in self.missing_facts[:3]]
+
+
+class InterviewAnswer(BaseModel):
+    value: str = Field(min_length=1, max_length=2000)
+    quote: str = Field(min_length=1, max_length=2000)
+    source: Literal["interview", "intake"] = "interview"
+
+
+class InterviewDiagnosis(WorkflowDiagnosis):
+    answers: Dict[str, InterviewAnswer] = Field(default_factory=dict, max_length=32)
 
 
 # ──────────────────────────────────────────────────────────────
@@ -382,6 +392,8 @@ class WorkflowState(BaseModel):
     chat_history: List[Dict[str, str]] = Field(default_factory=list)
     demo_scenario: Optional[DemoScenario] = None
     diagnosis: Optional[WorkflowDiagnosis] = None
+    interview_diagnosis: Optional[WorkflowDiagnosis] = None
+    interview_answers: Dict[str, str] = Field(default_factory=dict, max_length=14)
     roi_assumptions: ROIAssumptions = Field(default_factory=ROIAssumptions)
     workflow_intelligence: Optional[WorkflowIntelligence] = None
     suitability_score: Optional[AgentSuitabilityScore] = None
