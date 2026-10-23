@@ -58,7 +58,7 @@ export default function Blueprint({ sessionId, active, canReview, secureReview, 
     } finally { setBusy(false); onBusyChange(false); }
   }
 
-  async function download() {
+  async function download(format: "markdown" | "pdf") {
     if (!bp) return;
     setBusy(true); onBusyChange(true); setErr("");
     try {
@@ -69,7 +69,11 @@ export default function Blueprint({ sessionId, active, canReview, secureReview, 
         setErr("Recommendation changed. Review the refreshed version before exporting.");
         return;
       }
-      exportMarkdown(current);
+      if (format === "pdf") {
+        saveDownload(await api.blueprintPdf(sessionId, current.analysis_id, current.status), "AgentSpark_Assessment.pdf");
+      } else {
+        exportMarkdown(current);
+      }
     } catch (e) {
       setBp(null);
       setErr(e instanceof Error ? e.message : "Cannot verify the current blueprint.");
@@ -149,10 +153,13 @@ ${bp.roadmap || ""}
 ${bp.code_scaffold || ""}
 \`\`\`
 `;
-    const blob = new Blob([md], { type: "text/markdown" });
+    saveDownload(new Blob([md], { type: "text/markdown" }), "AgentSpark_Blueprint.md");
+  }
+
+  function saveDownload(blob: Blob, filename: string) {
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = "AgentSpark_Blueprint.md";
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(a.href);
   }
@@ -167,13 +174,15 @@ ${bp.code_scaffold || ""}
         </div>
         <div className="flex flex-wrap gap-2">
           <Button onClick={load} disabled={!sessionId || busy}>Generate / Fetch</Button>
-          {bp && <Button aria-label="⬇ Export .md" variant="ghost" onClick={download} disabled={busy}>Export .md</Button>}
+          {bp && <Button aria-label="⬇ Export .md" variant="ghost" onClick={() => void download("markdown")} disabled={busy}>Export .md</Button>}
+          {bp && <Button variant="ghost" onClick={() => void download("pdf")} disabled={busy || !bp.analysis_id}>Export PDF</Button>}
         </div>
       </header>
 
       {!sessionId && <Card><p className="text-amber-800 text-sm">⚠️ Run the analysis first.</p></Card>}
       {busy && <Card><Spinner label="Fetching blueprint…" /></Card>}
       {err && <Card><p role="alert" className="text-rose-700 text-sm">❌ {err}</p></Card>}
+      {bp && !bp.analysis_id && <Card><p className="text-amber-800 text-sm">PDF export requires a versioned analysis. Rerun Workflow Analysis first.</p></Card>}
       {bp && <EvidenceSummary report={bp.evidence_report} />}
       {bp && <ReadinessSummary report={bp.readiness_report} />}
       {bp && <Card title="Assessment deployment target">

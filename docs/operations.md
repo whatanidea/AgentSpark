@@ -113,6 +113,30 @@ or authorize deployment. No live cloud validation, uploads, new infrastructure,
 dependency changes or migration is included. Automated browser tests run in shared
 local-demo identity; signed-role backend tests cover real authorization boundaries.
 
+## PDF report acceptance
+
+1. Analyze a fictional Azure or AWS workflow. In **Blueprint & Review**, verify
+   **Export PDF** and the existing Markdown button are available.
+2. Download the provisional PDF; open it in a PDF reader. Verify repeated
+   provisional/not-approved status, analysis ID, target cloud/region, readable
+   pagination, suitability, ROI assumptions/scenarios, evidence and readiness.
+3. Have an authorized independent reviewer decide the recommendation, fetch it
+   again, and export. Verify the reviewer identity/note/time and current decision.
+   Rejected reports must not include an implementation architecture or scaffold.
+4. Change inputs or reanalyze from another tab before exporting. Expect explicit
+   refresh/error handling, not an obsolete approval or JSON saved as a PDF.
+5. Verify owner/workspace read permissions, expiry, revocation and no-store headers
+   apply to the PDF endpoint. Downloading never grants review or write access.
+6. Check a long report and unsupported text characters. Tables/text should wrap
+   across pages, unsupported glyphs remain explicit Unicode code points, and
+   source URLs/HTML cannot trigger remote fetches. Mermaid is source text only.
+
+Runtime installation uses the updated hash-locked requirements, including
+ReportLab; the container needs no browser binary, OS fonts or writable report
+directory. PDF parsing tests use `pypdf` from `requirements-tools.txt` outside the
+runtime image. No infrastructure or database migration is required. No generated
+PDF is stored by the application; downloaded copies require client-side handling.
+
 ## Supported toolchain and repeatable checks
 
 - Python 3.12 and Node 24; see [.python-version](../.python-version) and
