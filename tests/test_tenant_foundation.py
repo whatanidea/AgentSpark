@@ -102,6 +102,51 @@ class TenantFoundationTests(unittest.TestCase):
     def review_body(self, analysis):
         return {"analysis_id": analysis, "decision": "approve", "reviewer": "forged", "note": "Fictional controls checked."}
 
+    def test_evidence_edit_and_confirmation_use_team_permissions_and_authenticated_identity(self):
+        organization, team = self.organization()
+        self.member(organization, team, "creator", ["contributor", "reviewer"])
+        self.member(organization, team, "reviewer", ["reviewer"])
+        self.member(organization, team, "viewer", ["viewer"])
+        session = self.draft(organization, team, "creator")
+        path = f"/sessions/{session}/evidence"
+        entry = {"id": str(uuid4()), "kind": "supported_finding", "statement": "25 exceptions weekly",
+                 "source_reference": "Fictional report", "related_facts": ["exceptions_per_week"]}
+        saved = self.call("PUT", path, organization=organization, team=team, subject="creator",
+                         body={"revision": 0, "entries": [entry]}, reviewer=False)
+        self.assertEqual(saved["entries"][0]["created_by"], self.identity("creator"))
+        for subject, status in (("creator", 403), ("viewer", 403), ("outsider", 404)):
+            self.call("POST", f"{path}/{entry['id']}/confirm", organization=organization, team=team,
+                      subject=subject, body={"revision": 1, "method": "Checked"}, status=status, reviewer=False)
+        self.call("PUT", path, organization=organization, team=team, subject="reviewer",
+                  body={"revision": 1, "entries": []}, status=403, reviewer=False)
+        confirmed = self.call("POST", f"{path}/{entry['id']}/confirm", organization=organization, team=team,
+            subject="reviewer", body={"revision": 1, "method": "Compared report to sample totals"}, reviewer=False)
+        self.assertEqual(confirmed["entries"][0]["confirmation"]["confirmed_by"], self.identity("reviewer"))
+        self.call("GET", path, subject="creator", status=404)
+        analysis = self.call("POST", f"/analyze/{session}", organization=organization, team=team,
+                             subject="creator", reviewer=False)
+        self.call("POST", f"/review/{session}", organization=organization, team=team,
+            subject="reviewer", body=self.review_body(analysis["analysis_id"]), reviewer=False)
+        archive = self.call("GET", f"/decisions/{session}/{analysis['analysis_id']}",
+                            organization=organization, team=team, subject="viewer", reviewer=False)
+        self.assertEqual(archive["details"]["evidence_report"]["entries"], confirmed["entries"])
+        grant = next(item for item in self.call("GET", f"/organizations/{organization}/teams/{team}/members")["items"]
+                     if item["identity_id"] == self.identity("reviewer"))
+        self.call("PUT", f"/organizations/{organization}/teams/{team}/members/{self.identity('reviewer')}",
+                  body={"roles": ["viewer"], "version": grant["version"]})
+        self.call("POST", f"{path}/{entry['id']}/confirm", organization=organization, team=team,
+                  subject="reviewer", body={"revision": 2, "method": "Retry"}, reviewer=False, status=403)
+
+    def test_personal_evidence_confirmation_requires_configured_token_role(self):
+        session = self.draft(subject="personal")
+        path = f"/sessions/{session}/evidence"
+        entry = {"id": str(uuid4()), "kind": "supported_finding", "statement": "Sample claim", "source_reference": "Sample source"}
+        self.call("PUT", path, subject="personal", body={"revision": 0, "entries": [entry]}, reviewer=False)
+        self.call("POST", f"{path}/{entry['id']}/confirm", subject="personal",
+                  body={"revision": 1, "method": "Checked source"}, reviewer=False, status=403)
+        self.call("POST", f"{path}/{entry['id']}/confirm", subject="personal",
+                  body={"revision": 1, "method": "Checked source"}, reviewer=True)
+
     def test_self_service_owner_and_directory_survive_real_process_restart(self):
         organization, _ = self.organization()
         organizations = self.call("GET", "/organizations")

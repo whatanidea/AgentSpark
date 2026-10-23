@@ -52,6 +52,92 @@ test("incomplete demo input withholds scores and estimates", async ({ page }) =>
   await expect(page.getByText("Clarification required — score, ROI and blueprint are withheld.", { exact: true })).toBeVisible();
 });
 
+test("evidence register links findings, records confirmation, exports and preserves approved snapshots", async ({ page }) => {
+  await intake(page, "🧾 Invoice Approval (Finance)", "aws");
+  await page.getByRole("button", { name: "Evidence & assumptions", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Evidence & assumptions", exact: true })).toBeVisible();
+  const entries = [
+    ["client_fact", "500 invoices per business day", "", "volume_per_day"],
+    ["supported_finding", "25 exceptions weekly from Finance report", "Fictional Finance report, page 3", "exceptions_per_week"],
+    ["assumption", "30% of supporting documents are incomplete", "", "unstructured_content"],
+    ["open_question", "Can SAP expose goods receipt status?", "", "systems"],
+  ];
+  for (const [kind, statement, source, fact] of entries) {
+    await page.getByLabel("Entry type", { exact: true }).selectOption(kind);
+    await page.getByLabel("Statement or question", { exact: true }).fill(statement);
+    await page.getByLabel("Source reference", { exact: true }).fill(source);
+    await page.getByLabel("Reporting period", { exact: true }).fill("September 2026");
+    await page.getByLabel("Related diagnostic inputs", { exact: true }).selectOption([fact]);
+    await page.getByRole("button", { name: "Save evidence entry", exact: true }).click();
+    await expect(page.getByLabel("Statement or question", { exact: true })).toHaveValue("");
+    await expect(page.getByText(statement, { exact: true })).toBeVisible();
+  }
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Evidence register (4/50)", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Confirm finding", exact: true }).click();
+  await page.getByLabel("Confirmation method", { exact: true }).fill("Inspected fictional report page 3 and checked sample totals.");
+  await page.getByRole("button", { name: "Save confirmation", exact: true }).click();
+  await expect(page.getByText("Reviewer-confirmed by", { exact: false })).toBeVisible();
+  const result = await analyze(page);
+  expect(result.evidence_report.entries).toHaveLength(4);
+  expect(result.evidence_report.validation_checklist).toHaveLength(3);
+  const finding = result.evidence_report.findings.find((item: { fact: string }) => item.fact === "exceptions_per_week");
+  const supported = result.evidence_report.entries.find((item: { kind: string }) => item.kind === "supported_finding");
+  expect(finding.evidence_ids).toContain(supported.id);
+  await page.getByRole("button", { name: "4 · Blueprint & Review", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Evidence-backed assessment", exact: true })).toBeVisible();
+  await page.getByLabel("Reviewer", { exact: true }).fill("Fictional evidence reviewer");
+  await page.getByLabel("Review rationale", { exact: true }).fill("Checked source attestation and remaining assumptions.");
+  await page.getByRole("button", { name: "Approve recommendation", exact: true }).click();
+  await expect(page.getByText("Recommendation approved by a human reviewer", { exact: true })).toBeVisible();
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "⬇ Export .md", exact: true }).click();
+  const stream = await (await downloadPromise).createReadStream();
+  if (!stream) throw new Error("Evidence export stream unavailable");
+  let markdown = "";
+  for await (const chunk of stream) markdown += chunk.toString("utf8");
+  for (const text of ["Evidence register, findings and outstanding validation", supported.id,
+    "Inspected fictional report page 3", "Can SAP expose goods receipt status?", "September 2026",
+    "not independently checked"]) expect(markdown).toContain(text);
+  await page.getByRole("button", { name: "Evidence & assumptions", exact: true }).click();
+  const supportedSection = page.locator("section").filter({ has: page.getByText(entries[1][1], { exact: true }) });
+  await supportedSection.getByRole("button", { name: "Edit entry", exact: true }).click();
+  await page.getByLabel("Statement or question", { exact: true }).fill("Updated finding needing new confirmation");
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Save evidence entry", exact: true }).click();
+  await expect(page.getByLabel("Statement or question", { exact: true })).toHaveValue("");
+  await expect(page.getByRole("button", { name: "Confirm finding", exact: true })).toBeVisible();
+  const pointer = JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!);
+  const current = await (await page.request.get(`/api/v1/sessions/${pointer.session}`)).json();
+  expect(current.analysis_id).toBeNull();
+  expect(current.human_review).toBeNull();
+  await page.getByRole("button", { name: "Home", exact: true }).click();
+  await page.getByRole("button", { name: "Approved", exact: true }).click();
+  await page.getByRole("button", { name: "Open Invoice Approval Approved", exact: true }).click();
+  await expect(page.getByText(entries[1][1], { exact: true })).toBeVisible();
+  await expect(page.getByText("Reviewer-confirmed by", { exact: false })).toBeVisible();
+  await expect(page.getByText("Updated finding needing new confirmation", { exact: true })).toHaveCount(0);
+});
+
+test("stale evidence form shows a conflict and reloads without overwriting another update", async ({ page }) => {
+  await intake(page, "🧾 Invoice Approval (Finance)");
+  await page.getByRole("button", { name: "Evidence & assumptions", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Evidence register (0/50)", exact: true })).toBeVisible();
+  const pointer = JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!);
+  const entry = { id: randomUUID(), kind: "assumption", statement: "Another tab saved this assumption",
+    source_reference: "", reporting_period: "", related_facts: [] };
+  expect((await page.request.put(`/api/v1/sessions/${pointer.session}/evidence`,
+    { data: { revision: 0, entries: [entry] } })).ok()).toBe(true);
+  await page.getByLabel("Statement or question", { exact: true }).fill("Stale draft must not overwrite");
+  await page.getByRole("button", { name: "Save evidence entry", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Evidence changed; reload");
+  await expect(page.getByLabel("Statement or question", { exact: true })).toHaveValue("Stale draft must not overwrite");
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Reload evidence", exact: true }).click();
+  await expect(page.getByText(entry.statement, { exact: true })).toBeVisible();
+  await expect(page.getByLabel("Statement or question", { exact: true })).toHaveValue("");
+});
+
 test("human review survives reload and exports current evidence and scenarios", async ({ page }) => {
   await intake(page, "🧾 Invoice Approval (Finance)");
   await page.getByRole("textbox", { name: "Describe your workflow", exact: true }).fill("Contact fictional@example.com about this sample.");

@@ -34,6 +34,36 @@ A seven-stage pipeline orchestrated with **LangGraph**:
 
 Every run emits an **agent trace** (per-step status + latency) for observability/audit.
 
+### Evidence-backed assessments (Phase 1)
+
+Open **Evidence & assumptions** after saving intake to record client-stated facts,
+evidence-supported findings, assumptions, and open questions. Each entry can include
+a source reference, reporting period, and user-selected diagnostic input links.
+References are text only: no uploads, URL fetching, source ingestion, or automatic
+verification. Supported findings require a source; merely supplying it does not
+verify the claim. Up to 50 entries are retained with server-recorded author/time.
+
+Authorized reviewers can attest to a supported finding by describing their
+confirmation method. Identity and UTC time are recorded server-side; team creators
+cannot confirm their own workflow. Personal confirmation requires the reviewer
+token role. Local demo is shared and its identity is not an independent reviewer.
+This is a reviewer attestation, not an AgentSpark certification.
+
+Analysis and Blueprint show the register, diagnostic findings with linked entry
+IDs, calculated recommendation basis, and an outstanding validation checklist.
+Entries inform generation but do not override diagnostic facts or scoring/ROI
+formulas. Update Diagnostic separately when measured facts change; user links do
+not establish agreement or resolve contradictions. Unresolved entries are visible
+to reviewers but do not introduce new approval policy gates.
+
+Saving a changed register or confirmation clears current analysis and approval.
+Reanalysis is required before review. Entry edits remove their old confirmation;
+unchanged entries preserve it. Approved/rejected decision snapshots and Markdown
+blueprint exports preserve the exact report used for that analysis. Historical
+decisions without a report are labeled as such and are not rewritten.
+Evidence follows existing workspace access, session/archive retention, redaction,
+and workflow/history deletion rules. Never include secrets or sensitive documents.
+
 ### Governance and human review
 
 AgentSpark approves **advisory recommendations**, not execution or deployment of a

@@ -24,6 +24,7 @@ PRIVATE_FIELDS = (
     "enterprise_context", "chat_history", "diagnosis", "workflow_intelligence",
     "architecture_recommendation", "blueprint", "trace", "guardrail_events", "human_review",
     "suitability_score", "azure_mapping", "cloud_mapping", "retrieved_patterns", "governance", "roi", "portfolio",
+    "evidence_register", "evidence_report",
 )
 
 

@@ -1,4 +1,4 @@
-from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, StringConstraints, computed_field
+from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, StringConstraints, computed_field, field_validator, model_validator
 from typing import List, Optional, Dict, Any, Literal, Annotated
 from datetime import datetime, timezone, timedelta
 import os
@@ -275,6 +275,43 @@ class HumanReview(BaseModel):
     reviewed_at: datetime
 
 
+class EvidenceInput(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    id: Annotated[str, StringConstraints(pattern=r"^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$")]
+    kind: Literal["client_fact", "supported_finding", "assumption", "open_question"]
+    statement: str = Field(min_length=1, max_length=1000)
+    source_reference: str = Field(default="", max_length=500)
+    reporting_period: str = Field(default="", max_length=100)
+    related_facts: List[str] = Field(default_factory=list, max_length=14)
+
+    @field_validator("related_facts")
+    @classmethod
+    def valid_links(cls, value: List[str]) -> List[str]:
+        if len(set(value)) != len(value) or not set(value).issubset(ESSENTIAL_FACTS):
+            raise ValueError("Links must be unique essential diagnostic fact names.")
+        return value
+
+    @model_validator(mode="after")
+    def source_required(self):
+        if self.kind == "supported_finding" and not self.source_reference:
+            raise ValueError("An evidence-supported finding requires a source reference.")
+        return self
+
+
+class EvidenceConfirmation(BaseModel):
+    confirmed_by: str
+    confirmed_at: datetime
+    method: str = Field(min_length=1, max_length=1000)
+
+
+class EvidenceEntry(EvidenceInput):
+    created_by: str
+    created_at: datetime
+    updated_by: str
+    updated_at: datetime
+    confirmation: Optional[EvidenceConfirmation] = None
+
+
 class WorkflowState(BaseModel):
     _etag: Optional[str] = PrivateAttr(default=None)
     session_id: SessionId
@@ -284,6 +321,9 @@ class WorkflowState(BaseModel):
     expires_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc) + timedelta(
         hours=int(os.getenv("SESSION_RETENTION_HOURS", "24"))))
     enterprise_context: EnterpriseContext = Field(default_factory=EnterpriseContext)
+    evidence_register: List[EvidenceEntry] = Field(default_factory=list, max_length=50)
+    evidence_revision: int = Field(default=0, ge=0)
+    evidence_report: Optional[Dict[str, Any]] = None
     chat_history: List[Dict[str, str]] = Field(default_factory=list)
     demo_scenario: Optional[DemoScenario] = None
     diagnosis: Optional[WorkflowDiagnosis] = None
@@ -307,6 +347,7 @@ class WorkflowState(BaseModel):
     decision_recorded_at: Optional[datetime] = None
 
     def invalidate_analysis(self) -> None:
+        self.evidence_report = None
         self.diagnosis = None
         self.workflow_intelligence = None
         self.suitability_score = None

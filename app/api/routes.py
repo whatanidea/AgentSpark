@@ -2,7 +2,10 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field, ConfigDict
 from datetime import datetime, timezone
 from typing import Literal, Annotated
-from app.utils.models import HumanReview, SessionId, SignalLevel, DemoScenario, ROIAssumptions, CloudProvider
+from app.utils.models import (
+    HumanReview, SessionId, SignalLevel, DemoScenario, ROIAssumptions, CloudProvider,
+    EvidenceInput, EvidenceEntry, EvidenceConfirmation,
+)
 from app.agents.cloud_catalog import pattern_for_cloud
 from app.utils.runtime import demo_mode
 
@@ -109,6 +112,88 @@ class ReviewRequest(RequestModel):
     note: str = Field(min_length=1, max_length=2000)
 
 
+class EvidenceRequest(RequestModel):
+    revision: int = Field(ge=0, strict=True)
+    entries: list[EvidenceInput] = Field(max_length=50)
+
+
+class ConfirmationRequest(RequestModel):
+    revision: int = Field(ge=0, strict=True)
+    method: str = Field(min_length=1, max_length=1000)
+
+
+def evidence_response(state):
+    return {
+        "revision": state.evidence_revision,
+        "entries": [entry.model_dump(mode="json") for entry in state.evidence_register],
+        "permissions": db_client.permissions(state),
+    }
+
+
+@router.get("/sessions/{session_id}/evidence")
+def get_evidence(session_id: SessionId):
+    return evidence_response(db_client.get_workflow_state(session_id))
+
+
+@router.put("/sessions/{session_id}/evidence")
+def save_evidence(session_id: SessionId, req: EvidenceRequest):
+    state = db_client.get_workflow_state(session_id)
+    db_client._authorize(state, "write")
+    if req.revision != state.evidence_revision:
+        raise HTTPException(409, "Evidence changed; reload the register before saving.")
+    if len({entry.id for entry in req.entries}) != len(req.entries):
+        raise HTTPException(422, "Evidence entry IDs must be unique.")
+    previous = {entry.id: entry for entry in state.evidence_register}
+    entries = []
+    now = datetime.now(timezone.utc)
+    actor = principal_context.get().owner_id
+    for item in req.entries:
+        data = item.model_dump()
+        for field in ("statement", "source_reference", "reporting_period"):
+            if not scan_input(data[field]).safe:
+                raise HTTPException(422, "Evidence contains instruction-override content. Please rephrase.")
+            data[field] = redact_pii(data[field])
+        old = previous.get(item.id)
+        if old and all(getattr(old, key) == value for key, value in data.items()):
+            entries.append(old)
+        else:
+            entries.append(EvidenceEntry(**data, created_by=old.created_by if old else actor,
+                                         created_at=old.created_at if old else now,
+                                         updated_by=actor, updated_at=now))
+    if entries == state.evidence_register:
+        return evidence_response(state)
+    state.evidence_register = entries
+    state.evidence_revision += 1
+    state.invalidate_analysis()
+    db_client.save_workflow_state(state)
+    return evidence_response(state)
+
+
+@router.post("/sessions/{session_id}/evidence/{entry_id}/confirm")
+def confirm_evidence(session_id: SessionId, entry_id: SessionId, req: ConfirmationRequest):
+    state = db_client.get_workflow_state(session_id)
+    db_client._authorize(state, "review")
+    if not state.organization_id:
+        require_reviewer()
+    if req.revision != state.evidence_revision:
+        raise HTTPException(409, "Evidence changed; reload the register before confirming.")
+    entry = next((entry for entry in state.evidence_register if entry.id == entry_id), None)
+    if entry is None:
+        raise HTTPException(404, "Evidence entry not found.")
+    if entry.kind != "supported_finding":
+        raise HTTPException(409, "Only a source-referenced evidence finding can be confirmed.")
+    if not scan_input(req.method).safe:
+        raise HTTPException(422, "Confirmation contains instruction-override content. Please rephrase.")
+    if entry.confirmation:
+        raise HTTPException(409, "This finding is already confirmed; edit its content to request a new confirmation.")
+    entry.confirmation = EvidenceConfirmation(confirmed_by=principal_context.get().owner_id,
+        confirmed_at=datetime.now(timezone.utc), method=redact_pii(req.method))
+    state.evidence_revision += 1
+    state.invalidate_analysis()
+    db_client.save_workflow_state(state, action="review")
+    return evidence_response(state)
+
+
 @router.post("/intake")
 def save_intake(req: IntakeRequest):
     if req.demo_scenario is not None and not demo_mode():
@@ -192,6 +277,7 @@ def analyze_workflow(session_id: SessionId, req: AnalyzeRequest | None = None):
         "demo_scenario": s.demo_scenario,
         "enterprise_context": s.enterprise_context.model_dump(),
         "cloud_mapping": s.cloud_mapping or s.azure_mapping,
+        "evidence_report": s.evidence_report,
     })
 
 
@@ -215,6 +301,7 @@ def get_blueprint(session_id: SessionId):
         ).get("alternative", "Use standard software or a deterministic approval workflow without agentic loops.")
     res["enterprise_context"] = state.enterprise_context.model_dump()
     res["cloud_mapping"] = state.cloud_mapping or state.azure_mapping
+    res["evidence_report"] = state.evidence_report
     if state.suitability_score:
         res["suitability_score"] = state.suitability_score.model_dump()
     if state.workflow_intelligence:
@@ -242,6 +329,7 @@ def get_review(session_id: SessionId):
         "status": state.status,
         "governance": state.governance,
         "human_review": state.human_review.model_dump(mode="json") if state.human_review else None,
+        "evidence_report": state.evidence_report,
     }
 
 

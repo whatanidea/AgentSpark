@@ -14,6 +14,35 @@ repository protections. Manual workflow runs are available after the workflow
 exists on the default branch. Duplicate push/PR runs for a branch cancel older
 in-progress runs; use the final PR run, not a cancelled predecessor.
 
+## Phase 1 evidence register acceptance
+
+1. As a contributor, save intake and open **Evidence & assumptions**. Add a
+   client-stated fact, source-referenced finding with a reporting period, assumption,
+   and open question. Link applicable diagnostic inputs.
+2. Reload and confirm entries persist. Run analysis; inspect the linked findings,
+   calculated recommendation basis, and outstanding validation checklist.
+3. As another team reviewer, open the register and confirm the referenced finding
+   with a method describing what was inspected. The team grant suffices without
+   a token reviewer role; creator self-confirmation and viewer mutations are denied.
+4. Confirmation invalidates the current analysis. Ask a contributor to rerun,
+   then have the reviewer approve. Verify the evidence report in Blueprint,
+   Markdown export, and the Home decision snapshot.
+5. Edit the finding. Its confirmation and current analysis/approval must clear;
+   the previous archived evidence report must remain unchanged.
+6. Try saving from a stale tab: expect HTTP 409 and an explicit reload action,
+   not an overwrite. Archived decisions remain read-only.
+
+API: `GET`/`PUT /api/v1/sessions/{session_id}/evidence`; PUT requires the current
+`revision` and an `entries` array (maximum 50, unique canonical UUID IDs). Client
+payloads cannot set author, timestamps, or confirmation. Confirmation uses
+`POST /api/v1/sessions/{session_id}/evidence/{entry_id}/confirm` with `revision`
+and `method`. Existing ETags protect concurrent Cosmos/local writes in addition
+to register revisions. Source references are plain text and are never fetched.
+No infrastructure, index, dependency, or database migration is needed.
+
+Model-assisted wording is tested through mocked generation contracts; offline
+tests do not establish live model quality or independently validate evidence.
+
 ## Supported toolchain and repeatable checks
 
 - Python 3.12 and Node 24; see [.python-version](../.python-version) and

@@ -29,8 +29,9 @@ class TokenCountingCallback(BaseCallbackHandler):
 
 from app.utils.models import (
     WorkflowState, WorkflowIntelligence, AgentSuitabilityScore, EnterpriseContext,
-    ROIEstimate, WorkflowStatus, WorkflowDiagnosis, DemoScenario, ROIAssumptions,
+    ROIEstimate, WorkflowStatus, WorkflowDiagnosis, DemoScenario, ROIAssumptions, EvidenceEntry,
 )
+from app.utils.evidence import build_evidence_report
 from app.agents.diagnostic_agent import diagnostic_agent
 from app.agents.mapping_agent import mapping_agent
 from app.agents.recommendation_agent import recommendation_agent
@@ -49,6 +50,9 @@ class GraphState(TypedDict):
     chat_history: List[Dict[str, str]]
     demo_scenario: Optional[DemoScenario]
     diagnosis: Optional[WorkflowDiagnosis]
+    evidence_register: List[EvidenceEntry]
+    evidence_revision: int
+    evidence_report: Optional[Dict[str, Any]]
     roi_assumptions: ROIAssumptions
     workflow_intelligence: Optional[WorkflowIntelligence]
     suitability_score: Optional[AgentSuitabilityScore]
@@ -80,6 +84,8 @@ def extract_intelligence(state: GraphState) -> GraphState:
         state["chat_history"], state.get("enterprise_context"), state.get("demo_scenario"),
     )
     state["diagnosis"] = diagnosis
+    state["evidence_report"] = build_evidence_report(
+        state.get("evidence_register", []), state.get("evidence_revision", 0), diagnosis)
     intel = diagnosis.intelligence
     state["workflow_intelligence"] = intel
     if diagnosis.missing_facts:
@@ -115,10 +121,14 @@ def map_services(state: GraphState) -> GraphState:
 def generate_recommendations(state: GraphState) -> GraphState:
     t = time.perf_counter()
     logger.info("[4/7] Recommendation Agent → RAG-grounded design")
+    state["evidence_report"] = build_evidence_report(
+        state.get("evidence_register", []), state.get("evidence_revision", 0),
+        state["diagnosis"], state["suitability_score"])
     rec = recommendation_agent.generate_recommendation(
         state["suitability_score"], state["cloud_mapping"], state["workflow_intelligence"],
         diagnosis=state["diagnosis"],
         target_cloud=state["enterprise_context"].target_cloud,
+        assessment_evidence=state["evidence_report"],
     )
     state["retrieved_patterns"] = rec.pop("_retrieved_patterns", [])
     state["recommendation"] = rec
@@ -160,6 +170,7 @@ def create_blueprint(state: GraphState) -> GraphState:
         intelligence=state["workflow_intelligence"], context=state["enterprise_context"],
         mapping=state["cloud_mapping"], governance=state["governance"], roi=state["roi"],
         diagnosis=state["diagnosis"],
+        assessment_evidence=state["evidence_report"],
     )
     gov = state.get("governance") or {}
     state["status"] = "awaiting_human_review" if gov.get("decision") == "HUMAN_REVIEW_REQUIRED" else "completed"
@@ -221,6 +232,9 @@ def run_orchestration(session_id: str, roi_assumptions: ROIAssumptions | None = 
         "chat_history": db_state.chat_history,
         "demo_scenario": db_state.demo_scenario,
         "diagnosis": None,
+        "evidence_register": db_state.evidence_register,
+        "evidence_revision": db_state.evidence_revision,
+        "evidence_report": None,
         "roi_assumptions": db_state.roi_assumptions,
         "workflow_intelligence": None,
         "suitability_score": None,
@@ -244,6 +258,7 @@ def run_orchestration(session_id: str, roi_assumptions: ROIAssumptions | None = 
 
     db_state.workflow_intelligence = result["workflow_intelligence"]
     db_state.diagnosis = result["diagnosis"]
+    db_state.evidence_report = result["evidence_report"]
     db_state.suitability_score = result["suitability_score"]
     db_state.cloud_mapping = result["cloud_mapping"]
     db_state.azure_mapping = result["cloud_mapping"] if db_state.enterprise_context.target_cloud == "azure" else None
