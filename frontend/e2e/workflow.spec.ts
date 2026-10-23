@@ -52,6 +52,126 @@ test("incomplete demo input withholds scores and estimates", async ({ page }) =>
   await expect(page.getByText("Clarification required — score, ROI and blueprint are withheld.", { exact: true })).toBeVisible();
 });
 
+test("implementation readiness persists blockers, exports and retains the reviewed snapshot", async ({ page }) => {
+  await intake(page, "🧾 Invoice Approval (Finance)", "aws");
+  await page.getByRole("button", { name: "Implementation readiness", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Implementation readiness", exact: true })).toBeVisible();
+  const report = page.locator(".surface-card").filter({
+    has: page.getByRole("heading", { name: "Implementation Readiness Report", exact: true }),
+  });
+  await expect(report.getByText("Not assessed", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "AWS prerequisites", exact: true })).toBeVisible();
+  await page.getByRole("combobox", { name: "Status — Integration access", exact: true }).selectOption("blocked");
+  await page.getByRole("textbox", { name: "Finding — Integration access", exact: true }).fill("SAP sandbox access unavailable");
+  await page.getByRole("textbox", { name: "Owner — Integration access", exact: true }).fill("SAP administrator");
+  await page.getByRole("textbox", { name: "Next action — Integration access", exact: true }).fill("Confirm supported SAP API and test access");
+  await page.getByRole("textbox", { name: "Completion evidence — Integration access", exact: true }).fill("Successful authorized sandbox connection");
+  await page.getByRole("textbox", { name: "Pilot scope", exact: true }).fill("Invoice triage in sandbox only");
+  await page.getByRole("textbox", { name: "Success metrics and acceptance thresholds", exact: true }).fill("95% routing accuracy across 100 cases");
+  await page.getByRole("textbox", { name: "Failure handling and rollback tests", exact: true }).fill("Timeout falls back to the manual queue");
+  await page.getByRole("textbox", { name: "Authorization boundaries and prohibited actions", exact: true }).fill("Finance alone releases payments");
+  await page.getByRole("button", { name: "Save readiness assessment", exact: true }).click();
+  await expect(page.getByText("Readiness saved.", { exact: false })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("textbox", { name: "Owner — Integration access", exact: true })).toHaveValue("SAP administrator");
+  await expect(page.getByRole("combobox", { name: "Owner assignment — Integration access", exact: true })).toHaveValue("proposed");
+  const standalone = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export readiness .md", exact: true }).click();
+  const standaloneStream = await (await standalone).createReadStream();
+  if (!standaloneStream) throw new Error("Readiness export unavailable");
+  let reportMarkdown = "";
+  for await (const chunk of standaloneStream) reportMarkdown += chunk.toString("utf8");
+  for (const text of ["Implementation Readiness Report", "P0", "SAP administrator", "95% routing accuracy",
+    "Finance alone releases payments", "Not attached to a current analysis"]) expect(reportMarkdown).toContain(text);
+  const analysis = await analyze(page);
+  expect(analysis.readiness_report.decision).toBe("blocked");
+  expect(analysis.readiness_report.blockers).toEqual(["integration_access"]);
+  expect(analysis.readiness_report.actions[0].priority).toBe("P0");
+  await expect(page.getByRole("heading", { name: "Implementation Readiness Report", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "4 · Blueprint & Review", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Implementation Readiness Report", exact: true })).toBeVisible();
+  await page.getByLabel("Reviewer", { exact: true }).fill("Fictional readiness reviewer");
+  await page.getByLabel("Review rationale", { exact: true }).fill("Architecture only; resolve pilot blockers before implementation");
+  await page.getByRole("button", { name: "Approve recommendation", exact: true }).click();
+  await expect(page.getByText("Recommendation approved by a human reviewer", { exact: true })).toBeVisible();
+  const blueprint = page.waitForEvent("download");
+  await page.getByRole("button", { name: "⬇ Export .md", exact: true }).click();
+  const stream = await (await blueprint).createReadStream();
+  if (!stream) throw new Error("Blueprint export unavailable");
+  let markdown = "";
+  for await (const chunk of stream) markdown += chunk.toString("utf8");
+  for (const text of ["Implementation Readiness Report", "SAP sandbox access unavailable", "95% routing accuracy",
+    "Fictional readiness reviewer", "not compliance certification"]) expect(markdown).toContain(text);
+  await page.getByRole("button", { name: "Implementation readiness", exact: true }).click();
+  await page.getByRole("textbox", { name: "Finding — Integration access", exact: true }).fill("New access approval is required");
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Save readiness assessment", exact: true }).click();
+  await expect(page.getByText("Readiness saved.", { exact: false })).toBeVisible();
+  const pointer = JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!);
+  const current = await (await page.request.get(`/api/v1/sessions/${pointer.session}`)).json();
+  expect(current.analysis_id).toBeNull();
+  expect(current.human_review).toBeNull();
+  const archive = await (await page.request.get(`/api/v1/decisions/${pointer.session}/${analysis.analysis_id}`)).json();
+  expect(archive.details.readiness_report).toEqual(analysis.readiness_report);
+  await page.getByRole("button", { name: "Home", exact: true }).click();
+  await page.getByRole("button", { name: "Approved", exact: true }).click();
+  await page.getByRole("button", { name: "Open Invoice Approval Approved", exact: true }).click();
+  await expect(page.getByText("SAP sandbox access unavailable", { exact: true })).toBeVisible();
+});
+
+test("stale readiness form cannot overwrite updates and read-only readiness remains inspectable", async ({ page }) => {
+  await intake(page, "🧾 Invoice Approval (Finance)");
+  await page.getByRole("button", { name: "Implementation readiness", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Azure prerequisites", exact: true })).toBeVisible();
+  const pointer = JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!);
+  const path = `/api/v1/sessions/${pointer.session}/implementation-readiness`;
+  expect((await page.request.put(path, { data: {
+    revision: 0, evidence_revision: 0, assessment: { checks: [
+      { id: "integration_access", status: "blocked", finding: "Concurrent access blocker" },
+    ] },
+  } })).status()).toBe(200);
+  await page.getByRole("textbox", { name: "Finding — Integration access", exact: true }).fill("Stale local finding");
+  await page.getByRole("button", { name: "Save readiness assessment", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Readiness or evidence changed");
+  page.once("dialog", dialog => dialog.accept());
+  await page.getByRole("button", { name: "Reload readiness", exact: true }).click();
+  await expect(page.getByRole("textbox", { name: "Finding — Integration access", exact: true })).toHaveValue("Concurrent access blocker");
+  await page.route(`**${path}`, async route => {
+    const response = await route.fetch();
+    const body = await response.json();
+    await route.fulfill({ response, json: { ...body, permissions: { ...body.permissions, write: false } } });
+  });
+  await page.getByRole("button", { name: "Reload readiness", exact: true }).click();
+  await expect(page.getByText("Read-only: a contributor must update this assessment.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("textbox", { name: "Finding — Integration access", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Save readiness assessment", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: "Export readiness .md", exact: true })).toBeEnabled();
+});
+
+test("removed readiness evidence links can be cleared without losing the assessment", async ({ page }) => {
+  await intake(page, "🧾 Invoice Approval (Finance)");
+  const pointer = JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!);
+  const base = `/api/v1/sessions/${pointer.session}`;
+  const identifier = randomUUID();
+  expect((await page.request.put(`${base}/evidence`, { data: { revision: 0, entries: [
+    { id: identifier, kind: "client_fact", statement: "Sandbox access requires approval" },
+  ] } })).status()).toBe(200);
+  expect((await page.request.put(`${base}/implementation-readiness`, { data: {
+    revision: 0, evidence_revision: 1, assessment: { checks: [
+      { id: "integration_access", status: "blocked", finding: "Access unavailable", evidence_ids: [identifier] },
+    ] },
+  } })).status()).toBe(200);
+  expect((await page.request.put(`${base}/evidence`, { data: { revision: 1, entries: [] } })).status()).toBe(200);
+  await page.getByRole("button", { name: "Implementation readiness", exact: true }).click();
+  await expect(page.getByText(`Evidence ${identifier} was removed; update this link.`, { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Clear evidence links — Integration access", exact: true }).click();
+  await page.getByRole("button", { name: "Save readiness assessment", exact: true }).click();
+  await expect(page.getByText("Readiness saved.", { exact: false })).toBeVisible();
+  const current = await (await page.request.get(`${base}/implementation-readiness`)).json();
+  expect(current.assessment.checks.find((check: { id: string }) => check.id === "integration_access").evidence_ids).toEqual([]);
+  expect(current.report.decision).toBe("blocked");
+});
+
 test("evidence register links findings, records confirmation, exports and preserves approved snapshots", async ({ page }) => {
   await intake(page, "🧾 Invoice Approval (Finance)", "aws");
   await page.getByRole("button", { name: "Evidence & assumptions", exact: true }).click();

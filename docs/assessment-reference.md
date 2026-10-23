@@ -52,6 +52,67 @@ decisions without a report are labeled as such and are not rewritten.
 Evidence follows existing workspace access, session/archive retention, redaction,
 and workflow/history deletion rules. Never include secrets or sensitive documents.
 
+### Implementation readiness (Phase 2)
+
+Open **Implementation readiness** after intake. The deterministic report assesses
+six required areas: integration access, data/document quality, security/privacy,
+human oversight, Azure/AWS prerequisites, and operations/support. Existing systems,
+region, residency requirements and constraints are reused as context, never as
+proof that access or compliance is validated. Cloud prompts identify appropriate
+identity/model/network/monitoring services, but make no cloud API calls.
+
+For each check record `unknown`, `needs_validation`, `blocked`, or `ready`, a finding,
+up to ten Phase 1 evidence IDs, next action and completion evidence. Owners start
+unassigned or proposed. `client_confirmed` requires a named owner and a confirmation
+reference; this is a user-recorded client attestation, not authenticated acceptance
+by that named person. No delivery dates are inferred.
+
+A reported-ready check is downgraded to needs-validation if it lacks linked,
+source-supported reviewer-confirmed evidence, client-confirmed ownership, or ready
+prerequisite checks. All linked evidence must meet that standard. Deleting/editing
+evidence cannot preserve an unsupported ready conclusion. Missing links remain
+visible as validation needs until a contributor replaces them. Cloud readiness
+depends on security/privacy; operations depends on integrations, data, oversight,
+and cloud prerequisites.
+
+Overall decision precedence:
+
+1. **Blocked:** any explicit blocked check (P0 action).
+2. **Not assessed:** any unknown area, including legacy assessments with no inputs.
+3. **Ready:** all six effective checks are ready and all four pilot fields are supplied.
+4. **Ready with conditions:** no unknown/blocked checks, but validation or pilot
+   definition remains incomplete (P1 actions).
+
+Pilot definition records scope, measurable success/acceptance thresholds, failure
+handling/rollback tests, and authorization boundaries/prohibited actions. The report
+includes prioritized actions with ownership/dependencies, linked evidence and
+attestations, required completion evidence, pilot criteria, assessment time and
+limitations. Supplied criteria are not independently evaluated or certified.
+
+`GET`/`PUT /api/v1/sessions/{session_id}/implementation-readiness` reads/saves the
+assessment. PUT requires both current `revision` and `evidence_revision`, plus
+`assessment: {checks: [...], pilot: {...}}`. Check IDs are fixed and unique; unknown
+fields and dangling new evidence links are rejected. Text is screened/redacted.
+Workspace write access is required; reviewers/viewers may inspect but not edit.
+ETags also prevent cross-feature concurrent overwrites.
+
+Readiness changes invalidate current analysis and approval; exact no-ops do not.
+Intake/interview context changes retain draft answers but reset ready checks to
+needs-validation and client-confirmed owners to proposed. Revalidate and save for
+the new context. Evidence changes invalidate the analysis and recompute effective
+readiness without treating source links as automatic verification.
+
+The standalone report is available before analysis and can be exported as Markdown.
+Reanalysis snapshots readiness in Analysis, Blueprint, overall advisory review,
+Markdown blueprint export, and retained decisions. A standalone export includes
+the current recommendation review status when available. Historical snapshots are
+not rewritten; older decisions without a report are labeled accordingly.
+
+**Suitability and governance are unchanged.** A suitable architecture may still be
+blocked for delivery, and a human architecture approval does not resolve readiness
+blockers or authorize a pilot. No infrastructure, dependency or database migration
+is required. Existing workflow retention, privacy, access and deletion rules apply.
+
 ### Governance and human review
 
 AgentSpark approves **advisory recommendations**, not execution or deployment of a

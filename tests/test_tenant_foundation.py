@@ -147,6 +147,45 @@ class TenantFoundationTests(unittest.TestCase):
         self.call("POST", f"{path}/{entry['id']}/confirm", subject="personal",
                   body={"revision": 1, "method": "Checked source"}, reviewer=True)
 
+    def test_readiness_uses_current_team_roles_and_review_snapshot(self):
+        organization, team = self.organization()
+        self.member(organization, team, "creator", ["contributor", "reviewer"])
+        self.member(organization, team, "reviewer", ["reviewer"])
+        self.member(organization, team, "viewer", ["viewer"])
+        session = self.draft(organization, team, "creator")
+        path = f"/sessions/{session}/implementation-readiness"
+        scope = {"organization": organization, "team": team, "reviewer": False}
+        body = {"revision": 0, "evidence_revision": 0, "assessment": {"checks": [{
+            "id": "integration_access", "status": "blocked", "finding": "Sandbox access unavailable"}]}}
+        for subject, status in (("reviewer", 403), ("viewer", 403), ("outsider", 404)):
+            self.call("PUT", path, subject=subject, body=body, status=status, **scope)
+        saved = self.call("PUT", path, subject="creator", body=body, **scope)
+        viewed = self.call("GET", path, subject="viewer", **scope)
+        self.assertFalse(viewed["permissions"]["write"])
+        self.assertEqual(viewed["report"]["decision"], "blocked")
+        self.call("GET", path, subject="creator", status=404)
+        analysis = self.call("POST", f"/analyze/{session}", subject="creator", **scope)
+        self.call("POST", f"/review/{session}", subject="creator", body=self.review_body(analysis["analysis_id"]),
+                  status=403, **scope)
+        self.call("POST", f"/review/{session}", subject="reviewer", body=self.review_body(analysis["analysis_id"]), **scope)
+        archive = self.call("GET", f"/decisions/{session}/{analysis['analysis_id']}", subject="viewer", **scope)
+        self.assertEqual(archive["details"]["readiness_report"], analysis["readiness_report"])
+        grant = next(item for item in self.call("GET", f"/organizations/{organization}/teams/{team}/members")["items"]
+                     if item["identity_id"] == self.identity("creator"))
+        self.call("PUT", f"/organizations/{organization}/teams/{team}/members/{self.identity('creator')}",
+                  body={"roles": ["viewer"], "version": grant["version"]})
+        self.call("PUT", path, subject="creator", body={**body, "revision": saved["revision"]}, status=403, **scope)
+
+    def test_personal_readiness_is_owner_private_and_requires_authentication(self):
+        session = self.draft(subject="personal")
+        path = f"/sessions/{session}/implementation-readiness"
+        self.call("GET", path, subject="personal", reviewer=False)
+        self.call("GET", path, subject="other", status=404)
+        body = {"revision": 0, "evidence_revision": 0, "assessment": {"checks": []}}
+        self.call("PUT", path, subject="other", body=body, status=404)
+        self.call("PUT", path, subject="personal", body=body, reviewer=False)
+        self.assertEqual(self.client.get("/api/v1" + path).status_code, 401)
+
     def test_self_service_owner_and_directory_survive_real_process_restart(self):
         organization, _ = self.organization()
         organizations = self.call("GET", "/organizations")

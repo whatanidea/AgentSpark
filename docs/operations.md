@@ -81,6 +81,38 @@ No infrastructure, index, dependency, or database migration is needed.
 Model-assisted wording is tested through mocked generation contracts; offline
 tests do not establish live model quality or independently validate evidence.
 
+## Phase 2 implementation readiness acceptance
+
+1. In a fictional workflow, open **Implementation readiness**. Confirm six areas,
+   the selected Azure/AWS cloud prompts, inherited systems/region/constraints, and
+   **Not assessed** until all required areas have findings.
+2. Record a missing sandbox integration as blocked, with a proposed owner, next
+   action and completion evidence. Supply the four pilot-definition fields.
+   Save/reload; verify a P0 action and **Blocked** report.
+3. Link a source-supported finding from Phase 1 and report a check ready before
+   reviewer confirmation. Expect effective needs-validation, not ready. Have an
+   independent team reviewer attest to the finding and record a client-confirmed
+   owner/reference. Inspect dependencies; do not imply that the named client has
+   authenticated or that AgentSpark tested the integration.
+4. Check decision precedence and all-ready criteria. Leave a pilot field blank:
+   **Ready with conditions** and a pilot-definition action must remain. Cloud/model
+   availability, quotas, networking and residency require external validation.
+5. Run analysis, inspect readiness in Analysis/Blueprint, and have another reviewer
+   decide the advisory recommendation. Inspect standalone and blueprint Markdown
+   exports and the Home archive snapshot for the same inputs and reviewer context.
+6. Edit readiness after analysis; current analysis/approval must clear and the old
+   archive must stay unchanged. Edit/remove linked evidence; unsupported ready
+   checks must require validation. Change cloud or interview context; ready checks
+   become needs-validation and confirmed owners become proposed.
+7. Verify viewers/reviewers cannot edit readiness, creator self-review remains
+   denied, revoked grants take immediate effect, and cross-workspace reads fail.
+   Two stale tabs must produce HTTP 409 with an explicit reload, not an overwrite.
+
+The report is advisory and does not change suitability scoring, governance rules
+or authorize deployment. No live cloud validation, uploads, new infrastructure,
+dependency changes or migration is included. Automated browser tests run in shared
+local-demo identity; signed-role backend tests cover real authorization boundaries.
+
 ## Supported toolchain and repeatable checks
 
 - Python 3.12 and Node 24; see [.python-version](../.python-version) and
