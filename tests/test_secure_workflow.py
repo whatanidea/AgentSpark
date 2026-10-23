@@ -175,7 +175,12 @@ class PrivacyRetentionTests(unittest.TestCase):
 
     def test_pii_redacted_before_chat_model_storage_and_echo(self):
         raw = "Contact alice@example.com or 123-45-6789; password=hunter2"
-        with patch.object(routes.diagnostic_agent, "chat", return_value="Reply to bob@example.com") as model:
+        from app.utils.models import WorkflowDiagnosis
+        diagnosis = WorkflowDiagnosis.model_validate({
+            "intelligence": {"workflow_name": "Fictional", "summary": "Reply to bob@example.com"},
+            "evidence": {"summary": {"status": "supplied", "source": "interview", "quote": "Reply to bob@example.com"}},
+        })
+        with patch.object(routes.diagnostic_agent, "analyze_chat_history", return_value=diagnosis) as model:
             response = self.client.post("/api/v1/chat", json={"session_id": self.sid, "message": raw})
         self.assertEqual(response.status_code, 200)
         serialized = json.dumps(db_client.mock_db[self.sid])
@@ -303,7 +308,7 @@ class PrivacyRetentionTests(unittest.TestCase):
             db.check_ready()
 
     def test_unexpected_api_failure_withholds_details_even_from_server_logging(self):
-        with patch.object(routes.diagnostic_agent, "chat", side_effect=RuntimeError("alice@example.com password=secret")), \
+        with patch.object(routes.diagnostic_agent, "analyze_chat_history", side_effect=RuntimeError("alice@example.com password=secret")), \
                 self.assertLogs("app.api.middleware", level="ERROR") as captured:
             response = self.client.post("/api/v1/chat", json={"session_id": self.sid, "message": "Hello"})
         self.assertEqual(response.status_code, 500)

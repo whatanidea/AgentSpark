@@ -132,7 +132,7 @@ class APIValidationTests(unittest.TestCase):
 
     def test_live_chat_failure_does_not_save_a_placeholder_exchange(self):
         session_id = str(uuid4())
-        with patch.object(routes.diagnostic_agent, "chat", side_effect=DependencyUnavailable("openai")):
+        with patch.object(routes.diagnostic_agent, "analyze_chat_history", side_effect=DependencyUnavailable("openai")):
             response = self.client.post("/api/v1/chat", json={
                 "session_id": session_id, "message": "Describe a workflow",
             })

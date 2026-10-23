@@ -181,6 +181,17 @@ export type Diagnosis = {
   follow_up_questions: string[];
   data_completeness: number;
 };
+export type InterviewField = {
+  id: string; label: string; question: string; group: string;
+  kind: "text" | "number" | "select"; options: string[]; max_length: number;
+};
+export type InterviewProgress = {
+  version: string; rounds_used: number; max_rounds: number; limit_reached: boolean; can_chat: boolean;
+  questions: string[]; missing_fields: string[]; missing_facts: string[];
+  fields: InterviewField[]; answers: Record<string, string>; permissions: Permissions;
+};
+export type ChatResponse = { status: "blocked"; response: string } |
+  { status: "success"; response: string; message: string; interview: InterviewProgress };
 export type Readiness = {
   status: "ready" | "degraded";
   ready: boolean;
@@ -252,6 +263,9 @@ export const api = {
   authConfig: (): Promise<AuthConfig> => get("/auth/config"),
   me: (): Promise<Identity> => get("/auth/me"),
   session: (id: string): Promise<SessionSnapshot> => get(`/sessions/${encodeURIComponent(id)}`),
+  interview: (id: string): Promise<InterviewProgress> => get(`/sessions/${encodeURIComponent(id)}/interview`),
+  saveInterview: (id: string, version: string, answers: Record<string, string>): Promise<InterviewProgress> =>
+    request(`/sessions/${encodeURIComponent(id)}/interview`, "PUT", { version, answers }),
   evidence: (id: string): Promise<EvidenceRegisterResponse> => get(`/sessions/${encodeURIComponent(id)}/evidence`),
   saveEvidence: (id: string, revision: number, entries: EvidenceInput[]): Promise<EvidenceRegisterResponse> =>
     request(`/sessions/${encodeURIComponent(id)}/evidence`, "PUT", { revision, entries }),
@@ -279,7 +293,8 @@ export const api = {
     return response.json();
   },
   intake: (body: any) => post("/intake", body),
-  chat: (session_id: string, message: string, demo_scenario?: DemoScenario) => post("/chat", { session_id, message, demo_scenario }),
+  chat: (session_id: string, message: string, demo_scenario?: DemoScenario): Promise<ChatResponse> =>
+    post("/chat", { session_id, message, demo_scenario }),
   analyze: (session_id: string, roi_assumptions?: ROIAssumptions) => post(`/analyze/${session_id}`, { roi_assumptions }),
   blueprint: (session_id: string) => get(`/blueprint/${session_id}`),
   blueprintPdf: async (id: string, analysis_id: string, status: string): Promise<Blob> => {

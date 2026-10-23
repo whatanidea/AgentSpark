@@ -381,8 +381,21 @@ Structured agent output uses function calling (not strict JSON-schema mode),
 because Azure strict mode rejects the optional fields in the app's schemas. The
 Diagnostic Agent retries extraction once if a "supplied" fact's quote isn't
 found verbatim (ignoring whitespace and typographic punctuation) in the user
-input. If the second attempt also fails, `/analyze` returns 502. App logs name
-the affected facts, not their content.
+input. This also applies to live guided-chat deployment/readiness/pilot capture.
+If the second attempt also fails, `/chat` or uncached `/analyze` returns 502.
+App logs name recognized affected fields, never their content or unknown
+model-generated field names.
+
+For guided-interview acceptance, verify the visible round counter, a maximum of
+three related questions, omission of known facts and a hard stop at round ten.
+Reload must preserve the limit; an eleventh API chat request must return 409
+without calling the model or changing history. Complete missing fields through
+the editable checklist, rerun analysis and export a PDF. Confirm saved deployment
+constraints and draft readiness findings appear, but no automatic evidence,
+owner confirmations, Ready status or human approval is created.
+Exercise stale checklist saves (409 with unsaved edits retained), invalid counts,
+read-only team access and blocked/failed turns not consuming the budget. A changed
+checklist invalidates current analysis/approval; archived decisions stay unchanged.
 
 Users sign in with **Sign in with Microsoft** (MSAL pop-up, authorization code + PKCE,
 configured by `AUTH_SPA_CLIENT_ID`, `AUTH_SPA_AUTHORITY` and `AUTH_SPA_SCOPE`;

@@ -435,13 +435,64 @@ Before a multi-organization rollout, validate the indexing,
 cross-partition query costs, tenant isolation, membership/RBAC and load profile
 against real Cosmos infrastructure.
 
+### Bounded diagnostic interview and readiness capture
+
+Diagnostic now covers workflow suitability, deployment preferences, all six
+implementation-readiness areas and four pilot fields in one guided flow.
+Questions are selected deterministically from missing saved fields: up to three
+related questions per round, skipping already captured answers. There are **at
+most 10 successful user/assistant rounds per workflow**, enforced by the API
+and preserved on restore. Blocked inputs and failed requests do not consume a
+round. Long legacy histories are retained, but cannot add rounds beyond the cap.
+Capture can finish early when every field is supplied.
+
+After round 10, automatic questions stop. The Diagnostic page opens a grouped
+editable checklist showing only unanswered fields by default; users can reveal
+and correct captured answers. Counts accept whole nonnegative numbers, signal
+fields use explicit choices, and comma-separated systems/departments accept
+`none` for an explicitly empty list. No additional conversational rounds are
+required to finish. Missing essential facts still withhold scoring, ROI and
+blueprints; optional deployment/readiness gaps remain explicitly unresolved.
+
+Live turns use structured extraction with the existing verbatim-quote checks,
+not a free-form follow-up generator. Deployment, readiness and pilot capture
+requires exact supporting user/intake quotes; region codes must appear in their
+quote. Assistant suggestions cannot supply evidence. Earlier supplied facts are
+retained when omitted by a later extraction; explicit inferred/withdrawn facts
+require clarification. Checklist edits take precedence and have `checklist`
+provenance. Analysis reuses saved guided facts instead of extracting them again.
+
+Captured readiness text fills empty findings as **Needs validation**, without
+creating evidence entries, confirmed owners, reviewer attestations or Ready
+statuses. Existing manually assessed findings are not overwritten by chat.
+Users must review findings and add actual evidence/ownership in the readiness
+and evidence pages. Captured deployment constraints populate the structured
+Enterprise Context; the selected cloud remains authoritative and unchanged.
+Chat and changed checklist saves invalidate current analysis/approval and
+revalidate existing readiness commitments. Archived decisions remain intact.
+Intake changes clear cached extraction and supersede checklist systems/compliance
+when those intake fields change; they never reset the round budget.
+
+`GET /api/v1/sessions/{session_id}/interview` returns progress, catalog, current
+answers and an opaque `version`. `PUT` accepts that version and a partial
+`answers` map keyed by the catalog IDs. Stale edits return 409 without replacing
+answers; invalid keys/types/limits return 422. Authentication, owner/workspace
+permissions, privacy redaction, expiry and conditional persistence apply.
+After the cap, `POST /chat` returns 409 directing users to the checklist.
+
+Demo chat still uses explicitly selected fictional fixtures, not extraction of
+arbitrary messages. In demo mode use the checklist for readiness/deployment
+drafts; explicitly entered checklist facts can override fixture facts and are
+labeled as checklist inputs, not model-extracted facts.
+
 ### Privacy scope
 
 Intake and diagnostic messages are screened, and recognized email/phone/card/SSN
 and credential patterns are redacted **before model calls**, storage, and API
 echoes. Nested recommendation content is sanitized on save/read; blocked prompts
 are not saved in the interview or event preview. Events retain only scanner
-findings (last 100); interviews are capped at 100 stored messages. API validation
+findings (last 100); new interviews are capped at 10 successful rounds (20 stored
+messages). Longer legacy transcripts are retained but cannot add rounds. API validation
 errors omit input values, operational API/dependency errors withhold raw exception
 content, and API responses set `Cache-Control: no-store`.
 
@@ -490,8 +541,9 @@ The 14 essential facts are workflow name, summary, steps, departments, decision
 points, systems, weekly exceptions, daily volume, compliance sensitivity, data
 availability, rule stability, human judgment, unstructured content, and error cost.
 Explicit zero counts and explicitly empty systems/departments are valid; omitted
-defaults are not. Supplied live facts require a verbatim quote in user interview
-input or intake context. Assistant statements and demo sources cannot ground live
+defaults are not. Supplied live extraction requires a verbatim quote in user interview
+input or intake context; explicit checklist facts carry separate checklist provenance.
+Assistant statements and demo sources cannot ground live
 extraction. Unverifiable supplied quotations fail explicitly (`502`).
 **Supplied means reported, not independently verified**: quote matching does not
 prove the model interpreted the statement correctly. Review the evidence and
@@ -500,7 +552,8 @@ validate actual workload baselines before relying on a recommendation.
 Demo requests explicitly select `demo_scenario: "invoice" | "support" | "claims" |
 "payroll"` on intake or chat. The UI's sample actions set this in demo mode.
 Fixtures are labeled fictional and **do not adapt to interview text or edits to
-intake**. Clear the selection for an unselected demo session, or restart in live
+intake**. Explicit checklist answers can override individual facts, with their own
+provenance. Clear the selection for an unselected demo session, or restart in live
 mode to analyze your own input. Live requests cannot select fixtures (`422`);
 live sample buttons only populate intake templates.
 
