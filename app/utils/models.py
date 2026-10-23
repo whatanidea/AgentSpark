@@ -250,7 +250,7 @@ class EnterpriseContext(BaseModel):
 
 # ──────────────────────────────────────────────────────────────
 # Portfolio — a scored workflow within a multi-workflow analysis,
-# so AgentSense can rank a whole transformation backlog.
+# so AgentSpark can rank a whole transformation backlog.
 # ──────────────────────────────────────────────────────────────
 class TokenUsage(BaseModel):
     total_tokens: int = 0

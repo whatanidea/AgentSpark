@@ -1,7 +1,7 @@
 """
 Curated library of agentic design patterns.
 
-This is the knowledge base AgentSense retrieves over (via Azure AI Search when
+This is the knowledge base AgentSpark retrieves over (via Azure AI Search when
 configured, or locally in mock mode). Each pattern is a vetted, reusable design
 with explicit "when to use" guidance and the Azure services it maps to.
 

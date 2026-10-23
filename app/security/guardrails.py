@@ -1,5 +1,5 @@
 """
-Input guardrails for AgentSense.
+Input guardrails for AgentSpark.
 
 An agent that advises enterprises on safe agentic adoption must itself be hardened.
 Every user message entering the Diagnostic Agent is screened for:

@@ -13,8 +13,21 @@ spends a single sprint "agentifying" a workflow, AgentSpark answers four questio
 It is a **meta-agent**: a multi-agent system whose job is to design *other* agentic systems
 responsibly — including telling you when the honest answer is "don't use an agent here."
 
-Existing `AGENTSENSE_*` configuration keys, the `AgentSense.Reviewer` role, and
-repository/package identifiers remain unchanged for compatibility.
+Repository: [whatanidea/AgentSpark](https://github.com/whatanidea/AgentSpark).
+The frontend package, container image title, and new CI release artifacts use
+AgentSpark branding.
+
+Existing `AGENTSENSE_*` configuration keys, the `AgentSense.Reviewer` role value,
+the `agentsense_db` database, browser session/event identifiers, and the container
+account/archive path remain unchanged for compatibility. Renaming them without
+migration would break existing configuration, sign-in roles, or retained data.
+
+### Project provenance
+
+AgentSpark builds on the original
+[AgentSense project by Shriram K Vasudevan](https://github.com/shriramkv/The-AgentSense).
+Original commit history, contributor credits, and authorship notices are retained.
+The GitHub repository has been renamed; its fork connection has not been removed.
 
 ---
 
@@ -26,7 +39,7 @@ A seven-stage pipeline orchestrated with **LangGraph**:
 |---|-------|-------------------|--------|
 | 1 | Diagnose | **Diagnostic Agent** | Workflow facts with supplied/inferred/missing evidence; incomplete inputs return follow-up questions and stop |
 | 2 | Score | **Scoring Engine** | Agentification Readiness Index — 12 weighted, explained criteria |
-| 3 | Map | **Mapping Agent** | Recommended Microsoft Azure service stack |
+| 3 | Map | **Mapping Agent** | Recommended Azure or AWS service candidates for the selected assessment target |
 | 4 | Recommend | **Recommendation Agent** | Readiness-constrained design with pattern IDs, source snapshots, completeness and self-critique |
 | 5 | Estimate | **ROI Engine** | Explicit assumptions and conservative/base/optimistic labor-effort scenarios |
 | 6 | Govern | **Governance Agent** | Validated, ordered policies over risk, completeness, autonomy, and actual first-year ROI |

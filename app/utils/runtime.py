@@ -26,7 +26,7 @@ def load_settings() -> RuntimeSettings:
     except ValidationError:
         logger.exception("AGENTSENSE_MODE must be demo or live.")
         raise
-    logger.info("AgentSense runtime mode: %s", result.mode)
+    logger.info("AgentSpark runtime mode: %s", result.mode)
     return result
 
 

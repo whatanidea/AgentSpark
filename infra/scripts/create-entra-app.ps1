@@ -52,7 +52,7 @@ $body = @{
     appRoles = @(@{
         id = $roleId; value = 'AgentSense.Reviewer'; isEnabled = $true
         allowedMemberTypes = @('User')
-        displayName = 'AgentSense Reviewer'
+        displayName = 'AgentSpark Reviewer'
         description = 'Can approve or reject team workflows they did not create.'
     })
 }
@@ -101,4 +101,4 @@ if (-not $grant) {
 
 azd env set AUTH_AUDIENCE $appId | Out-Null
 Write-Host "AUTH_AUDIENCE=$appId stored in the azd environment."
-Write-Host "Assign 'AgentSense Reviewer' to reviewer users under Enterprise applications > $DisplayName > Users and groups."
+Write-Host "Assign the reviewer app role (value 'AgentSense.Reviewer'; display name 'AgentSpark Reviewer' after this script runs) under Enterprise applications > $DisplayName > Users and groups."

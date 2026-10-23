@@ -1,7 +1,7 @@
 """
 Portfolio scoring — rank a backlog of workflows by agentification readiness.
 
-This turns AgentSense from a single-workflow advisor into a transformation
+This turns AgentSpark from a single-workflow advisor into a transformation
 portfolio planner: feed it several candidate workflows and it ranks where agents
 deliver the most value first. Every score here is COMPUTED by the same 12-criteria
 engine used in the main flow — none are hard-coded.
