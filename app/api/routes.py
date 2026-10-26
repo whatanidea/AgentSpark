@@ -6,9 +6,14 @@ from typing import Literal, Annotated
 from app.utils.models import (
     HumanReview, SessionId, SignalLevel, DemoScenario, ROIAssumptions, CloudProvider,
     EvidenceInput, EvidenceEntry, EvidenceConfirmation, ReadinessAssessment,
+    WorkflowDiagnosis, InterviewDiagnosis,
+)
+from app.utils.interview import (
+    apply_answers, merge_diagnosis, interview_progress, interview_reply, MAX_INTERVIEW_ROUNDS,
 )
 from app.utils.readiness import build_readiness_report, readiness_catalog
 from app.utils.pdf_report import build_blueprint_pdf
+from app.utils.errors import InvalidDependencyResponse
 from app.agents.cloud_catalog import pattern_for_cloud
 from app.utils.runtime import demo_mode
 
@@ -129,6 +134,44 @@ class ReadinessRequest(RequestModel):
     revision: int = Field(ge=0, strict=True)
     evidence_revision: int = Field(ge=0, strict=True)
     assessment: ReadinessAssessment
+
+
+class InterviewRequest(RequestModel):
+    version: str = Field(min_length=1, max_length=1000)
+    answers: dict[str, Annotated[str, Field(max_length=2000)]] = Field(max_length=32)
+
+
+def interview_response(state):
+    return {**interview_progress(state), "permissions": db_client.permissions(state)}
+
+
+@router.get("/sessions/{session_id}/interview")
+def get_interview(session_id: SessionId):
+    return interview_response(db_client.get_workflow_state(session_id))
+
+
+@router.put("/sessions/{session_id}/interview")
+def save_interview(session_id: SessionId, req: InterviewRequest):
+    state = db_client.get_workflow_state(session_id)
+    db_client._authorize(state, "write")
+    if req.version != state._etag:
+        raise HTTPException(409, "Interview or assessment changed; reload before saving.")
+    if any(not scan_input(text).safe for text in req.answers.values()):
+        raise HTTPException(422, "Interview checklist contains instruction-override content. Please rephrase.")
+    if state.interview_diagnosis is None and state.diagnosis is not None:
+        state.interview_diagnosis = state.diagnosis.model_copy(deep=True)
+    before = state.model_dump(mode="json")
+    try:
+        apply_answers(state, redact_data(req.answers))
+    except (ValidationError, ValueError) as exc:
+        raise HTTPException(422, "Invalid checklist answer. Check whole-number counts, signal choices, "
+                            "region code and field length limits.") from exc
+    if before == state.model_dump(mode="json"):
+        return interview_response(state)
+    state.invalidate_analysis()
+    state.invalidate_readiness_context()
+    db_client.save_workflow_state(state)
+    return interview_response(state)
 
 
 def readiness_response(state):
@@ -279,6 +322,10 @@ def save_intake(req: IntakeRequest):
             setattr(state.enterprise_context, field, redact_pii(getattr(req, field)))
     if state._etag is not None and previous_context != (state.enterprise_context.model_dump(), state.demo_scenario):
         state.invalidate_readiness_context()
+        state.interview_diagnosis = None
+        for context_key, fact in (("existing_systems", "systems"), ("compliance_requirements", "compliance_sensitivity")):
+            if previous_context[0][context_key] != getattr(state.enterprise_context, context_key):
+                state.interview_answers.pop(fact, None)
     db_client.save_workflow_state(state)
     return {"status": "success", "session_id": req.session_id,
             "enterprise_context": state.enterprise_context.model_dump()}
@@ -307,18 +354,37 @@ def chat_interaction(req: ChatRequest):
         return {"status": "blocked", "response": warning, "guardrail": guard.model_dump()}
 
     # Diagnostic Agent answers grounded in the intake context. PII is redacted before storage.
-    if len(state.chat_history) + 2 > 100:
-        raise HTTPException(status_code=409, detail="Session interview limit reached. Start a new workflow.")
+    if sum(item.get("role") == "user" for item in state.chat_history) >= MAX_INTERVIEW_ROUNDS:
+        raise HTTPException(status_code=409, detail="The 10-round interview limit is reached. "
+                            "Complete remaining answers in the editable Diagnostic checklist.")
+    if not interview_progress(state)["can_chat"]:
+        raise HTTPException(409, "Interview capture is complete. Review the checklist or run analysis.")
     scenario = req.demo_scenario or state.demo_scenario
     message = redact_pii(req.message)
-    response_text = redact_pii(diagnostic_agent.chat(message, state.chat_history, state.enterprise_context, scenario))
+    diagnosis = diagnostic_agent.analyze_chat_history(
+        state.chat_history + [{"role": "user", "content": message}],
+        state.enterprise_context, scenario, include_readiness=True)
+    previous_diagnosis = state.interview_diagnosis or state.diagnosis
     state.invalidate_analysis()
     state.invalidate_readiness_context()
+    state.interview_diagnosis = merge_diagnosis(previous_diagnosis,
+        WorkflowDiagnosis.model_validate(redact_data(diagnosis.model_dump())))
+    if isinstance(diagnosis, InterviewDiagnosis):
+        try:
+            apply_answers(state, redact_data({key: answer.value for key, answer in diagnosis.answers.items()}), captured=True)
+        except ValueError as exc:
+            raise InvalidDependencyResponse("openai") from exc
     state.demo_scenario = scenario
     state.chat_history.append({"role": "user", "content": redact_pii(req.message)})
+    response_text = redact_pii(interview_reply(state))
+    if demo_mode():
+        label = f"[Demo fixture: {scenario}] " if scenario else "Demo mode: "
+        response_text = (label + "Uses the selected fictional fixture for suitability, not extraction from free text. "
+                         "Enter readiness and deployment answers in the checklist.\n" + response_text)
     state.chat_history.append({"role": "assistant", "content": response_text})
     db_client.save_workflow_state(state)
-    return {"status": "success", "response": response_text, "message": message, "guardrail": guard.model_dump()}
+    return {"status": "success", "response": response_text, "message": message, "guardrail": guard.model_dump(),
+            "interview": interview_response(state)}
 
 
 @router.post("/analyze/{session_id}")

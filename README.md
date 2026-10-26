@@ -17,7 +17,8 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
 
 ## What you can do
 
-- **Assess a workflow:** capture its systems, volume, exceptions, decisions, and risks.
+- **Assess a workflow:** use up to 10 grouped interview rounds for suitability and
+  draft readiness, then finish missing answers in an editable checklist.
 - **Choose Azure or AWS:** receive service candidates and a blueprint for the
   proposed customer solution. AgentSpark itself remains Azure-hosted.
 - **Inspect the recommendation:** review the 12-criteria readiness score, grounded
