@@ -25,6 +25,11 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   library. Use **Product overview** to return without discarding active work.
 - **Assess a workflow:** use up to 10 grouped interview rounds for suitability and
   draft readiness, then finish missing answers in an editable checklist.
+- **Select the assessment model before interviewing:** choose an administrator-enabled
+  Azure OpenAI or Anthropic-on-Azure-Foundry connection at intake. One model is pinned
+  per assessment after generation begins; no provider fallback is used. Saved state,
+  archived decisions and PDFs retain the model identity. Historical records without
+  provenance are labelled as such; demo fixtures never call either provider.
 - **Choose Azure or AWS:** receive service candidates and a blueprint for the
   proposed customer solution. AgentSpark itself remains Azure-hosted.
 - **Inspect the recommendation:** review the 12-criteria readiness score, grounded

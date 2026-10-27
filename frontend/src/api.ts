@@ -8,6 +8,14 @@ export function setAccessToken(token: string) { accessToken = token; }
 export function setTokenProvider(provider: typeof tokenProvider) { tokenProvider = provider; }
 export type Permissions = { read: boolean; write: boolean; review: boolean; delete: boolean };
 export type CloudProvider = "azure" | "aws";
+export type InferenceModel = {
+  id: "azure-openai" | "foundry-claude-haiku" | "demo";
+  provider: string; model: string; deployment: string; version: string; configuration: string;
+};
+export type ModelCatalog = {
+  mode: "demo" | "live";
+  items: { id: InferenceModel["id"]; label: string; available: boolean; reason: string; definition: InferenceModel | null }[];
+};
 export type DeploymentPreferences = {
   target_cloud: CloudProvider; preferred_region: string; data_residency_requirements: string; deployment_constraints: string;
 };
@@ -59,6 +67,7 @@ export type HomePage = { items: HomeItem[]; next_cursor: string | null; archive_
 export type ArchivedDecision = {
   summary: HomeItem;
   details: {
+    inference_model?: InferenceModel | null;
     deployment_preferences?: DeploymentPreferences;
     cloud_mapping?: Record<string, unknown> | null;
     evidence_report?: EvidenceReport | null;
@@ -237,6 +246,7 @@ const get = (path: string) => request(path);
 const post = (path: string, body: unknown) => request(path, "POST", body);
 
 export const api = {
+  models: (): Promise<ModelCatalog> => get("/models"),
   organizations: (cursor = ""): Promise<DirectoryPage<Organization>> =>
     get(`/organizations?${new URLSearchParams({ cursor })}`),
   createOrganization: (name: string): Promise<Organization> => post("/organizations", { name }),

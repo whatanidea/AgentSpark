@@ -8,7 +8,7 @@ from app.utils.models import (
     DesignFamily, AutonomyLevel, GovernanceDecision,
     CloudProvider,
 )
-from app.utils.llm import get_chat_llm, structured_call
+from app.utils.llm import get_chat_llm, structured_call, model_dependency
 from app.utils.runtime import demo_mode
 from app.utils.errors import InvalidDependencyResponse
 from app.agents.cloud_catalog import CLOUD_NAMES, LIMITATIONS, has_foreign_services
@@ -133,7 +133,7 @@ class BlueprintAgent:
                                           result.cost_estimate, result.code_scaffold)),
                                 context.target_cloud, external_systems):
             logger.error("Blueprint introduced another cloud's services without a declared external integration.")
-            raise InvalidDependencyResponse("openai")
+            raise InvalidDependencyResponse(model_dependency())
         if (result.target_cloud != context.target_cloud
                 or result.design_family != recommendation["design_family"]
                 or result.autonomy_level != score.autonomy_level
@@ -142,7 +142,7 @@ class BlueprintAgent:
                 or len(result.pattern_ids) != len(set(result.pattern_ids))
                 or result.governance_decision != governance["decision"]):
             logger.error("Blueprint contradicted the prescribed design, sources, autonomy, or policy outcome.")
-            raise InvalidDependencyResponse("openai")
+            raise InvalidDependencyResponse(model_dependency())
         out = result.model_dump()
         out["target_cloud"] = context.target_cloud
         out["deployment_preferences"] = {

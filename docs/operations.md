@@ -1,5 +1,55 @@
 # Delivery and operations runbook
 
+## Assessment inference models
+
+New live assessments require an approved model ID at intake, before interviewing.
+`GET /api/v1/models` is authenticated and returns identities/availability, never
+keys or endpoint URLs. The approved IDs are `azure-openai` and
+`foundry-claude-haiku`; `demo` is only available in deterministic demo mode.
+Inference selection is independent of the customer's Azure/AWS blueprint target.
+
+Claude rollout is deferred: keep `FOUNDRY_CLAUDE_ENABLED=false` and do not purchase
+or deploy the paid Marketplace model. The live selector keeps Claude visible but
+disabled with a "Coming soon" label and a mouse-hover/keyboard-focus tooltip.
+Azure OpenAI remains selectable when configured; there is no Claude inference or
+automatic fallback while disabled. Existing Azure credit eligibility and balances
+are governed by the subscription's terms, not by this selector.
+
+The existing Azure OpenAI settings remain the legacy default. To enable Claude,
+deploy the Azure-hosted model, store its key in Key Vault, and configure
+`FOUNDRY_CLAUDE_ENABLED=true`, `AZURE_ANTHROPIC_ENDPOINT` (HTTPS Foundry account root,
+without `/anthropic`), `AZURE_ANTHROPIC_API_KEY`, and
+`AZURE_ANTHROPIC_DEPLOYMENT`. Record its exact identity with
+`AZURE_ANTHROPIC_MODEL_NAME` and `AZURE_ANTHROPIC_MODEL_VERSION`.
+Restart after connection/key changes. `.env.example` lists these settings.
+
+`infra/claude.bicep` is an **optional standalone resource-group deployment**; the
+existing application stack does not automatically deploy or purchase Claude.
+It targets consumption-based, Azure-hosted Haiku 5.5 version 2 with no automatic
+version upgrade. Its capacity parameter is a rate limit, **not a spending cap**.
+Verify Marketplace eligibility, current prices, supported geography, and terms
+before deploying. Use real deploying-entity onboarding details; the organization
+name is a secure parameter and must not be committed.
+
+Once generation starts the assessment's connection identity is pinned. Changes to
+that connection fail explicitly rather than switching models. Start a new
+assessment to compare models. Key rotation alone does not change provenance;
+restart to refresh cached clients. Historical reports without a recorded identity
+say so. Deterministic scoring/ROI formulas and embeddings do not follow the chat
+selector; model extraction and narrative outputs can differ.
+
+`python -B scripts/check.py` and the browser suite remain deterministic and make
+no billable model calls. The opt-in `scripts/check_live_claude.py` uses real Claude
+for interview, analysis, AWS blueprint, PDF and archive checks, with **local
+isolated auth/storage/pattern fixtures**, not production infrastructure. Supply
+`--subscription`, `--resource-group`, `--account`, and optionally `--deployment`.
+It captures the account key in memory, rejects budgets above USD 2, reserves
+conservative byte/output-token bounds **before** each request, disables SDK
+retries, limits request count/context size, and deletes its synthetic workflow.
+Run only after checking current rates: its conservative USD 1/5 per million
+input/output assumptions must remain above the deployed model's actual prices.
+This runner is not an Azure subscription-wide spending cap.
+
 ## Repository identity and compatibility
 
 The repository is now [whatanidea/AgentSpark](https://github.com/whatanidea/AgentSpark).

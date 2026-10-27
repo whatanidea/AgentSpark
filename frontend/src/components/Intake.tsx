@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, uid } from "../api";
+import { api, uid, type InferenceModel, type ModelCatalog } from "../api";
 import { Card, Button } from "./ui";
 import Icon, { type IconName } from "./Icon";
 
@@ -45,20 +45,27 @@ const SAMPLE_PRESENTATION: Record<string, { name: string; detail: string; icon: 
   payroll: { name: "Payroll Calculation", detail: "A standard-software alternative", icon: "payroll" },
 };
 
-export default function Intake({ sessionId, initialContext, onSaved, onBusyChange }: any) {
+export default function Intake({ sessionId, initialContext, initialModel, modelLocked, onSaved, onBusyChange }: any) {
   const [form, setForm] = useState<any>({ ...EMPTY, ...initialContext });
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<"demo" | "live" | null>(null);
   const [confirmChange, setConfirmChange] = useState(false);
+  const [catalog, setCatalog] = useState<ModelCatalog | null>(null);
+  const [modelId, setModelId] = useState<InferenceModel["id"] | "">(initialModel?.id || "");
 
   useEffect(() => {
     api.health().then((health) => setMode(health.mode)).catch((e: Error) => setMsg(e.message));
+    api.models().then(result => {
+      setCatalog(result);
+      if (result.mode === "demo") setModelId("demo");
+    }).catch((e: Error) => setMsg(`Model catalog could not be loaded: ${e.message}`));
   }, []);
 
   const set = (k: string) => (e: any) => setForm({ ...form, [k]: e.target.value });
 
   async function submit() {
+    if (!modelId && !modelLocked) { setMsg("Select the assessment model before the interview."); return; }
     if (!form.target_cloud) { setMsg("Select the target cloud for this assessment."); return; }
     if (!/^[a-z0-9-]{0,100}$/.test(form.preferred_region)) { setMsg("Use lowercase letters, numbers and hyphens for the region."); return; }
     if (sessionId && initialContext && !confirmChange && [
@@ -70,7 +77,7 @@ export default function Intake({ sessionId, initialContext, onSaved, onBusyChang
     setMsg("");
     try {
       const sid = sessionId || uid();
-      const saved = await api.intake({ session_id: sid, ...form });
+      const saved = await api.intake({ session_id: sid, ...form, ...(modelId ? { model_id: modelId } : {}) });
       setForm({ ...saved.enterprise_context, demo_scenario: form.demo_scenario });
       await onSaved(sid);
     } catch (e: any) {
@@ -111,6 +118,38 @@ export default function Intake({ sessionId, initialContext, onSaved, onBusyChang
           {" "}<button className="underline underline-offset-2 font-semibold" disabled={busy} onClick={() => setForm({ ...form, demo_scenario: null })}>Clear sample selection</button>
         </p>}
         {mode === "live" && <p className="text-xs text-slate-500 mt-3">Samples load intake templates only in live mode; missing facts require clarification.</p>}
+      </Card>
+
+      <Card title="Assessment model" description="Choose the AI used for the interview and generated assessment, independently of the blueprint's target cloud.">
+        <Field label="Assessment model">
+          <select aria-label="Assessment model" className={inp} value={modelId} required={!modelLocked}
+            disabled={busy || modelLocked || !catalog}
+            onChange={event => setModelId(catalog?.items.find(item => item.id === event.target.value && item.available)?.id || "")}>
+            <option value="">{modelLocked ? "Legacy Azure OpenAI default" : "Choose a model before the interview"}</option>
+            {catalog?.items.map(item => <option key={item.id} value={item.id} disabled={!item.available}
+              title={!item.available && item.id === "foundry-claude-haiku" ? "Coming soon" : item.reason}>
+              {item.label}{item.available ? "" : item.id === "foundry-claude-haiku" ? " — Coming soon" : " — unavailable"}
+            </option>)}
+          </select>
+        </Field>
+        {initialModel && !catalog?.items.some(item => item.id === initialModel.id && item.available) &&
+          <p className="text-xs text-slate-600 mt-3">Saved selection: {initialModel.provider} / {initialModel.model}. Its connection is not currently available.</p>}
+        <p className="text-xs text-slate-500 mt-3">{catalog?.mode === "demo"
+          ? "Deterministic demo fixtures only; no AI provider is called."
+          : "The model is fixed after generation starts. Start a new assessment to compare models. No automatic provider fallback is used. Scoring and ROI formulas remain deterministic."}</p>
+        {catalog?.items.filter(item => !item.available).map(item =>
+          item.id === "foundry-claude-haiku" ?
+            <div key={item.id} role="group" aria-label={`${item.label} — Coming soon`} aria-disabled="true"
+              aria-describedby="claude-coming-soon" tabIndex={0}
+              className="group relative mt-3 inline-flex cursor-not-allowed items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 outline-none focus-visible:ring-2 focus-visible:ring-teal-600">
+              <span>{item.label}</span>
+              <span className="rounded-full bg-slate-200 px-2 py-1 font-medium">Coming soon</span>
+              <span id="claude-coming-soon" role="tooltip"
+                className="invisible absolute bottom-full left-0 z-10 mb-2 w-64 rounded-lg bg-slate-800 px-3 py-2 text-xs text-white shadow-lg group-hover:visible group-focus:visible">
+                Coming soon. Continue with Azure OpenAI.
+              </span>
+            </div> :
+            <p key={item.id} className="text-xs text-slate-500 mt-2">{item.label}: {item.reason}</p>)}
       </Card>
 
       <Card title="Deployment preferences" description="Choose the cloud for the customer's proposed solution, not AgentSpark's hosting.">
@@ -161,7 +200,7 @@ export default function Intake({ sessionId, initialContext, onSaved, onBusyChang
         </fieldset>
         <div className="flex items-center justify-between flex-wrap gap-4 mt-6 pt-5 border-t border-slate-100">
           <p className="text-xs text-slate-500">Next: a focused diagnostic interview</p>
-          <Button onClick={submit} disabled={busy || !form.business_domain || !form.target_cloud || confirmChange}>{busy ? "Saving…" : "Submit Intake"}<span aria-hidden="true">→</span></Button>
+          <Button onClick={submit} disabled={busy || !catalog || (!modelId && !modelLocked) || !form.business_domain || !form.target_cloud || confirmChange}>{busy ? "Saving…" : "Submit Intake"}<span aria-hidden="true">→</span></Button>
         </div>
         {msg && <p role="alert" className="mt-3 text-sm text-rose-700">{msg}</p>}
       </Card>

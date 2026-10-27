@@ -1,4 +1,4 @@
-"""Structured Azure OpenAI calls. Live failures never become demo responses."""
+"""Structured calls to approved assessment models. Live failures never become demo responses."""
 import json
 import logging
 import os
@@ -6,6 +6,7 @@ from functools import lru_cache
 from typing import Type, TypeVar
 
 import httpx
+from anthropic import APIError as AnthropicError
 from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import SystemMessage, HumanMessage
 from openai import OpenAIError
@@ -13,6 +14,8 @@ from pydantic import BaseModel, ValidationError
 
 from app.utils.errors import DependencyUnavailable, InvalidDependencyResponse
 from app.utils.runtime import demo_mode, require_config
+from app.utils.model_catalog import selected_model, model_definition
+from app.utils.models import InferenceModel
 
 logger = logging.getLogger(__name__)
 T = TypeVar("T", bound=BaseModel)
@@ -41,17 +44,30 @@ def _timeout_seconds() -> float:
     return value
 
 
-@lru_cache(maxsize=4)
 def get_chat_llm(temperature: float = 0.2):
     if demo_mode():
         return None
+    definition = selected_model.get()
+    # Legacy callers retain the original Azure OpenAI validation/error behavior.
+    if definition is None:
+        require_config("openai", "AZURE_OPENAI_API_KEY", "AZURE_OPENAI_ENDPOINT")
+        definition = model_definition("azure-openai")
+    return _chat_client(temperature, definition)
+
+
+@lru_cache(maxsize=8)
+def _chat_client(temperature: float, definition: InferenceModel):
+    if definition.id == "foundry-claude-haiku":
+        from app.utils.foundry_claude import create_foundry_claude
+        key, endpoint = require_config("anthropic", "AZURE_ANTHROPIC_API_KEY", "AZURE_ANTHROPIC_ENDPOINT")
+        return create_foundry_claude(endpoint, key, definition.deployment, _timeout_seconds())
     key, endpoint = require_config("openai", "AZURE_OPENAI_API_KEY", "AZURE_OPENAI_ENDPOINT")
     from langchain_openai import AzureChatOpenAI
 
     effort = reasoning_effort()
     sampling = {"reasoning_effort": effort} if effort else {"temperature": temperature}
     return AzureChatOpenAI(
-        azure_deployment=os.environ.get("AZURE_OPENAI_CHAT_DEPLOYMENT", "gpt-4o"),
+        azure_deployment=definition.deployment,
         openai_api_version=os.environ.get("AZURE_OPENAI_API_VERSION", "2024-08-01-preview"),
         azure_endpoint=endpoint,
         api_key=key,
@@ -61,22 +77,30 @@ def get_chat_llm(temperature: float = 0.2):
     )
 
 
+get_chat_llm.cache_clear = _chat_client.cache_clear
+
+
+def model_dependency(selection: InferenceModel | None = None) -> str:
+    model = selection or selected_model.get()
+    return "anthropic" if model and model.id == "foundry-claude-haiku" else "openai"
+
+
 def invoke_llm(llm, messages):
     if llm is None:
-        logger.error("An OpenAI call was attempted without a live client.")
-        raise DependencyUnavailable("openai")
+        logger.error("A model call was attempted without a live client.")
+        raise DependencyUnavailable(model_dependency())
     try:
         return llm.invoke(messages)
-    except (OpenAIError, httpx.HTTPError, TimeoutError, OSError) as exc:
-        logger.error("OpenAI request failed (%s); request and exception content withheld.", type(exc).__name__)
-        raise DependencyUnavailable("openai") from exc
+    except (OpenAIError, AnthropicError, httpx.HTTPError, TimeoutError, OSError) as exc:
+        logger.error("%s request failed (%s); request and exception content withheld.", model_dependency(), type(exc).__name__)
+        raise DependencyUnavailable(model_dependency()) from exc
 
 
 def structured_call(llm, system_prompt: str, user_content: str, schema: Type[T]) -> T:
     messages = [SystemMessage(content=system_prompt), HumanMessage(content=user_content)]
     if llm is None:
-        logger.error("Structured generation requires a live OpenAI client.")
-        raise DependencyUnavailable("openai")
+        logger.error("Structured generation requires a live model client.")
+        raise DependencyUnavailable(model_dependency())
     try:
         # Strict json_schema (langchain's default) rejects models with optional/defaulted fields.
         result = invoke_llm(llm.with_structured_output(schema, method="function_calling"), messages)
@@ -89,7 +113,9 @@ def structured_call(llm, system_prompt: str, user_content: str, schema: Type[T])
         HumanMessage(content=user_content),
     ]
     try:
-        raw = invoke_llm(llm.bind(response_format={"type": "json_object"}), json_messages).content
+        from app.utils.foundry_claude import FoundryClaudeChat
+        retry = llm if isinstance(llm, FoundryClaudeChat) else llm.bind(response_format={"type": "json_object"})
+        raw = invoke_llm(retry, json_messages).content
         if not isinstance(raw, str):
             raise ValueError("Expected a text completion")
         raw = raw.strip()
@@ -100,8 +126,8 @@ def structured_call(llm, system_prompt: str, user_content: str, schema: Type[T])
             raw = raw.strip("` \n")
         return _validate_output(json.loads(raw), schema)
     except (ValueError, IndexError, OutputParserException) as exc:
-        logger.error("OpenAI did not produce valid structured output (%s); completion withheld.", _error_summary(exc))
-        raise InvalidDependencyResponse("openai") from exc
+        logger.error("Model did not produce valid structured output (%s); completion withheld.", _error_summary(exc))
+        raise InvalidDependencyResponse(model_dependency()) from exc
 
 
 def _json_instruction(schema: Type[BaseModel]) -> str:
