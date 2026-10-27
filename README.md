@@ -17,6 +17,12 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
 
 ## What you can do
 
+- **Explore before signing in:** the interactive front page illustrates claims,
+  invoice and onboarding workflows, step-level AI/rules/human boundaries,
+  readiness gaps, transparent capacity assumptions and Azure/AWS service candidates.
+  Examples make no model calls and do not create assessments. **Assess my workflow**
+  opens intake (through organization access in live mode); **Workspace** opens your
+  library. Use **Product overview** to return without discarding active work.
 - **Assess a workflow:** use up to 10 grouped interview rounds for suitability and
   draft readiness, then finish missing answers in an editable checklist.
 - **Choose Azure or AWS:** receive service candidates and a blueprint for the
