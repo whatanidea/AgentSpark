@@ -294,6 +294,9 @@ export default function App() {
           {message && <p role="status" className="notice">{message}</p>}
           {snapshot && <p className="text-xs text-slate-600">Assessment target: <strong>{snapshot.enterprise_context.target_cloud === "aws" ? "AWS" : "Azure"}</strong>
             {" "} / Region: {snapshot.enterprise_context.preferred_region || "not specified"} (unverified). AgentSpark hosting is unchanged.</p>}
+          {snapshot && <p className="text-xs text-slate-600">Assessment model: <strong>{snapshot.inference_model
+            ? `${snapshot.inference_model.provider} / ${snapshot.inference_model.model}` : "Legacy Azure OpenAI default (historical provenance not recorded)"}</strong>.
+            {" "}No automatic provider fallback.</p>}
           {identity && !snapshot && readPointer() && <Button disabled={busy} variant="ghost" onClick={async () => {
             setBusy(true);
             try { await connect(); }
@@ -344,6 +347,8 @@ export default function App() {
               }} />}
             {snapshot && !canWrite && ["intake", "diagnose", "analyze"].includes(view) && <p className="notice">Read-only access: your current team permissions do not allow workflow changes.</p>}
             {view === "intake" && <fieldset disabled={!canWrite} className="min-w-0"><Intake sessionId={sessionId} initialContext={snapshot ? { ...snapshot.enterprise_context, demo_scenario: snapshot.demo_scenario } : undefined}
+              initialModel={snapshot?.inference_model}
+              modelLocked={Boolean(snapshot && (snapshot.model_locked || snapshot.chat_history.length || snapshot.interview_diagnosis || snapshot.analysis_id || snapshot.trace.length))}
               onSaved={async (id: string) => { await refreshSession(id); setView("diagnose"); }}
               onBusyChange={setBusy} /></fieldset>}
             {view === "diagnose" && <fieldset disabled={!canWrite} className="min-w-0"><Diagnose sessionId={sessionId} context={snapshot?.enterprise_context}

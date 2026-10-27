@@ -5,7 +5,7 @@ from pydantic import BaseModel, Field
 
 from app.utils.models import AgentSuitabilityScore, WorkflowIntelligence, WorkflowDiagnosis, AutonomyLevel, DesignFamily, ESSENTIAL_FACTS, CloudProvider
 from app.agents.cloud_catalog import pattern_for_cloud
-from app.utils.llm import get_chat_llm, structured_call
+from app.utils.llm import get_chat_llm, structured_call, model_dependency
 from app.utils.runtime import demo_mode
 from app.utils.errors import InvalidDependencyResponse
 from app.rag.retrieval import retrieve_patterns
@@ -101,7 +101,7 @@ class RecommendationAgent:
                 or not set(required).issubset(result.pattern_ids)
                 or not set(result.pattern_ids).issubset(by_id)):
             logger.error("Recommendation contradicted readiness constraints or invented a pattern citation.")
-            raise InvalidDependencyResponse("openai")
+            raise InvalidDependencyResponse(model_dependency())
         out = result.model_dump()
         out["target_cloud"] = target_cloud
         out["evidence_basis"] = (assessment_evidence or {}).get("recommendation_basis")

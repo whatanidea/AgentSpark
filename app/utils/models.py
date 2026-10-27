@@ -374,6 +374,16 @@ class ReadinessAssessment(BaseModel):
         return value
 
 
+class InferenceModel(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    id: Literal["azure-openai", "foundry-claude-haiku", "demo"]
+    provider: Literal["Azure OpenAI", "Anthropic on Azure Foundry", "Deterministic demo"]
+    model: str
+    deployment: str
+    version: str = ""
+    configuration: str
+
+
 class WorkflowState(BaseModel):
     _etag: Optional[str] = PrivateAttr(default=None)
     session_id: SessionId
@@ -383,6 +393,8 @@ class WorkflowState(BaseModel):
     expires_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc) + timedelta(
         hours=int(os.getenv("SESSION_RETENTION_HOURS", "24"))))
     enterprise_context: EnterpriseContext = Field(default_factory=EnterpriseContext)
+    inference_model: Optional[InferenceModel] = None
+    model_locked: bool = False
     evidence_register: List[EvidenceEntry] = Field(default_factory=list, max_length=50)
     evidence_revision: int = Field(default=0, ge=0)
     evidence_report: Optional[Dict[str, Any]] = None

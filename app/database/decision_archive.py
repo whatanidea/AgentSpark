@@ -100,6 +100,7 @@ def decision_record(state: WorkflowState, now: datetime, retention_days: int) ->
         organization_id=state.organization_id, team_id=state.team_id,
         home=summary(state, now, archived=True, expires_at=now + timedelta(days=retention_days)),
         details={
+            "inference_model": state.inference_model.model_dump() if state.inference_model else None,
             "deployment_preferences": {key: getattr(state.enterprise_context, key) for key in (
                 "target_cloud", "preferred_region", "data_residency_requirements", "deployment_constraints")},
             "cloud_mapping": state.cloud_mapping or state.azure_mapping,

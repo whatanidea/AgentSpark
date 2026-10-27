@@ -34,6 +34,7 @@ from app.utils.models import (
 from app.utils.evidence import build_evidence_report
 from app.utils.readiness import build_readiness_report
 from app.utils.interview import effective_diagnosis
+from app.utils.model_catalog import assessment_model
 from app.agents.diagnostic_agent import diagnostic_agent
 from app.agents.mapping_agent import mapping_agent
 from app.agents.recommendation_agent import recommendation_agent
@@ -251,10 +252,10 @@ def run_orchestration(session_id: str, roi_assumptions: ROIAssumptions | None = 
     }
 
     cb = TokenCountingCallback()
-    result = orchestrator_app.invoke(
-        initial_state,
-        config={"callbacks": [cb]}
-    )
+    with assessment_model(db_state.inference_model) as selection:
+        result = orchestrator_app.invoke(initial_state, config={"callbacks": [cb]})
+        db_state.inference_model = selection
+        db_state.model_locked = True
     
     logger.info(f"Total tokens used for this run: {cb.total_tokens} (Prompt: {cb.prompt_tokens}, Completion: {cb.completion_tokens})")
 

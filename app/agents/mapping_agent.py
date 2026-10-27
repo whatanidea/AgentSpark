@@ -2,7 +2,7 @@ import logging
 import json
 
 from app.utils.models import WorkflowIntelligence, CloudServiceMapping, AgentSuitabilityScore, EnterpriseContext
-from app.utils.llm import get_chat_llm, structured_call
+from app.utils.llm import get_chat_llm, structured_call, model_dependency
 from app.utils.runtime import demo_mode
 from app.utils.errors import InvalidDependencyResponse
 from app.agents.cloud_catalog import CATALOGS, CLOUD_NAMES, LIMITATIONS, AWS_REFERENCES
@@ -50,7 +50,7 @@ class MappingAgent:
             if any(getattr(result, field) not in catalog[field]
                    for field in ("compute", "database", "ai", "search", "orchestration")):
                 logger.error("Mapping selected a service outside the target cloud catalog.")
-                raise InvalidDependencyResponse("openai")
+                raise InvalidDependencyResponse(model_dependency())
         return {**result.model_dump(), "target_cloud": cloud, "cloud_name": CLOUD_NAMES[cloud],
                 "preferred_region": context.preferred_region,
                 "identity": catalog["identity"], "secrets": catalog["secrets"], "monitoring": catalog["monitoring"],

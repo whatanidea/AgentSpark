@@ -9,7 +9,7 @@ from app.utils.models import (
 )
 from app.utils.interview import interview_fields
 from app.agents.demo_scenarios import demo_diagnosis
-from app.utils.llm import get_chat_llm, structured_call, invoke_llm
+from app.utils.llm import get_chat_llm, structured_call, invoke_llm, model_dependency
 from app.utils.runtime import demo_mode
 from app.utils.errors import InvalidDependencyResponse
 
@@ -102,7 +102,7 @@ class DiagnosticAgent:
         content = invoke_llm(get_chat_llm(temperature=0.2), messages).content
         if not isinstance(content, str) or not content.strip():
             logger.error("Diagnostic chat received an empty or non-text completion.")
-            raise InvalidDependencyResponse("openai")
+            raise InvalidDependencyResponse(model_dependency())
         return content
 
     def analyze_chat_history(self, chat_history, context: EnterpriseContext | None = None,
@@ -158,7 +158,7 @@ class DiagnosticAgent:
                 return diagnosis
             logger.error("Diagnostic extraction attempt %d supplied unverifiable evidence for %s.",
                          attempt, ", ".join(unverifiable))
-        raise InvalidDependencyResponse("openai")
+        raise InvalidDependencyResponse(model_dependency())
 
 
 diagnostic_agent = DiagnosticAgent()

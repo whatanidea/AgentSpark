@@ -130,6 +130,12 @@ export default function Home({ demo, retentionDays, workspaceName, canCreate, on
         <p className="text-sm mt-2">Constraints: {decision.details.deployment_preferences?.deployment_constraints || "Not specified"}</p>
         <p className="text-xs text-slate-500 mt-2">Advisory assessment only; no resources were deployed. AgentSpark remains hosted on Azure.</p>
       </Card>
+      <Card title="Recorded assessment model">
+        <p className="text-sm">{decision.details.inference_model
+          ? `${decision.details.inference_model.provider} / ${decision.details.inference_model.model} / deployment ${decision.details.inference_model.deployment}`
+          : "Model provenance was not recorded in this historical assessment."}</p>
+        <p className="text-xs text-slate-500 mt-2">This is the saved decision snapshot, not the current server default.</p>
+      </Card>
       <EvidenceSummary report={decision.details.evidence_report} />
       <ReadinessSummary report={decision.details.readiness_report} />
       <Card title={review ? "Reviewer decision & comments" : "Automated policy decision"}>

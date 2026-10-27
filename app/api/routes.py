@@ -16,6 +16,8 @@ from app.utils.pdf_report import build_blueprint_pdf
 from app.utils.errors import InvalidDependencyResponse
 from app.agents.cloud_catalog import pattern_for_cloud
 from app.utils.runtime import demo_mode
+from app.utils.model_catalog import available_models, model_definition, assessment_model, MODEL_IDS
+from app.utils.llm import model_dependency
 
 from app.database.cosmos_client import db_client
 from app.database.tenant_directory import tenant_directory
@@ -27,6 +29,11 @@ from app.security.auth import auth_settings, principal_context, require_reviewer
 import os
 
 router = APIRouter()
+
+
+@router.get("/models")
+def assessment_models():
+    return available_models()
 
 
 @router.get("/auth/config")
@@ -100,6 +107,7 @@ class IntakeRequest(RequestModel):
     preferred_region: str = Field(default="", max_length=100, pattern=r"^[a-z0-9-]*$")
     data_residency_requirements: str = Field(default="", max_length=2000)
     deployment_constraints: str = Field(default="", max_length=2000)
+    model_id: Literal["azure-openai", "foundry-claude-haiku", "demo"] | None = None
 
 
 class ChatRequest(RequestModel):
@@ -305,6 +313,18 @@ def save_intake(req: IntakeRequest):
             raise HTTPException(status_code=422, detail="Intake contains instruction-override content. Please rephrase.")
     state = db_client.get_workflow_state(req.session_id, create_if_missing=True)
     db_client._authorize(state, "write")
+    if state._etag is None and not demo_mode() and req.model_id is None:
+        raise HTTPException(422, "Select an assessment model before starting the interview.")
+    if req.model_id is not None:
+        if req.model_id not in MODEL_IDS:
+            raise HTTPException(422, "Choose an approved assessment model.")
+        selection = model_definition(req.model_id)
+        if (state.model_locked or state.chat_history or state.interview_diagnosis or state.analysis_id or state.trace) and (
+                state.inference_model is None or selection != state.inference_model):
+            raise HTTPException(409, "The model is fixed after generation starts. Start a new assessment to change it.")
+        state.inference_model = selection
+    elif state.inference_model is None and demo_mode():
+        state.inference_model = model_definition("demo")
     previous_context = state.enterprise_context.model_dump(), state.demo_scenario
     state.invalidate_analysis()
     state.demo_scenario = req.demo_scenario
@@ -328,7 +348,8 @@ def save_intake(req: IntakeRequest):
                 state.interview_answers.pop(fact, None)
     db_client.save_workflow_state(state)
     return {"status": "success", "session_id": req.session_id,
-            "enterprise_context": state.enterprise_context.model_dump()}
+            "enterprise_context": state.enterprise_context.model_dump(),
+            "inference_model": state.inference_model.model_dump() if state.inference_model else None}
 
 
 @router.post("/chat")
@@ -337,6 +358,8 @@ def chat_interaction(req: ChatRequest):
         raise HTTPException(status_code=422, detail="Demo fixtures cannot be selected in live mode.")
     state = db_client.get_workflow_state(req.session_id, create_if_missing=True)
     db_client._authorize(state, "write")
+    if state._etag is None and not demo_mode():
+        raise HTTPException(422, "Start with intake and select an assessment model before the interview.")
 
     # Security gate: screen every inbound message before it reaches the LLM.
     guard = scan_input(req.message)
@@ -361,9 +384,12 @@ def chat_interaction(req: ChatRequest):
         raise HTTPException(409, "Interview capture is complete. Review the checklist or run analysis.")
     scenario = req.demo_scenario or state.demo_scenario
     message = redact_pii(req.message)
-    diagnosis = diagnostic_agent.analyze_chat_history(
-        state.chat_history + [{"role": "user", "content": message}],
-        state.enterprise_context, scenario, include_readiness=True)
+    with assessment_model(state.inference_model) as selection:
+        diagnosis = diagnostic_agent.analyze_chat_history(
+            state.chat_history + [{"role": "user", "content": message}],
+            state.enterprise_context, scenario, include_readiness=True)
+        state.inference_model = selection
+        state.model_locked = True
     previous_diagnosis = state.interview_diagnosis or state.diagnosis
     state.invalidate_analysis()
     state.invalidate_readiness_context()
@@ -373,7 +399,7 @@ def chat_interaction(req: ChatRequest):
         try:
             apply_answers(state, redact_data({key: answer.value for key, answer in diagnosis.answers.items()}), captured=True)
         except ValueError as exc:
-            raise InvalidDependencyResponse("openai") from exc
+            raise InvalidDependencyResponse(model_dependency(state.inference_model)) from exc
     state.demo_scenario = scenario
     state.chat_history.append({"role": "user", "content": redact_pii(req.message)})
     response_text = redact_pii(interview_reply(state))
@@ -407,6 +433,7 @@ def analyze_workflow(session_id: SessionId, req: AnalyzeRequest | None = None):
         "cloud_mapping": s.cloud_mapping or s.azure_mapping,
         "evidence_report": s.evidence_report,
         "readiness_report": s.readiness_report,
+        "inference_model": s.inference_model.model_dump() if s.inference_model else None,
     })
 
 
@@ -423,6 +450,7 @@ def get_blueprint(session_id: SessionId):
     res["human_review"] = state.human_review.model_dump(mode="json") if state.human_review else None
     res["diagnosis"] = state.diagnosis.model_dump() if state.diagnosis else None
     res["demo_scenario"] = state.demo_scenario
+    res["inference_model"] = state.inference_model.model_dump() if state.inference_model else None
     res["permissions"] = db_client.permissions(state)
     if state.status == "rejected":
         res["alternative"] = (

@@ -155,6 +155,11 @@ def build_blueprint_pdf(snapshot: dict) -> bytes:
     report.paragraph(_STATUS[status], report.h2)
     report.field("Analysis ID", snapshot["analysis_id"])
     report.field("Generated at (UTC)", datetime.now(timezone.utc).isoformat())
+    model = snapshot.get("inference_model")
+    report.field("Assessment inference model",
+                 f"{model['provider']} / {model['model']} / deployment {model['deployment']} / "
+                 f"version {model.get('version') or 'not supplied'}" if model else
+                 "Not recorded in this historical assessment.")
     report.paragraph("Advisory recommendation only. Approval does not authorize or execute a pilot, deployment or business action.")
     report.paragraph(snapshot.get("assessment_limitations") or
                      "Cloud availability, model access, residency and prices require validation. AgentSpark remains Azure-hosted.")
