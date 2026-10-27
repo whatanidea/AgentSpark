@@ -7,6 +7,7 @@ import Analyze from "./components/Analyze";
 import Blueprint from "./components/Blueprint";
 import Portfolio from "./components/Portfolio";
 import Home from "./components/Home";
+import Landing from "./components/Landing";
 import Workspaces from "./components/Workspaces";
 import EvidenceRegister from "./components/EvidenceRegister";
 import ImplementationReadiness from "./components/ImplementationReadiness";
@@ -46,6 +47,7 @@ function takeInviteFromUrl(): string {
 
 export default function App() {
   const [view, setView] = useState<View>("home");
+  const [showLanding, setShowLanding] = useState(true);
   const [snapshot, setSnapshot] = useState<SessionSnapshot | null>(null);
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [auth, setAuth] = useState<AuthConfig | null>(null);
@@ -72,6 +74,7 @@ export default function App() {
         setWorkspace(pointer.workspace ?? null);
         const state = await api.session(pointer.session);
         setSnapshot(state);
+        setShowLanding(false);
         if (state.organization_id && state.team_id) selectWorkspace({
           organization_id: state.organization_id, team_id: state.team_id,
           organization_name: state.workspace?.organization_name || state.organization_id,
@@ -114,12 +117,13 @@ export default function App() {
         if (alive) setRuntimeError(e instanceof Error ? e.message : "Backend unavailable");
       }
     }
-    void refresh();
-    const interval = window.setInterval(refresh, 30000);
+    const active = !showLanding || !!pendingInvite;
+    if (active) void refresh();
+    const interval = active ? window.setInterval(refresh, 30000) : undefined;
     const expire = () => { setTokenProvider(null); void signInModule().then((m) => m.signOutLocally()); setAccessToken(""); setWorkspace(null); selectWorkspace(null); setIdentity(null); setSnapshot(null); setView("intake"); setMessage("Access expired. Sign in again; tokens are never saved in browser storage."); };
     window.addEventListener("agentsense-auth-expired", expire);
     return () => { alive = false; clearInterval(interval); window.removeEventListener("agentsense-auth-expired", expire); };
-  }, []);
+  }, [showLanding, pendingInvite]);
 
   useEffect(() => {
     const onHash = () => { const code = takeInviteFromUrl(); if (code) setPendingInvite(code); };
@@ -145,6 +149,7 @@ export default function App() {
     setSnapshot(state);
   }
   async function changeView(next: View) {
+    setShowLanding(false);
     if (next === view) return;
     setBusy(true);
     try {
@@ -201,6 +206,11 @@ export default function App() {
       : state.status === "needs_clarification" ? "analyze" : state.chat_history.length ? "diagnose" : "intake");
   }
 
+  if (showLanding && !pendingInvite) return <Landing
+    onStart={() => void changeView(sessionId ? "home" : "intake")}
+    onWorkspace={() => void changeView("home")}
+    disabled={busy || starting} hasSession={!!sessionId} signedIn={!!identity} message={message} />;
+
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
       <a className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:bg-white focus:p-3" href="#main-content">Skip to workflow</a>
@@ -216,6 +226,8 @@ export default function App() {
             </div>
           </div>
           <p className="hidden md:block text-xs leading-relaxed text-slate-500 mt-5">The agent that tells you where agents belong.</p>
+          <button className="text-xs text-teal-800 mt-4 hover:underline" disabled={busy}
+            onClick={() => setShowLanding(true)}>Product overview <span aria-hidden="true">↗</span></button>
         </div>
         <nav aria-label="Workflow steps" className="flex md:block md:flex-1 overflow-x-auto px-4 pb-4 md:pb-5 gap-2 md:space-y-1.5">
           <p className="hidden md:block px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Workspace</p>
@@ -255,7 +267,7 @@ export default function App() {
             </div>
           </>}
           {identity && auth?.mode === "oidc" && <Button variant="ghost" disabled={busy} onClick={() => {
-            setAccessToken(""); setWorkspace(null); selectWorkspace(null); setIdentity(null); setSnapshot(null); setView("intake"); forgetPointer();
+            setAccessToken(""); setWorkspace(null); selectWorkspace(null); setIdentity(null); setSnapshot(null); setView("home"); setShowLanding(true); forgetPointer();
           }}>Sign out</Button>}
         </div>
       </aside>

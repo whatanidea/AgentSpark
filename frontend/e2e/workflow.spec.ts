@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 
 async function intake(page: Page, sample?: string, cloud = "azure") {
   await page.goto("/");
-  await page.getByRole("button", { name: "1 · Enterprise Intake", exact: true }).click();
+  await page.getByRole("button", { name: "Assess my workflow", exact: true }).first().click();
   await page.getByLabel("Target cloud", { exact: true }).selectOption(cloud);
   await expect(page).toHaveTitle("AgentSpark — Enterprise AI Transformation Advisor");
   await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
@@ -457,7 +457,7 @@ test("no-agent outcome stays rejected and confirmed deletion removes restoration
 
 test("light workspace supports keyboard focus, sample selection and readable primary actions", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "1 · Enterprise Intake", exact: true }).click();
+  await page.getByRole("button", { name: "Assess my workflow", exact: true }).first().click();
   const domain = page.getByLabel("Business Domain", { exact: true });
   await domain.focus();
   await expect(domain).toHaveCSS("border-color", "rgb(13, 148, 136)");
@@ -496,6 +496,7 @@ test("light workspace supports keyboard focus, sample selection and readable pri
 
 test("portfolio shows an empty state, reports failures and supports retry on mobile", async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("button", { name: "Workspace", exact: true }).click();
   await page.getByRole("button", { name: "Sample Portfolio", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Compare opportunities in one place", exact: true })).toBeVisible();
   await page.route("**/api/v1/portfolio", route => route.fulfill({
@@ -561,6 +562,7 @@ test("Home reports listing failure and refresh recovers", async ({ page }) => {
     status: 503, contentType: "application/json", body: JSON.stringify({ detail: "Workflow library temporarily unavailable." }),
   }), { times: 1 });
   await page.goto("/");
+  await page.getByRole("button", { name: "Workspace", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("Workflow library temporarily unavailable.");
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await expect(page.getByRole("heading", { name: "No workflows in this view", exact: true })).toBeVisible();
@@ -570,6 +572,7 @@ test("Home reports listing failure and refresh recovers", async ({ page }) => {
 test("team workspace restores its scope, prevents self-review and stays separate from personal Home", async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
+  await page.getByRole("button", { name: "Workspace", exact: true }).click();
   const administration = page.getByRole("button", { name: "Organizations & teams", exact: true });
   await administration.click();
   await expect(page.getByText("Shared local demo: everyone uses the same identity.", { exact: false })).toBeVisible();
@@ -658,6 +661,7 @@ test("team member can delete an own draft and open reviews without a global revi
     });
   }
   await page.goto("/");
+  await page.getByRole("button", { name: "Workspace", exact: true }).click();
   await page.getByRole("button", { name: "Organizations & teams", exact: true }).click();
   await page.getByRole("button", { name: "Use Member finance", exact: true }).click();
   await expect(page.getByRole("button", { name: "Delete Own draft and history", exact: true })).toBeEnabled();
@@ -715,6 +719,7 @@ test("AWS assessment restores, exports, archives and invalidates approval when c
 
 test("invite links join a team without exchanging identity IDs and are single-use", async ({ page }) => {
   await page.goto("/");
+  await page.getByRole("button", { name: "Workspace", exact: true }).click();
   await page.getByRole("button", { name: "Organizations & teams", exact: true }).click();
   await page.getByLabel("Organization name", { exact: true }).fill("Fictional invite organization");
   await page.getByRole("button", { name: "Create organization", exact: true }).click();
