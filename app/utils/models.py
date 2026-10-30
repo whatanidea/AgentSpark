@@ -101,7 +101,7 @@ class InterviewAnswer(BaseModel):
 
 
 class InterviewDiagnosis(WorkflowDiagnosis):
-    answers: Dict[str, InterviewAnswer] = Field(default_factory=dict, max_length=32)
+    answers: Dict[str, InterviewAnswer] = Field(default_factory=dict, max_length=64)
 
 
 # ──────────────────────────────────────────────────────────────
@@ -384,6 +384,52 @@ class InferenceModel(BaseModel):
     configuration: str
 
 
+class RuntimeRequirements(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    reasoning: Literal["unknown", "deterministic", "bounded", "dynamic"] = "unknown"
+    duration: Literal["unknown", "request_bound", "long_running"] = "unknown"
+    external_waits: Literal["unknown", "no", "yes"] = "unknown"
+    recovery: Literal["unknown", "restartable", "durable"] = "unknown"
+    side_effects: Literal["unknown", "read_only", "consequential"] = "unknown"
+    side_effect_safety: Literal["unknown", "defined", "unresolved"] = "unknown"
+    existing_reasoning: Literal["unknown", "none", "bounded_handler", "langgraph"] = "unknown"
+    existing_runtime: Literal["unknown", "none", "temporal", "azure_durable_functions",
+                              "aws_step_functions", "other"] = "unknown"
+    runtime_hosting: Literal["unknown", "managed_service", "self_hosted"] = "unknown"
+    operational_owner: str = Field(default="", max_length=200)
+    scale_constraints: str = Field(default="", max_length=1000)
+    platform_constraints: str = Field(default="", max_length=1000)
+
+
+class RuntimeOption(BaseModel):
+    id: str
+    label: str
+    eligible: bool
+    reason: str
+    tradeoffs: List[str]
+
+
+class RuntimeLayerDecision(BaseModel):
+    selected: Optional[str] = None
+    label: str = "Unresolved"
+    rationale: List[str] = Field(default_factory=list)
+    alternatives: List[RuntimeOption] = Field(default_factory=list)
+
+
+class RuntimeDecision(BaseModel):
+    status: Literal["recommended", "provisional", "insufficient_information"]
+    rules_version: str
+    catalog_version: str
+    target_cloud: CloudProvider
+    requirements: RuntimeRequirements
+    provenance: Dict[str, FactEvidence]
+    reasoning: RuntimeLayerDecision
+    durable_execution: RuntimeLayerDecision
+    validation_tasks: List[str]
+    boundaries: List[str]
+    limitations: str
+
+
 class WorkflowState(BaseModel):
     _etag: Optional[str] = PrivateAttr(default=None)
     session_id: SessionId
@@ -401,6 +447,9 @@ class WorkflowState(BaseModel):
     readiness_assessment: ReadinessAssessment = Field(default_factory=ReadinessAssessment)
     readiness_revision: int = Field(default=0, ge=0)
     readiness_report: Optional[Dict[str, Any]] = None
+    runtime_requirements: RuntimeRequirements = Field(default_factory=RuntimeRequirements)
+    runtime_requirement_sources: Dict[str, FactEvidence] = Field(default_factory=dict)
+    runtime_decision: Optional[RuntimeDecision] = None
     chat_history: List[Dict[str, str]] = Field(default_factory=list)
     demo_scenario: Optional[DemoScenario] = None
     diagnosis: Optional[WorkflowDiagnosis] = None
@@ -428,6 +477,7 @@ class WorkflowState(BaseModel):
     def invalidate_analysis(self) -> None:
         self.evidence_report = None
         self.readiness_report = None
+        self.runtime_decision = None
         self.diagnosis = None
         self.workflow_intelligence = None
         self.suitability_score = None

@@ -113,6 +113,59 @@ blocked for delivery, and a human architecture approval does not resolve readine
 blockers or authorize a pilot. No infrastructure, dependency or database migration
 is required. Existing workflow retention, privacy, access and deletion rules apply.
 
+### Architecture Runtime Decision
+
+The Diagnostic interview/checklist captures `runtime.*` requirements within the
+existing ten-round limit: deterministic/bounded/dynamic reasoning, duration,
+external waits, recovery, side effects and safety, existing reasoning/workflow
+standards, Temporal hosting, operational ownership, scale/latency and platform
+constraints. Only relevant required questions enter the grouped interview;
+optional constraints remain editable. Explicit unknowns are retained, not guessed.
+Runtime enum extraction requires a quoted literal option label (spaces or
+underscores); otherwise use the checklist. Free text retains verbatim provenance.
+
+During mapping, versioned deterministic rules recommend two independent layers:
+
+- **Reasoning:** no agent framework, a bounded model/tool handler, or LangGraph.
+- **Durable execution:** no separate engine, Temporal, Azure Durable Functions,
+  or AWS Step Functions Standard Workflows.
+
+LangGraph is not selected merely because the suitability score is high. Explicit
+dynamic reasoning and a compatible prescribed design are required. Runtime choice
+never increases prescribed autonomy or removes a human gate. Deterministic
+long-running workflows may need a durable engine without an agent framework;
+combined reasoning and durable runtimes are also supported.
+
+Known compatible workflow standards are reused. With no existing standard,
+the selected-cloud workflow candidate is preferred over introducing another
+platform. An unknown standard produces an eligible shortlist, while an unlisted
+or other-cloud standard remains unresolved pending review. Temporal requires
+explicit hosting and ownership validation. No new Temporal or other framework
+dependency is installed: these are customer architecture recommendations.
+
+Each decision includes selected layers, reasons/trade-offs, eligible/ineligible
+alternatives, requirements and provenance, validation tasks, human/side-effect
+boundaries, and rules/catalog versions. `insufficient_information` means critical
+reasoning, duration/recovery or side-effect requirements are unknown/unresolved.
+`provisional` indicates design conflicts, platform/ownership/hosting constraints
+or consequential actions still requiring validation. `recommended` is an advisory
+fit to known requirements, not production readiness or a benchmark result. Scale,
+limits and actual recovery behavior still require testing. No exactly-once
+business-effect guarantee is made.
+
+Requirements are saved using the existing optimistic-concurrency-protected
+`PUT /api/v1/sessions/{session_id}/interview` API, with `runtime.<field>` answer
+keys. The checklist accepts up to 64 fields so workflow/readiness/runtime answers
+can be saved together. Invalid choices, oversized inputs and instruction overrides
+are rejected; existing access, redaction and retention rules apply.
+
+`runtime_decision` is the same structured snapshot in session restore, Analysis,
+Blueprint, advisory review, PDF/Markdown exports and archived decisions. Changes
+to interview requirements or other analysis inputs invalidate the current decision
+and approval. Archived snapshots remain unchanged. Historical records without
+the field display **Runtime selection not assessed**; reading them does not
+silently generate a recommendation.
+
 ### Downloadable PDF assessment reports
 
 After analysis, open **Blueprint & Review**, fetch the current blueprint and select

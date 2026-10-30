@@ -1,7 +1,8 @@
 import logging
 import json
 
-from app.utils.models import WorkflowIntelligence, CloudServiceMapping, AgentSuitabilityScore, EnterpriseContext
+from app.utils.models import WorkflowIntelligence, CloudServiceMapping, AgentSuitabilityScore, EnterpriseContext, RuntimeDecision
+from app.utils.runtime_decision import orchestration_label
 from app.utils.llm import get_chat_llm, structured_call, model_dependency
 from app.utils.runtime import demo_mode
 from app.utils.errors import InvalidDependencyResponse
@@ -21,7 +22,8 @@ class MappingAgent:
         self.use_mock = demo_mode()
 
     def map_services(self, intel: WorkflowIntelligence, score: AgentSuitabilityScore | None = None,
-                     context: EnterpriseContext | None = None) -> dict:
+                     context: EnterpriseContext | None = None, *,
+                     runtime_decision: RuntimeDecision | None = None) -> dict:
         context = context or EnterpriseContext()
         cloud = context.target_cloud
         catalog = CATALOGS[cloud]
@@ -41,6 +43,8 @@ class MappingAgent:
                 rationale=f"Illustrative stack for {intel.workflow_name}; validate availability, integrations, and pricing."
             )
         else:
+            if runtime_decision is not None:
+                catalog = {**catalog, "orchestration": [orchestration_label(runtime_decision)]}
             constraints = (f"\nRequired design: {score.recommended_pattern}; autonomy: {score.autonomy_level}. "
                            "Do not introduce agents or orchestration beyond that design." if score else "")
             payload = {"workflow": intel.model_dump(), "deployment_preferences": context.model_dump(),
@@ -51,6 +55,8 @@ class MappingAgent:
                    for field in ("compute", "database", "ai", "search", "orchestration")):
                 logger.error("Mapping selected a service outside the target cloud catalog.")
                 raise InvalidDependencyResponse(model_dependency())
+        if runtime_decision is not None:
+            result.orchestration = orchestration_label(runtime_decision)
         return {**result.model_dump(), "target_cloud": cloud, "cloud_name": CLOUD_NAMES[cloud],
                 "preferred_region": context.preferred_region,
                 "identity": catalog["identity"], "secrets": catalog["secrets"], "monitoring": catalog["monitoring"],

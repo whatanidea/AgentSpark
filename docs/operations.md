@@ -391,6 +391,19 @@ fictional case.
 
 ## Azure staging environment
 
+### Runtime-decision release verification
+
+Architecture runtime selection is application-only: no new services, credentials,
+runtime packages, schema migration or feature-specific environment variables.
+Older assessments remain readable with runtime selection marked not assessed.
+After release, complete runtime requirements in the Diagnostic checklist and
+rerun analysis. Verify separate reasoning/durable layers, alternatives and versions
+in Analysis, Blueprint, PDF/Markdown and a newly archived decision. Verify a simple
+deterministic case selects neither agent framework nor durable engine; a fictional
+dynamic, long-running case with an approved Temporal standard can select LangGraph
+plus Temporal. Unknown requirements must remain unresolved, not default to LangGraph.
+These checks do not deploy either customer runtime or validate their availability.
+
 `azure.yaml` and `infra/` define a low-cost staging stack in a single
 resource group (`rg-<env>`). It contains:
 

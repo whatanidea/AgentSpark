@@ -225,6 +225,8 @@ def build_blueprint_pdf(snapshot: dict) -> bytes:
     report.details(readiness or "No implementation-readiness snapshot in this historical assessment.")
     report.heading("Diagnostic inputs and provenance")
     report.details(snapshot.get("diagnosis") or "No diagnostic provenance available.")
+    report.heading("Architecture Runtime Decision")
+    report.details(snapshot.get("runtime_decision") or "Runtime selection not assessed. Rerun analysis after capturing runtime requirements.")
     report.heading("Grounded pattern sources")
     patterns = snapshot.get("retrieved_patterns") or []
     if not patterns:
