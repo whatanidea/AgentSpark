@@ -30,7 +30,9 @@ class TokenCountingCallback(BaseCallbackHandler):
 from app.utils.models import (
     WorkflowState, WorkflowIntelligence, AgentSuitabilityScore, EnterpriseContext,
     ROIEstimate, WorkflowStatus, WorkflowDiagnosis, DemoScenario, ROIAssumptions, EvidenceEntry,
+    RuntimeRequirements, RuntimeDecision, FactEvidence,
 )
+from app.utils.runtime_decision import recommend_runtime
 from app.utils.evidence import build_evidence_report
 from app.utils.readiness import build_readiness_report
 from app.utils.interview import effective_diagnosis
@@ -60,6 +62,9 @@ class GraphState(TypedDict):
     workflow_intelligence: Optional[WorkflowIntelligence]
     suitability_score: Optional[AgentSuitabilityScore]
     cloud_mapping: Optional[Dict[str, Any]]
+    runtime_requirements: RuntimeRequirements
+    runtime_requirement_sources: Dict[str, FactEvidence]
+    runtime_decision: Optional[RuntimeDecision]
     retrieved_patterns: List[Dict[str, Any]]
     recommendation: Optional[Dict[str, Any]]
     governance: Optional[Dict[str, Any]]
@@ -114,8 +119,12 @@ def score_workflow(state: GraphState) -> GraphState:
 def map_services(state: GraphState) -> GraphState:
     t = time.perf_counter()
     logger.info("[3/7] Mapping Agent: target cloud service mapping")
+    state["runtime_decision"] = recommend_runtime(
+        state["runtime_requirements"], state["runtime_requirement_sources"],
+        state["suitability_score"], state["enterprise_context"])
     state["cloud_mapping"] = mapping_agent.map_services(
-        state["workflow_intelligence"], state["suitability_score"], state["enterprise_context"])
+        state["workflow_intelligence"], state["suitability_score"], state["enterprise_context"],
+        runtime_decision=state["runtime_decision"])
     _trace(state, "Mapping Agent",
            f"Mapped {state['cloud_mapping']['cloud_name']} candidates (AI: {state['cloud_mapping'].get('ai')}).", t)
     return state
@@ -132,6 +141,7 @@ def generate_recommendations(state: GraphState) -> GraphState:
         diagnosis=state["diagnosis"],
         target_cloud=state["enterprise_context"].target_cloud,
         assessment_evidence=state["evidence_report"],
+        runtime_decision=state["runtime_decision"].model_dump(),
     )
     state["retrieved_patterns"] = rec.pop("_retrieved_patterns", [])
     state["recommendation"] = rec
@@ -174,6 +184,7 @@ def create_blueprint(state: GraphState) -> GraphState:
         mapping=state["cloud_mapping"], governance=state["governance"], roi=state["roi"],
         diagnosis=state["diagnosis"],
         assessment_evidence=state["evidence_report"],
+        runtime_decision=state["runtime_decision"].model_dump(),
     )
     gov = state.get("governance") or {}
     state["status"] = "awaiting_human_review" if gov.get("decision") == "HUMAN_REVIEW_REQUIRED" else "completed"
@@ -242,6 +253,9 @@ def run_orchestration(session_id: str, roi_assumptions: ROIAssumptions | None = 
         "workflow_intelligence": None,
         "suitability_score": None,
         "cloud_mapping": None,
+        "runtime_requirements": db_state.runtime_requirements,
+        "runtime_requirement_sources": db_state.runtime_requirement_sources,
+        "runtime_decision": None,
         "retrieved_patterns": [],
         "recommendation": None,
         "governance": None,
@@ -264,6 +278,7 @@ def run_orchestration(session_id: str, roi_assumptions: ROIAssumptions | None = 
     db_state.evidence_report = result["evidence_report"]
     db_state.suitability_score = result["suitability_score"]
     db_state.cloud_mapping = result["cloud_mapping"]
+    db_state.runtime_decision = result["runtime_decision"]
     db_state.azure_mapping = result["cloud_mapping"] if db_state.enterprise_context.target_cloud == "azure" else None
     db_state.retrieved_patterns = result["retrieved_patterns"]
     db_state.architecture_recommendation = {

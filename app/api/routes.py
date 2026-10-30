@@ -146,7 +146,7 @@ class ReadinessRequest(RequestModel):
 
 class InterviewRequest(RequestModel):
     version: str = Field(min_length=1, max_length=1000)
-    answers: dict[str, Annotated[str, Field(max_length=2000)]] = Field(max_length=32)
+    answers: dict[str, Annotated[str, Field(max_length=2000)]] = Field(max_length=64)
 
 
 def interview_response(state):
@@ -398,6 +398,12 @@ def chat_interaction(req: ChatRequest):
     if isinstance(diagnosis, InterviewDiagnosis):
         try:
             apply_answers(state, redact_data({key: answer.value for key, answer in diagnosis.answers.items()}), captured=True)
+            for key, answer in diagnosis.answers.items():
+                if key.startswith("runtime."):
+                    source = state.runtime_requirement_sources.get(key.split(".", 1)[1])
+                    if source and source.source == "interview" and source.quote == answer.value:
+                        source.quote = redact_pii(answer.quote)
+                        source.source = answer.source
         except ValueError as exc:
             raise InvalidDependencyResponse(model_dependency(state.inference_model)) from exc
     state.demo_scenario = scenario
@@ -433,6 +439,7 @@ def analyze_workflow(session_id: SessionId, req: AnalyzeRequest | None = None):
         "cloud_mapping": s.cloud_mapping or s.azure_mapping,
         "evidence_report": s.evidence_report,
         "readiness_report": s.readiness_report,
+        "runtime_decision": s.runtime_decision.model_dump() if s.runtime_decision else None,
         "inference_model": s.inference_model.model_dump() if s.inference_model else None,
     })
 
@@ -460,6 +467,7 @@ def get_blueprint(session_id: SessionId):
     res["cloud_mapping"] = state.cloud_mapping or state.azure_mapping
     res["evidence_report"] = state.evidence_report
     res["readiness_report"] = state.readiness_report
+    res["runtime_decision"] = state.runtime_decision.model_dump() if state.runtime_decision else None
     if state.suitability_score:
         res["suitability_score"] = state.suitability_score.model_dump()
     if state.workflow_intelligence:
@@ -508,6 +516,7 @@ def get_review(session_id: SessionId):
         "human_review": state.human_review.model_dump(mode="json") if state.human_review else None,
         "evidence_report": state.evidence_report,
         "readiness_report": state.readiness_report,
+        "runtime_decision": state.runtime_decision.model_dump() if state.runtime_decision else None,
     }
 
 

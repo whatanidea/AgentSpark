@@ -4,8 +4,9 @@ import logging
 
 from app.utils.models import (
     ESSENTIAL_FACTS, FactEvidence, ReadinessCheckInput, WorkflowDiagnosis,
-    WorkflowIntelligence, WorkflowState,
+    WorkflowIntelligence, WorkflowState, RuntimeRequirements,
 )
+from app.utils.runtime_decision import runtime_fields
 from app.utils.readiness import readiness_catalog
 from app.utils.runtime import demo_mode
 from app.agents.demo_scenarios import demo_diagnosis
@@ -50,6 +51,7 @@ def interview_fields(state: WorkflowState) -> list[dict]:
         fields.append({"id": f"pilot.{key}", "label": "Pilot " + key.replace("_", " "),
                        "question": question, "group": "Pilot definition", "kind": "text",
                        "options": [], "max_length": 1000})
+    fields.extend(runtime_fields(state.runtime_requirements))
     return fields
 
 
@@ -112,8 +114,11 @@ def interview_progress(state: WorkflowState) -> dict:
     answers.update({f"context.{key}": getattr(state.enterprise_context, key) for key in _CONTEXT})
     answers.update({f"readiness.{check.id}": check.finding for check in state.readiness_assessment.checks})
     answers.update({f"pilot.{key}": getattr(state.readiness_assessment.pilot, key) for key in _PILOT})
+    answers.update({f"runtime.{key}": value for key, value in state.runtime_requirements.model_dump().items()
+                    if key in state.runtime_requirement_sources})
     fields = interview_fields(state)
-    missing = [field["id"] for field in fields if not answers.get(field["id"], "").strip()]
+    missing = [field["id"] for field in fields if field.get("required", True)
+               and not answers.get(field["id"], "").strip()]
     rounds = sum(message.get("role") == "user" for message in state.chat_history)
     exhausted = rounds >= MAX_INTERVIEW_ROUNDS
     pending = [field for field in fields if field["id"] in missing]
@@ -171,6 +176,16 @@ def apply_answers(state: WorkflowState, answers: dict[str, str], *, captured=Fal
         elif group == "pilot":
             if not captured or not getattr(state.readiness_assessment.pilot, key):
                 setattr(state.readiness_assessment.pilot, key, text)
+        elif group == "runtime":
+            if not captured or key not in state.runtime_requirement_sources:
+                values = state.runtime_requirements.model_dump()
+                values[key] = text or RuntimeRequirements().model_dump()[key]
+                state.runtime_requirements = RuntimeRequirements.model_validate(values)
+                if text:
+                    state.runtime_requirement_sources[key] = FactEvidence(
+                        status="supplied", source="interview" if captured else "checklist", quote=text)
+                else:
+                    state.runtime_requirement_sources.pop(key, None)
         else:
             check = next((item for item in state.readiness_assessment.checks if item.id == key), None)
             if check is None:

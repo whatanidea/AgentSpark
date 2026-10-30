@@ -32,6 +32,11 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   provenance are labelled as such; demo fixtures never call either provider.
 - **Choose Azure or AWS:** receive service candidates and a blueprint for the
   proposed customer solution. AgentSpark itself remains Azure-hosted.
+- **Choose the execution architecture:** capture runtime requirements and inspect
+  separate reasoning and durable-execution recommendations: application code,
+  bounded AI, LangGraph, Temporal, Azure Durable Functions or AWS Step Functions.
+  Versioned rules explain alternatives, trade-offs and unresolved validation needs;
+  no framework is deployed or assumed to fit automatically.
 - **Inspect the recommendation:** review the 12-criteria readiness score, grounded
   patterns, estimated ROI scenarios, and policy outcome.
 - **Record evidence:** distinguish client statements, source-supported findings,

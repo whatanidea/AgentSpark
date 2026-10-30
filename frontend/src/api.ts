@@ -8,6 +8,33 @@ export function setAccessToken(token: string) { accessToken = token; }
 export function setTokenProvider(provider: typeof tokenProvider) { tokenProvider = provider; }
 export type Permissions = { read: boolean; write: boolean; review: boolean; delete: boolean };
 export type CloudProvider = "azure" | "aws";
+export type RuntimeRequirements = {
+  reasoning: "unknown" | "deterministic" | "bounded" | "dynamic";
+  duration: "unknown" | "request_bound" | "long_running";
+  external_waits: "unknown" | "no" | "yes";
+  recovery: "unknown" | "restartable" | "durable";
+  side_effects: "unknown" | "read_only" | "consequential";
+  side_effect_safety: "unknown" | "defined" | "unresolved";
+  existing_reasoning: "unknown" | "none" | "bounded_handler" | "langgraph";
+  existing_runtime: "unknown" | "none" | "temporal" | "azure_durable_functions" | "aws_step_functions" | "other";
+  runtime_hosting: "unknown" | "managed_service" | "self_hosted";
+  operational_owner: string; scale_constraints: string; platform_constraints: string;
+};
+export type RuntimeDecisionLayer = {
+  selected: string | null; label: string; rationale: string[];
+  alternatives: { id: string; label: string; eligible: boolean; reason: string; tradeoffs: string[] }[];
+};
+export type RuntimeDecision = {
+  status: "recommended" | "provisional" | "insufficient_information";
+  rules_version: string; catalog_version: string; target_cloud: CloudProvider;
+  requirements: RuntimeRequirements;
+  provenance: Record<string, {
+    status: "supplied" | "inferred" | "missing";
+    source: "interview" | "checklist" | "intake" | "none" | "demo_fixture"; quote: string;
+  }>;
+  reasoning: RuntimeDecisionLayer; durable_execution: RuntimeDecisionLayer;
+  validation_tasks: string[]; boundaries: string[]; limitations: string;
+};
 export type InferenceModel = {
   id: "azure-openai" | "foundry-claude-haiku" | "demo";
   provider: string; model: string; deployment: string; version: string; configuration: string;
@@ -72,6 +99,7 @@ export type ArchivedDecision = {
     cloud_mapping?: Record<string, unknown> | null;
     evidence_report?: EvidenceReport | null;
     readiness_report?: ImplementationReadinessReport | null;
+    runtime_decision?: RuntimeDecision | null;
     workflow_intelligence: { summary: string; systems: string[] } | null;
     suitability_score: { agent_score: number; recommended_pattern: string; explanation: string } | null;
     human_review: { decision: "approve" | "reject"; reviewer: string; note: string; reviewed_at: string } | null;
@@ -150,6 +178,7 @@ export type SessionSnapshot = {
   readiness_assessment: ReadinessAssessment;
   readiness_revision: number;
   readiness_report: ImplementationReadinessReport | null;
+  runtime_decision?: RuntimeDecision | null;
   chat_history: { role: "user" | "assistant"; content: string }[];
   status: string;
   expires_at: string;

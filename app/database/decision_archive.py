@@ -106,6 +106,7 @@ def decision_record(state: WorkflowState, now: datetime, retention_days: int) ->
             "cloud_mapping": state.cloud_mapping or state.azure_mapping,
             "evidence_report": state.evidence_report,
             "readiness_report": state.readiness_report,
+            "runtime_decision": state.runtime_decision.model_dump(mode="json") if state.runtime_decision else None,
             "workflow_intelligence": state.workflow_intelligence.model_dump(mode="json") if state.workflow_intelligence else None,
             "suitability_score": state.suitability_score.model_dump(mode="json") if state.suitability_score else None,
             "governance": state.governance,

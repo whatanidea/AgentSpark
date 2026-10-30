@@ -77,6 +77,7 @@ test("guided interview stops at ten rounds and completes via a saved checklist",
   };
   for (const field of progress.fields.filter((item: { id: string }) => progress.missing_fields.includes(item.id))) {
     const value = field.id.startsWith("fact.") ? facts[field.id.slice(5)] :
+      field.id.startsWith("runtime.") && field.kind === "select" ? "unknown" :
       field.id === "context.preferred_region" ? "us-east-1" : "Fictional proposed control; validation is outstanding.";
     const input = page.getByRole(field.kind === "select" ? "combobox" : field.kind === "number" ? "spinbutton" : "textbox",
       { name: new RegExp(`^${field.label}`) });

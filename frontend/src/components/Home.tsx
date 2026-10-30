@@ -6,6 +6,7 @@ import Markdown from "./Markdown";
 import ROIReport from "./ROIReport";
 import { EvidenceSummary } from "./EvidenceRegister";
 import { ReadinessSummary } from "./ImplementationReadiness";
+import RuntimeDecisionSummary from "./RuntimeDecision";
 
 const STATUS: Record<HomeStatus, { label: string; tone: "green" | "red" | "amber" | "slate" }> = {
   draft: { label: "Draft / clarification", tone: "slate" },
@@ -138,6 +139,7 @@ export default function Home({ demo, retentionDays, workspaceName, canCreate, on
       </Card>
       <EvidenceSummary report={decision.details.evidence_report} />
       <ReadinessSummary report={decision.details.readiness_report} />
+      <RuntimeDecisionSummary decision={decision.details.runtime_decision} />
       <Card title={review ? "Reviewer decision & comments" : "Automated policy decision"}>
         {review ? <>
           <p className="text-sm font-medium text-slate-800">{review.decision === "approve" ? "Approved" : "Rejected"} by {review.reviewer}</p>

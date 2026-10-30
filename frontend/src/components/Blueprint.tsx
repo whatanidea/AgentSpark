@@ -6,6 +6,7 @@ import ArchitectureDiagram from "./ArchitectureDiagram";
 import AnalysisEvidence from "./AnalysisEvidence";
 import { EvidenceSummary, evidenceMarkdown } from "./EvidenceRegister";
 import { ReadinessSummary, readinessMarkdown } from "./ImplementationReadiness";
+import RuntimeDecisionSummary, { runtimeDecisionMarkdown } from "./RuntimeDecision";
 import ROIReport, { roiMarkdown } from "./ROIReport";
 
 export default function Blueprint({ sessionId, active, canReview, secureReview, onRefresh, onBusyChange }: any) {
@@ -108,6 +109,7 @@ ${JSON.stringify(bp.diagnosis, null, 2)}
 
 ${evidenceMarkdown(bp.evidence_report)}
 ${readinessMarkdown(bp.readiness_report, { analysis_id: bp.analysis_id, status: bp.status, human_review: bp.human_review })}
+${runtimeDecisionMarkdown(bp.runtime_decision)}
 
 ## Grounded pattern sources (keyword retrieval + required design IDs)
 ${(bp.retrieved_patterns || []).map((p: { id: string; name: string; source_ref?: string; content_sha256?: string }) =>
@@ -185,6 +187,7 @@ ${bp.code_scaffold || ""}
       {bp && !bp.analysis_id && <Card><p className="text-amber-800 text-sm">PDF export requires a versioned analysis. Rerun Workflow Analysis first.</p></Card>}
       {bp && <EvidenceSummary report={bp.evidence_report} />}
       {bp && <ReadinessSummary report={bp.readiness_report} />}
+      {bp && <RuntimeDecisionSummary decision={bp.runtime_decision} />}
       {bp && <Card title="Assessment deployment target">
         <p className="font-semibold">{bp.enterprise_context?.target_cloud === "aws" ? "AWS" : "Azure"} / {bp.enterprise_context?.preferred_region || "Region not specified"} (unverified)</p>
         <p className="text-sm mt-2">Data residency: {bp.enterprise_context?.data_residency_requirements || "Not specified"}</p>
