@@ -9,14 +9,16 @@ import Portfolio from "./components/Portfolio";
 import Home from "./components/Home";
 import Landing from "./components/Landing";
 import Workspaces from "./components/Workspaces";
+import Discovery from "./components/Discovery";
 import EvidenceRegister from "./components/EvidenceRegister";
 import ImplementationReadiness from "./components/ImplementationReadiness";
 import Icon from "./components/Icon";
 import { Button } from "./components/ui";
 
-type View = "home" | "intake" | "diagnose" | "evidence" | "readiness" | "analyze" | "blueprint" | "workspaces" | "portfolio";
+type View = "home" | "intake" | "diagnose" | "evidence" | "readiness" | "analyze" | "blueprint" | "workspaces" | "portfolio" | "discovery";
 const NAV: { id: View; label: string }[] = [
   { id: "home", label: "Home" },
+  { id: "discovery", label: "Discovery engagements" },
   { id: "intake", label: "1 · Enterprise Intake" },
   { id: "diagnose", label: "2 · Diagnostic Interview" },
   { id: "evidence", label: "Evidence & assumptions" },
@@ -153,7 +155,7 @@ export default function App() {
     if (next === view) return;
     setBusy(true);
     try {
-      if (sessionId && next !== "workspaces") await refreshSession();
+      if (sessionId && !["workspaces", "discovery"].includes(next)) await refreshSession();
       setView(next); setConfirmDelete(false);
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
@@ -234,12 +236,12 @@ export default function App() {
           {NAV.map((n, index) => (
             <div key={n.id} className={`shrink-0 ${n.id === "portfolio" ? "md:mt-6 md:pt-5 md:border-t border-slate-200" : ""}`}>
               {n.id === "portfolio" && <p className="hidden md:block px-3 pb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Explore</p>}
-              <button disabled={busy || !identity || starting || (!sessionId && !["home", "intake", "portfolio", "workspaces"].includes(n.id))
+              <button disabled={busy || !identity || starting || (!sessionId && !["home", "intake", "portfolio", "workspaces", "discovery"].includes(n.id))
                 || (n.id === "intake" && !sessionId && !canWrite)}
                 aria-label={n.label} aria-current={view === n.id ? "step" : undefined} onClick={() => void changeView(n.id)}
                 className="nav-item">
-                <span className="nav-number" aria-hidden="true">{n.id === "home" || n.id === "portfolio" || n.id === "workspaces"
-                  ? <Icon name={n.id === "workspaces" ? "portfolio" : n.id} className="h-4 w-4" /> : String(index).padStart(2, "0")}</span>
+                <span className="nav-number" aria-hidden="true">{n.id === "home" || n.id === "portfolio" || n.id === "workspaces" || n.id === "discovery"
+                  ? <Icon name={n.id === "workspaces" || n.id === "discovery" ? "portfolio" : n.id} className="h-4 w-4" /> : String(index - 1).padStart(2, "0")}</span>
                 <span>{n.label.replace(/^\d · /, "")}</span>
                 {view === n.id && <span aria-hidden="true" className="ml-auto text-teal-700">›</span>}
               </button>
@@ -337,6 +339,8 @@ export default function App() {
             {view === "workspaces" && <Workspaces identity={identity.identity} demo={auth?.mode === "local-demo"}
               onSelect={changeWorkspace} onBusyChange={setBusy} inviteCode={pendingInvite}
               onInviteHandled={() => setPendingInvite("")} />}
+            {view === "discovery" && <Discovery canCreate={workspace?.permissions.write !== false}
+              onOpen={openWorkflow} onBusyChange={setBusy} />}
             {view === "home" && <Home demo={auth?.mode === "local-demo"} retentionDays={auth?.archive_retention_days ?? 30}
               workspaceName={workspace ? `${workspace.organization_name} / ${workspace.team_name}` : undefined}
               canCreate={workspace?.permissions.write !== false}

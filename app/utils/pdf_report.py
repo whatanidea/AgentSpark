@@ -13,7 +13,7 @@ from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import KeepInFrame, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 
 _FONT_DIRECTORY = Path(reportlab.__file__).parent / "fonts"
@@ -144,6 +144,40 @@ class _Report:
             self.table(table)
 
 
+def build_executive_brief_pdf(brief: dict) -> bytes:
+    report = _Report()
+
+    def excerpt(text, limit=280):
+        value = str(text)
+        return value if len(value) <= limit else value[:limit].rsplit(" ", 1)[0] + " [excerpt; see full assessment]"
+
+    report.paragraph("AgentSpark Executive Decision Brief", report.title)
+    report.field("Workflow", brief["workflow_name"])
+    report.field("Analysis ID", brief.get("analysis_id") or "Incomplete assessment")
+    report.field("Brief version", brief["version"])
+    report.field("Advisory status", brief["approval_status"])
+    report.field("Recommended decision", brief["decision_label"])
+    report.paragraph(excerpt(brief["rationale"]))
+    for claim in brief["claims"]:
+        if claim["label"] != "Recommended decision":
+            report.field(claim["label"], excerpt(claim["statement"]) + " [" + ", ".join(claim["source_ids"]) + "]")
+    report.heading("Priority gaps")
+    for gap in brief["risks_and_gaps"][:4]:
+        report.paragraph("- " + excerpt(gap, 140))
+    if len(brief["risks_and_gaps"]) > 4:
+        report.paragraph("Additional gaps are listed in the full assessment.")
+    report.field("Next action", excerpt(brief["next_action"]))
+    report.heading("Source excerpts - full provenance in the assessment")
+    for source in brief["sources"]:
+        report.field(source["id"], excerpt(source["basis"], 220))
+    report.paragraph(brief["limitations"], report.small)
+    output = BytesIO()
+    document = SimpleDocTemplate(output, pagesize=A4, leftMargin=42, rightMargin=42, topMargin=42, bottomMargin=42,
+                                 title="AgentSpark Executive Decision Brief")
+    document.build([KeepInFrame(_WIDTH - 12, A4[1] - 100, report.story, mode="shrink")])
+    return output.getvalue()
+
+
 def build_blueprint_pdf(snapshot: dict) -> bytes:
     report = _Report()
     status = snapshot["status"]
@@ -155,6 +189,9 @@ def build_blueprint_pdf(snapshot: dict) -> bytes:
     report.paragraph(_STATUS[status], report.h2)
     report.field("Analysis ID", snapshot["analysis_id"])
     report.field("Generated at (UTC)", datetime.now(timezone.utc).isoformat())
+    if snapshot.get("executive_brief"):
+        report.heading("Executive decision brief")
+        report.details(snapshot["executive_brief"])
     model = snapshot.get("inference_model")
     report.field("Assessment inference model",
                  f"{model['provider']} / {model['model']} / deployment {model['deployment']} / "

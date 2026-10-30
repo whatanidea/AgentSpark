@@ -7,6 +7,7 @@ import ROIReport from "./ROIReport";
 import { EvidenceSummary } from "./EvidenceRegister";
 import { ReadinessSummary } from "./ImplementationReadiness";
 import RuntimeDecisionSummary from "./RuntimeDecision";
+import ExecutiveBriefSummary from "./ExecutiveBrief";
 
 const STATUS: Record<HomeStatus, { label: string; tone: "green" | "red" | "amber" | "slate" }> = {
   draft: { label: "Draft / clarification", tone: "slate" },
@@ -125,6 +126,7 @@ export default function Home({ demo, retentionDays, workspaceName, canCreate, on
           <div><dt className="text-slate-500">Analysis version</dt><dd className="font-mono text-slate-700 mt-1 break-all">{decision.summary.analysis_id}</dd></div>
         </dl>
       </Card>
+      <ExecutiveBriefSummary brief={decision.details.executive_brief} />
       <Card title="Reviewed deployment target">
         <p className="text-sm">{decision.details.deployment_preferences?.target_cloud === "aws" ? "AWS" : "Azure"} / {decision.details.deployment_preferences?.preferred_region || "Region not specified"} (unverified)</p>
         <p className="text-sm mt-2">Data residency: {decision.details.deployment_preferences?.data_residency_requirements || "Not specified"}</p>

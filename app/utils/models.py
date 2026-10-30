@@ -12,6 +12,7 @@ WorkflowStatus = Literal["init", "processing", "needs_clarification", "awaiting_
 DemoScenario = Literal["invoice", "support", "claims", "payroll"]
 SignalLevel = Literal["High", "Medium", "Low"]
 CloudProvider = Literal["azure", "aws"]
+InterviewRole = Literal["all", "business_operator", "process_owner", "technical_owner"]
 SessionId = Annotated[str, StringConstraints(min_length=1, max_length=100, pattern=r"^[A-Za-z0-9][A-Za-z0-9_-]*$")]
 WorkflowLabel = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=200)]
 
@@ -430,9 +431,84 @@ class RuntimeDecision(BaseModel):
     limitations: str
 
 
+class BriefSource(BaseModel):
+    id: str
+    label: str
+    basis: str
+
+
+class BriefClaim(BaseModel):
+    label: str
+    statement: str
+    source_ids: List[str]
+
+
+class ExecutiveBrief(BaseModel):
+    version: Literal["executive-brief-v1"] = "executive-brief-v1"
+    analysis_id: Optional[SessionId] = None
+    workflow_name: str
+    decision: Literal["investigate_further", "conventional_automation", "bounded_ai_pilot", "do_not_proceed"]
+    decision_label: str
+    rationale: str
+    approval_status: str
+    claims: List[BriefClaim]
+    sources: List[BriefSource]
+    risks_and_gaps: List[str]
+    next_action: str
+    limitations: str
+
+
+class DiscoveryContribution(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    id: SessionId
+    role: Literal["business_operator", "process_owner", "technical_owner"]
+    statement: str = Field(min_length=1, max_length=2000)
+
+
+class DiscoveryOpportunity(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    id: SessionId
+    title: WorkflowLabel
+    problem: str = Field(min_length=1, max_length=2000)
+    status: Literal["proposed", "selected", "parked"] = "proposed"
+
+
+class DiscoveryEngagement(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    title: WorkflowLabel
+    objective: str = Field(min_length=1, max_length=2000)
+    business_units: str = Field(min_length=1, max_length=1000)
+    sponsor: str = Field(min_length=1, max_length=200)
+    engagement_owner: str = Field(min_length=1, max_length=200)
+    required_topics: str = Field(default="", max_length=2000)
+    excluded_topics: str = Field(default="", max_length=2000)
+    starts_on: str = Field(default="", max_length=10)
+    ends_on: str = Field(default="", max_length=10)
+    status: Literal["planned", "active", "completed"] = "planned"
+    contributions: List[DiscoveryContribution] = Field(default_factory=list, max_length=20)
+    opportunities: List[DiscoveryOpportunity] = Field(default_factory=list, max_length=20)
+    assessment_ids: List[SessionId] = Field(default_factory=list, max_length=20)
+
+    @model_validator(mode="after")
+    def valid_engagement(self):
+        from datetime import date
+        for value in (self.starts_on, self.ends_on):
+            if value and date.fromisoformat(value).isoformat() != value:
+                raise ValueError("Discovery dates must use YYYY-MM-DD.")
+        if self.starts_on and self.ends_on and self.ends_on < self.starts_on:
+            raise ValueError("Discovery end date must not precede its start.")
+        for values in ([item.id for item in self.contributions], [item.id for item in self.opportunities],
+                       self.assessment_ids):
+            if len(values) != len(set(values)):
+                raise ValueError("Discovery item identifiers must be unique.")
+        return self
+
+
 class WorkflowState(BaseModel):
     _etag: Optional[str] = PrivateAttr(default=None)
     session_id: SessionId
+    record_kind: Literal["assessment", "discovery"] = "assessment"
+    discovery: Optional[DiscoveryEngagement] = None
     owner_id: str = "local-demo"
     organization_id: Optional[SessionId] = None
     team_id: Optional[SessionId] = None
@@ -455,6 +531,9 @@ class WorkflowState(BaseModel):
     diagnosis: Optional[WorkflowDiagnosis] = None
     interview_diagnosis: Optional[WorkflowDiagnosis] = None
     interview_answers: Dict[str, str] = Field(default_factory=dict, max_length=14)
+    interview_role: InterviewRole = "all"
+    interview_unconfirmed: List[str] = Field(default_factory=list, max_length=64)
+    executive_brief: Optional[ExecutiveBrief] = None
     roi_assumptions: ROIAssumptions = Field(default_factory=ROIAssumptions)
     workflow_intelligence: Optional[WorkflowIntelligence] = None
     suitability_score: Optional[AgentSuitabilityScore] = None
@@ -475,6 +554,7 @@ class WorkflowState(BaseModel):
     decision_recorded_at: Optional[datetime] = None
 
     def invalidate_analysis(self) -> None:
+        self.executive_brief = None
         self.evidence_report = None
         self.readiness_report = None
         self.runtime_decision = None

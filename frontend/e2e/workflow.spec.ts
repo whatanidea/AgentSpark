@@ -546,11 +546,11 @@ test("Home retains human rejection comments and cascade deletion removes the dec
   await page.getByRole("button", { name: "Rejected", exact: true }).click();
   await page.getByRole("button", { name: "Open Invoice Approval Rejected", exact: true }).click();
   await expect(page.getByText("Rejected by Fictional rejection reviewer", { exact: true })).toBeVisible();
-  await expect(page.getByText("Fictional review: require manual controls.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("blockquote").filter({ hasText: "Fictional review: require manual controls." })).toBeVisible();
   await page.getByRole("button", { name: "Delete workflow & history", exact: true }).click();
   const confirmation = page.getByRole("alertdialog", { name: "Confirm workflow and archive deletion", exact: true });
   await confirmation.getByRole("button", { name: "Cancel", exact: true }).click();
-  await expect(page.getByText("Fictional review: require manual controls.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("blockquote").filter({ hasText: "Fictional review: require manual controls." })).toBeVisible();
   await page.getByRole("button", { name: "Delete workflow & history", exact: true }).click();
   await confirmation.getByRole("button", { name: "Delete workflow & history", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible();

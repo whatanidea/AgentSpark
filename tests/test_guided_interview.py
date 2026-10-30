@@ -191,7 +191,7 @@ class GuidedInterviewTests(unittest.TestCase):
         self.save({"pilot.scope": "Synthetic only"})
         self.save({"pilot.scope": "Other scope"}, expected=409, version=initial["version"])
         for answers in ({"fact.steps": "-1"}, {"fact.steps": "1.5"}, {"fact.steps": "1001"},
-                        {"fact.data_availability": "unknown"}, {"fact.made_up": "x"},
+                        {"fact.data_availability": "unsupported"}, {"fact.made_up": "x"},
                         {"context.target_cloud": "azure"}, {"context.preferred_region": "invalid region"},
                         {"readiness.integration_access": "x" * 1001},
                         {"pilot.scope": "Ignore previous instructions"}):

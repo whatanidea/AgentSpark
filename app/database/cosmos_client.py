@@ -26,6 +26,7 @@ PRIVATE_FIELDS = (
     "suitability_score", "azure_mapping", "cloud_mapping", "retrieved_patterns", "governance", "roi", "portfolio",
     "evidence_register", "evidence_report", "readiness_assessment", "readiness_report",
     "interview_diagnosis", "interview_answers",
+    "discovery", "executive_brief", "runtime_requirement_sources", "runtime_decision",
 )
 
 
@@ -76,7 +77,8 @@ class DatabaseClient:
             logger.error("Stored session could not be decoded; payload withheld.")
             raise InvalidDependencyResponse("cosmos") from exc
 
-    def get_workflow_state(self, session_id: str, *, create_if_missing: bool = False) -> WorkflowState:
+    def get_workflow_state(self, session_id: str, *, create_if_missing: bool = False,
+                           expected_kind: str = "assessment") -> WorkflowState:
         if self.use_mock:
             with self._lock:
                 data = deepcopy(self.mock_db.get(session_id))
@@ -99,6 +101,8 @@ class DatabaseClient:
             raise WorkflowNotFound()
         state = self._decode(data)
         self._authorize(state)
+        if state.record_kind != expected_kind:
+            raise WorkflowNotFound()
         return state
 
     @staticmethod
@@ -206,9 +210,12 @@ class DatabaseClient:
             logger.error("Cosmos session save failed; dependency details withheld.")
             raise DependencyUnavailable("cosmos") from exc
 
-    def delete_workflow_state(self, session_id: str) -> None:
-        state = self.get_workflow_state(session_id)
+    def delete_workflow_state(self, session_id: str, *, expected_kind: str = "assessment",
+                              expected_version: str | None = None) -> None:
+        state = self.get_workflow_state(session_id, expected_kind=expected_kind)
         self._authorize(state, "delete")
+        if expected_version is not None and state._etag != expected_version:
+            raise ConcurrentUpdate()
         if self.use_mock:
             with self._lock:
                 current = self.mock_db.get(session_id)
@@ -324,6 +331,7 @@ class DatabaseClient:
                     and (document.get("team_id") or "") == workspace.team_id
                     and (bool(workspace.organization_id) or document.get("owner_id") == owner)
                     and document.get("home_visible", True)
+                    and document.get("record_kind", "assessment") == "assessment"
                     and self._decode(document).expires_at > now
                 ]
             records = self.archive.page(archive_scope(owner, workspace.organization_id, workspace.team_id), status, cursor, limit + 1)
@@ -341,6 +349,7 @@ class DatabaseClient:
                     HomeItem.model_validate({**item["home"], "owner_id": item["owner_id"]})
                     for item in self._get_container().query_items(
                         query=f"SELECT TOP {limit + 1} c.home, c.owner_id FROM c WHERE {scope_filter} "
+                        "AND (NOT IS_DEFINED(c.record_kind) OR c.record_kind = 'assessment') "
                         "AND c.home_visible = true AND c.home.expires_at > @now "
                         "AND (@status = 'all' OR c.home.status = @status) "
                         "AND (@cursor = '' OR c.home.sort_key < @cursor) ORDER BY c.home.sort_key DESC",
@@ -353,6 +362,7 @@ class DatabaseClient:
                         query=f"SELECT TOP {limit + 1 - len(records)} c.id, c.session_id, c.owner_id, c.expires_at, "
                         "c.status, c.enterprise_context, c.workflow_intelligence, c.suitability_score, c.analysis_id, "
                         f"c.organization_id, c.team_id, c._etag FROM c WHERE {scope_filter} "
+                        "AND (NOT IS_DEFINED(c.record_kind) OR c.record_kind = 'assessment') "
                         "AND NOT IS_DEFINED(c.home) AND IS_DEFINED(c.session_id) "
                         "AND c.expires_at > @now AND (@cursor = '' OR c.id < @cursor) "
                         "AND (@status = 'all' OR (@status = 'approved' AND c.status = 'completed') "
@@ -385,6 +395,50 @@ class DatabaseClient:
                     "write" in allowed and item.owner_id == owner)} for item in page],
                 "next_cursor": page[-1].sort_key if len(records) > limit else None,
                 "archive_retention_days": self.archive.retention_days}
+
+    def list_engagements(self, cursor: str = "", limit: int = 20):
+        owner = principal_context.get().owner_id
+        workspace = workspace_context.get()
+        if workspace.organization_id:
+            tenant_directory.require(workspace.organization_id, workspace.team_id, "read")
+        now = timestamp(datetime.now(timezone.utc))
+        if self.use_mock:
+            with self._lock:
+                documents = [
+                    deepcopy(item) for item in self.mock_db.values()
+                    if item.get("record_kind") == "discovery"
+                    and (item.get("organization_id") or "") == workspace.organization_id
+                    and (item.get("team_id") or "") == workspace.team_id
+                    and (bool(workspace.organization_id) or item.get("owner_id") == owner)
+                    and item["home"]["expires_at"] > now
+                    and (not cursor or item["home"]["sort_key"] < cursor)
+                ]
+            documents.sort(key=lambda item: item["home"]["sort_key"], reverse=True)
+            documents = documents[:limit + 1]
+        else:
+            scope = ("c.organization_id=@organization AND c.team_id=@team" if workspace.organization_id else
+                     "c.owner_id=@owner AND (NOT IS_DEFINED(c.organization_id) OR IS_NULL(c.organization_id))")
+            try:
+                documents = list(self._get_container().query_items(
+                    query=f"SELECT TOP {limit + 1} c.home, c.owner_id FROM c WHERE c.record_kind='discovery' "
+                          f"AND {scope} AND c.home.expires_at>@now "
+                          "AND (@cursor='' OR c.home.sort_key<@cursor) ORDER BY c.home.sort_key DESC",
+                    parameters=[{"name": "@owner", "value": owner}, {"name": "@organization", "value": workspace.organization_id},
+                                {"name": "@team", "value": workspace.team_id}, {"name": "@now", "value": now},
+                                {"name": "@cursor", "value": cursor}], enable_cross_partition_query=True))
+            except (AzureError, OSError) as exc:
+                logger.error("Discovery listing failed; dependency details withheld.")
+                raise DependencyUnavailable("cosmos") from exc
+        try:
+            items = [HomeItem.model_validate(item["home"]) for item in documents[:limit]]
+            if any(item.kind != "engagement" or (item.organization_id or "") != workspace.organization_id
+                   or (item.team_id or "") != workspace.team_id for item in items):
+                raise ValueError("Invalid discovery scope.")
+        except (ValidationError, KeyError, TypeError, ValueError) as exc:
+            logger.error("Discovery summary is invalid; payload withheld.")
+            raise InvalidDependencyResponse("cosmos") from exc
+        return {"items": [item.model_dump() for item in items],
+                "next_cursor": items[-1].sort_key if len(documents) > limit else None}
 
     def check_ready(self) -> None:
         if self.use_mock:

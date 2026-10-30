@@ -5,6 +5,7 @@ import AnalysisEvidence from "./AnalysisEvidence";
 import { EvidenceSummary } from "./EvidenceRegister";
 import { ReadinessSummary } from "./ImplementationReadiness";
 import RuntimeDecisionSummary from "./RuntimeDecision";
+import ExecutiveBriefSummary from "./ExecutiveBrief";
 import ROIReport, { DEFAULT_ROI_ASSUMPTIONS, ROIAssumptionForm } from "./ROIReport";
 
 function analysisData(s: any) {
@@ -65,6 +66,7 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
       {err && <Card><p role="alert" className="text-rose-700 text-sm">❌ {err}</p></Card>}
       {data?.enterprise_context && <p className="notice">Assessment target: {data.enterprise_context.target_cloud === "aws" ? "AWS" : "Azure"}.
         {" "}Region: {data.enterprise_context.preferred_region || "not specified"} (unverified). This does not change AgentSpark hosting or deploy resources.</p>}
+      {data && <ExecutiveBriefSummary brief={data.executive_brief} sessionId={sessionId} />}
       <ROIAssumptionForm value={assumptions} onChange={setAssumptions} disabled={busy} />
       <AnalysisEvidence diagnosis={data?.diagnosis} scenario={data?.demo_scenario} />
       {data && <EvidenceSummary report={data.evidence_report} />}

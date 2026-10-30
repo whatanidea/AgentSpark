@@ -295,6 +295,8 @@ def run_orchestration(session_id: str, roi_assumptions: ROIAssumptions | None = 
     db_state.readiness_report = build_readiness_report(db_state)
     db_state.human_review = None
     db_state.decision_recorded_at = None
+    from app.utils.executive_brief import build_executive_brief
+    db_state.executive_brief = build_executive_brief(db_state)
     
     from app.utils.models import TokenUsage
     db_state.token_usage = TokenUsage(
