@@ -195,6 +195,32 @@ class RuntimeRuleTests(unittest.TestCase):
         self.assertEqual(state.runtime_requirements.reasoning, "deterministic")
         self.assertEqual(state.runtime_requirement_sources["reasoning"].source, "checklist")
 
+    def test_runtime_enum_extraction_accepts_hyphenated_literal_labels(self):
+        agent = DiagnosticAgent()
+        agent.use_mock = False
+        for field, value, quote in (
+            ("runtime_hosting", "self_hosted", "We use self-hosted Temporal."),
+            ("duration", "long_running", "This is a long-running workflow."),
+            ("side_effects", "read_only", "The assistant has read-only access."),
+        ):
+            with self.subTest(field=field):
+                diagnosis = InterviewDiagnosis(answers={f"runtime.{field}": InterviewAnswer(value=value, quote=quote)})
+                with patch("app.agents.diagnostic_agent.get_chat_llm", return_value=Mock()), \
+                        patch("app.agents.diagnostic_agent.structured_call", return_value=diagnosis):
+                    result = agent.analyze_chat_history([{"role": "user", "content": quote}], include_readiness=True)
+                self.assertEqual(result.answers[f"runtime.{field}"].value, value)
+
+    def test_runtime_enum_extraction_does_not_infer_option_from_related_prose(self):
+        agent = DiagnosticAgent()
+        agent.use_mock = False
+        quote = "Cases can remain open for several days."
+        diagnosis = InterviewDiagnosis(answers={"runtime.duration": InterviewAnswer(value="long_running", quote=quote)})
+        with patch("app.agents.diagnostic_agent.get_chat_llm", return_value=Mock()), \
+                patch("app.agents.diagnostic_agent.structured_call", return_value=diagnosis), \
+                self.assertLogs("app.agents.diagnostic_agent", level="ERROR"), \
+                self.assertRaises(InvalidDependencyResponse):
+            agent.analyze_chat_history([{"role": "user", "content": quote}], include_readiness=True)
+
 
 class RuntimeDecisionAPITests(unittest.TestCase):
     def setUp(self):
