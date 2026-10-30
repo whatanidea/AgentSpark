@@ -121,8 +121,18 @@ external waits, recovery, side effects and safety, existing reasoning/workflow
 standards, Temporal hosting, operational ownership, scale/latency and platform
 constraints. Only relevant required questions enter the grouped interview;
 optional constraints remain editable. Explicit unknowns are retained, not guessed.
-Runtime enum extraction requires a quoted literal option label (spaces or
-underscores); otherwise use the checklist. Free text retains verbatim provenance.
+Runtime enum extraction requires a quoted literal option label (spaces,
+underscores or hyphens); otherwise use the checklist. Enum values use the exact
+option token, not the full quote. Free text retains verbatim provenance.
+The model-facing capture schema restricts answer keys, runtime option tokens and
+region-code syntax. Free-text captures return one supporting quote rather than
+separate quote/value strings that can disagree; the verified quote becomes the
+stored draft answer. Unanswered fields are omitted, not filled with guesses.
+Only runtime option tokens literally present in the stakeholder/intake text are
+offered to the extractor; unrelated inferred options cannot be selected.
+An evidence-validation retry identifies rejected fields and requests corrected
+quotes or omission of unsupported answers. Persistent unverifiable evidence still
+fails explicitly with `502`; it is never accepted as a confirmed answer.
 
 During mapping, versioned deterministic rules recommend two independent layers:
 

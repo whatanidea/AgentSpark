@@ -8,15 +8,16 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 from pypdf import PdfReader
+from pydantic import ValidationError
 
-from app.agents.diagnostic_agent import DiagnosticAgent
+from app.agents.diagnostic_agent import DiagnosticAgent, _interview_extraction_schema
 from app.api import routes
 from app.database.cosmos_client import DatabaseClient, private_document
 from app.main import app
 from app.orchestration import langgraph_flow
 from app.security import auth
 from app.utils.errors import InvalidDependencyResponse
-from app.utils.interview import apply_answers, effective_diagnosis, merge_diagnosis
+from app.utils.interview import apply_answers, effective_diagnosis, interview_fields, merge_diagnosis
 from app.utils.models import (
     EnterpriseContext, FactEvidence, InterviewAnswer, InterviewDiagnosis,
     ReadinessCheckInput, WorkflowDiagnosis, WorkflowState,
@@ -256,6 +257,72 @@ class GuidedInterviewTests(unittest.TestCase):
 
 
 class InterviewCaptureProvenanceTests(unittest.TestCase):
+    def test_retry_identifies_rejected_fields_without_repeating_invalid_output(self):
+        agent = DiagnosticAgent()
+        agent.use_mock = False
+        bad = InterviewDiagnosis(answers={"context.data_residency_requirements": InterviewAnswer(
+            value="US residency confirmed", quote="US residency proposed; unconfirmed.")})
+        good = InterviewDiagnosis(answers={"context.data_residency_requirements": InterviewAnswer(
+            value="US residency proposed; unconfirmed.", quote="US residency proposed; unconfirmed.")})
+        with patch("app.agents.diagnostic_agent.get_chat_llm", return_value=Mock()), \
+                patch("app.agents.diagnostic_agent.structured_call", side_effect=[bad, good]) as extract, \
+                self.assertLogs("app.agents.diagnostic_agent", level="ERROR"):
+            result = agent.analyze_chat_history(
+                [{"role": "user", "content": "US residency proposed; unconfirmed."}], include_readiness=True)
+        first_prompt, retry_prompt = [call.args[1] for call in extract.call_args_list]
+        self.assertNotIn("previous extraction failed", first_prompt)
+        self.assertIn("previous extraction failed", retry_prompt)
+        self.assertIn("context.data_residency_requirements", retry_prompt)
+        self.assertNotIn("US residency confirmed", retry_prompt)
+        self.assertEqual(result.answers["context.data_residency_requirements"].value,
+                         "US residency proposed; unconfirmed.")
+
+    def test_runtime_enum_prompt_does_not_require_value_to_equal_quote(self):
+        agent = DiagnosticAgent()
+        agent.use_mock = False
+        with patch("app.agents.diagnostic_agent.get_chat_llm", return_value=Mock()), \
+                patch("app.agents.diagnostic_agent.structured_call", return_value=InterviewDiagnosis()) as extract:
+            agent.analyze_chat_history(
+                [{"role": "user", "content": "We already use Temporal."}], include_readiness=True)
+        prompt = extract.call_args.args[1]
+        self.assertIn("For free-text fields, return only quote and source", prompt)
+        self.assertIn("NOT the full quote", prompt)
+        self.assertIn("runtime.existing_runtime value temporal", prompt)
+        schema = extract.call_args.args[3]
+        schema.model_validate({"answers": {"runtime.existing_runtime": {
+            "value": "temporal", "quote": "We already use Temporal.", "source": "interview"}}})
+        for key, value in (("runtime.existing_runtime", "none"), ("runtime.reasoning", "dynamic")):
+            with self.subTest(key=key), self.assertRaises(ValidationError):
+                schema.model_validate({"answers": {key: {
+                    "value": value, "quote": "We already use Temporal.", "source": "interview"}}})
+
+    def test_extraction_schema_constrains_answer_keys_region_and_runtime_values(self):
+        capture = {field["id"]: field for field in interview_fields(WorkflowState(session_id="schema"))
+                   if not field["id"].startswith("fact.")}
+        schema = _interview_extraction_schema(capture)
+        for key, answer in (
+            ("readiness.existing_runtime", {"quote": "Temporal", "source": "intake"}),
+            ("runtime.existing_runtime", {"value": "self-hosted Temporal", "quote": "Temporal", "source": "intake"}),
+            ("context.preferred_region", {"value": "Preferred region: westus3", "quote": "westus3", "source": "intake"}),
+            ("pilot.scope", {"value": "Confirmed", "quote": "Unconfirmed", "source": "interview"}),
+        ):
+            with self.subTest(key=key), self.assertRaises(ValidationError):
+                schema.model_validate({"answers": {key: answer}})
+
+    def test_free_text_capture_uses_verified_quote_without_model_paraphrase(self):
+        capture = {field["id"]: field for field in interview_fields(WorkflowState(session_id="schema"))
+                   if not field["id"].startswith("fact.")}
+        schema = _interview_extraction_schema(capture)
+        quote = "US residency proposed; unconfirmed."
+        extraction = schema.model_validate({"answers": {
+            "context.data_residency_requirements": {"quote": quote, "source": "interview"},
+            "pilot.scope": None,
+        }})
+        result = self.extract(extraction, [{"role": "user", "content": quote}])
+        self.assertEqual(list(result.answers), ["context.data_residency_requirements"])
+        self.assertEqual(result.answers["context.data_residency_requirements"].value, quote)
+        self.assertEqual(result.answers["context.data_residency_requirements"].quote, quote)
+
     def test_unrecognized_model_field_names_are_not_logged(self):
         with self.assertLogs("app.agents.diagnostic_agent", level="ERROR") as logs, \
                 self.assertRaises(InvalidDependencyResponse):
