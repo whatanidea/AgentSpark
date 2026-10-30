@@ -8,6 +8,28 @@ export function setAccessToken(token: string) { accessToken = token; }
 export function setTokenProvider(provider: typeof tokenProvider) { tokenProvider = provider; }
 export type Permissions = { read: boolean; write: boolean; review: boolean; delete: boolean };
 export type CloudProvider = "azure" | "aws";
+export type InterviewRole = "all" | "business_operator" | "process_owner" | "technical_owner";
+export type ExecutiveBrief = {
+  version: string; analysis_id: string | null; workflow_name: string;
+  decision: "investigate_further" | "conventional_automation" | "bounded_ai_pilot" | "do_not_proceed";
+  decision_label: string; rationale: string; approval_status: string;
+  claims: { label: string; statement: string; source_ids: string[] }[];
+  sources: { id: string; label: string; basis: string }[];
+  risks_and_gaps: string[]; next_action: string; limitations: string;
+};
+export type DiscoveryEngagement = {
+  title: string; objective: string; business_units: string; sponsor: string; engagement_owner: string;
+  required_topics: string; excluded_topics: string; starts_on: string; ends_on: string;
+  status: "planned" | "active" | "completed";
+  contributions: { id: string; role: Exclude<InterviewRole, "all">; statement: string }[];
+  opportunities: { id: string; title: string; problem: string; status: "proposed" | "selected" | "parked" }[];
+  assessment_ids: string[];
+};
+export type DiscoveryRecord = {
+  id: string; version: string; engagement: DiscoveryEngagement; permissions: Permissions; expires_at: string;
+  assessments: { session_id: string; title: string; status: string }[]; unavailable_assessments: string[];
+  progress: { contributions: number; opportunities: number; assessments: number }; limitations: string;
+};
 export type RuntimeRequirements = {
   reasoning: "unknown" | "deterministic" | "bounded" | "dynamic";
   duration: "unknown" | "request_bound" | "long_running";
@@ -86,7 +108,7 @@ export type AuthConfig = {
 export type HomeStatus = "draft" | "pending_review" | "approved" | "rejected";
 export type HomeItem = {
   can_delete: boolean;
-  kind: "session" | "decision"; session_id: string; analysis_id: string | null;
+  kind: "session" | "decision" | "engagement"; session_id: string; analysis_id: string | null;
   title: string; domain: string; status: HomeStatus; score: number | null;
   updated_at: string; expires_at: string; sort_key: string; legacy: boolean;
 };
@@ -100,6 +122,7 @@ export type ArchivedDecision = {
     evidence_report?: EvidenceReport | null;
     readiness_report?: ImplementationReadinessReport | null;
     runtime_decision?: RuntimeDecision | null;
+    executive_brief?: ExecutiveBrief | null;
     workflow_intelligence: { summary: string; systems: string[] } | null;
     suitability_score: { agent_score: number; recommended_pattern: string; explanation: string } | null;
     human_review: { decision: "approve" | "reject"; reviewer: string; note: string; reviewed_at: string } | null;
@@ -171,6 +194,8 @@ export type ReadinessReviewContext = {
 };
 export type SessionSnapshot = {
   session_id: string;
+  version: string;
+  executive_brief: ExecutiveBrief | null;
   enterprise_context: Record<string, string>;
   evidence_register: EvidenceEntry[];
   evidence_revision: number;
@@ -222,8 +247,11 @@ export type Diagnosis = {
 export type InterviewField = {
   id: string; label: string; question: string; group: string;
   kind: "text" | "number" | "select"; options: string[]; max_length: number;
+  assigned_role: Exclude<InterviewRole, "all">;
 };
 export type InterviewProgress = {
+  role: InterviewRole; roles: Record<InterviewRole, string>; role_missing_fields: string[];
+  deferred_fields: string[]; unconfirmed_fields: string[];
   version: string; rounds_used: number; max_rounds: number; limit_reached: boolean; can_chat: boolean;
   questions: string[]; missing_fields: string[]; missing_facts: string[];
   fields: InterviewField[]; answers: Record<string, string>; permissions: Permissions;
@@ -303,8 +331,17 @@ export const api = {
   me: (): Promise<Identity> => get("/auth/me"),
   session: (id: string): Promise<SessionSnapshot> => get(`/sessions/${encodeURIComponent(id)}`),
   interview: (id: string): Promise<InterviewProgress> => get(`/sessions/${encodeURIComponent(id)}/interview`),
-  saveInterview: (id: string, version: string, answers: Record<string, string>): Promise<InterviewProgress> =>
-    request(`/sessions/${encodeURIComponent(id)}/interview`, "PUT", { version, answers }),
+  saveInterview: (id: string, version: string, answers: Record<string, string>, role?: InterviewRole): Promise<InterviewProgress> =>
+    request(`/sessions/${encodeURIComponent(id)}/interview`, "PUT", { version, answers, ...(role ? { role } : {}) }),
+  engagements: (cursor = ""): Promise<DirectoryPage<HomeItem>> => get(`/engagements?${new URLSearchParams({ cursor })}`),
+  engagement: (id: string): Promise<DiscoveryRecord> => get(`/engagements/${encodeURIComponent(id)}`),
+  createEngagement: (engagement: DiscoveryEngagement): Promise<DiscoveryRecord> => post("/engagements", { engagement }),
+  saveEngagement: (id: string, version: string, engagement: DiscoveryEngagement): Promise<DiscoveryRecord> =>
+    request(`/engagements/${encodeURIComponent(id)}`, "PUT", { version, engagement }),
+  deleteEngagement: (id: string, version: string) =>
+    request(`/engagements/${encodeURIComponent(id)}?${new URLSearchParams({ version })}`, "DELETE"),
+  executiveBriefPdf: async (id: string, version: string): Promise<Blob> =>
+    (await requestResponse(`/sessions/${encodeURIComponent(id)}/executive-brief/pdf?${new URLSearchParams({ version })}`)).blob(),
   evidence: (id: string): Promise<EvidenceRegisterResponse> => get(`/sessions/${encodeURIComponent(id)}/evidence`),
   saveEvidence: (id: string, revision: number, entries: EvidenceInput[]): Promise<EvidenceRegisterResponse> =>
     request(`/sessions/${encodeURIComponent(id)}/evidence`, "PUT", { revision, entries }),

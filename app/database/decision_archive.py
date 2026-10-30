@@ -23,7 +23,7 @@ def timestamp(value: datetime) -> str:
 
 class HomeItem(BaseModel):
     owner_id: str = Field(default="", exclude=True)
-    kind: Literal["session", "decision"]
+    kind: Literal["session", "decision", "engagement"]
     session_id: SessionId
     analysis_id: SessionId | None = None
     title: str
@@ -80,9 +80,10 @@ def summary(state: WorkflowState, now: datetime, *, archived: bool = False,
                          else "pending_review" if state.status == "awaiting_human_review" else "draft")
     return HomeItem(
         owner_id=state.owner_id,
-        kind="decision" if archived else "session", session_id=state.session_id,
+        kind="engagement" if state.record_kind == "discovery" else "decision" if archived else "session",
+        session_id=state.session_id,
         analysis_id=state.analysis_id,
-        title=state.workflow_intelligence.workflow_name if state.workflow_intelligence
+        title=state.discovery.title if state.discovery else state.workflow_intelligence.workflow_name if state.workflow_intelligence
         else state.enterprise_context.business_domain or "Untitled workflow",
         domain=state.enterprise_context.business_domain, status=status,
         score=state.suitability_score.agent_score if state.suitability_score else None,
@@ -107,6 +108,7 @@ def decision_record(state: WorkflowState, now: datetime, retention_days: int) ->
             "evidence_report": state.evidence_report,
             "readiness_report": state.readiness_report,
             "runtime_decision": state.runtime_decision.model_dump(mode="json") if state.runtime_decision else None,
+            "executive_brief": state.executive_brief.model_dump(mode="json") if state.executive_brief else None,
             "workflow_intelligence": state.workflow_intelligence.model_dump(mode="json") if state.workflow_intelligence else None,
             "suitability_score": state.suitability_score.model_dump(mode="json") if state.suitability_score else None,
             "governance": state.governance,

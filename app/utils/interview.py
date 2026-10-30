@@ -27,6 +27,21 @@ _PILOT = {
     "failure_handling": "How should the pilot handle errors, uncertainty and escalation?",
     "authorization_boundaries": "Which decisions and business actions must remain human-authorized?",
 }
+ROLE_LABELS = {"all": "Complete assessment (all roles)", "business_operator": "Business operator",
+               "process_owner": "Process owner", "technical_owner": "Technical owner"}
+_OPERATOR_FACTS = {"workflow_name", "summary", "steps", "departments", "systems",
+                   "human_judgment", "unstructured_content"}
+
+
+def field_role(identifier: str) -> str:
+    group, key = identifier.split(".", 1)
+    if group == "fact":
+        return "business_operator" if key in _OPERATOR_FACTS else "process_owner"
+    if identifier == "readiness.human_oversight" or (
+        group == "pilot" and key in ("scope", "success_metrics", "authorization_boundaries")
+    ):
+        return "process_owner"
+    return "technical_owner"
 
 
 def interview_fields(state: WorkflowState) -> list[dict]:
@@ -52,7 +67,7 @@ def interview_fields(state: WorkflowState) -> list[dict]:
                        "question": question, "group": "Pilot definition", "kind": "text",
                        "options": [], "max_length": 1000})
     fields.extend(runtime_fields(state.runtime_requirements))
-    return fields
+    return [{**field, "assigned_role": field_role(field["id"])} for field in fields]
 
 
 def _fact_value(key: str, text: str):
@@ -98,6 +113,9 @@ def effective_diagnosis(state: WorkflowState) -> WorkflowDiagnosis:
     for key, text in state.interview_answers.items():
         values[key] = _fact_value(key, text)
         diagnosis.evidence[key] = FactEvidence(status="supplied", source="checklist", quote=text)
+    for identifier in state.interview_unconfirmed:
+        if identifier.startswith("fact."):
+            diagnosis.evidence[identifier.split(".", 1)[1]] = FactEvidence(status="inferred")
     diagnosis.intelligence = WorkflowIntelligence.model_validate(values)
     if state.interview_answers:
         diagnosis.demo_scenario_required = False
@@ -122,12 +140,19 @@ def interview_progress(state: WorkflowState) -> dict:
     rounds = sum(message.get("role") == "user" for message in state.chat_history)
     exhausted = rounds >= MAX_INTERVIEW_ROUNDS
     pending = [field for field in fields if field["id"] in missing]
-    questions = [field["question"] for field in pending if field["group"] == pending[0]["group"]][:3] \
-        if pending and not exhausted else []
+    role_pending = [field for field in pending if field["id"] not in state.interview_unconfirmed
+                    and (state.interview_role == "all" or field["assigned_role"] == state.interview_role)]
+    questions = [field["question"] for field in role_pending if field["group"] == role_pending[0]["group"]][:3] \
+        if role_pending and not exhausted else []
     return {
+        "role": state.interview_role, "roles": ROLE_LABELS,
+        "role_missing_fields": [field["id"] for field in role_pending],
+        "unconfirmed_fields": state.interview_unconfirmed,
+        "deferred_fields": [field["id"] for field in pending if state.interview_role != "all"
+                            and field["assigned_role"] != state.interview_role],
         "version": state._etag, "rounds_used": min(rounds, MAX_INTERVIEW_ROUNDS),
         "max_rounds": MAX_INTERVIEW_ROUNDS, "limit_reached": exhausted,
-        "can_chat": not exhausted and bool(missing), "questions": questions,
+        "can_chat": not exhausted and bool(role_pending), "questions": questions,
         "missing_fields": missing, "missing_facts": diagnosis.missing_facts,
         "fields": fields, "answers": answers, "permissions": {},
     }
@@ -140,7 +165,10 @@ def interview_reply(state: WorkflowState) -> str:
                 "Review the editable checklist; unanswered items remain unknown. "
                 "A score still requires all essential workflow facts.")
     if not progress["questions"]:
-        return ("Interview capture is complete. Review your answers and unverified readiness drafts, "
+        return ("Your role contribution is complete. Unconfirmed answers and questions assigned to other roles "
+                "remain unresolved; switch roles or use the checklist to complete the assessment. "
+                if progress["missing_fields"] else
+                "Interview capture is complete. Review your answers and unverified readiness drafts, "
                 "then run analysis. This does not verify evidence or authorize a pilot.")
     return "Please answer these together; say unconfirmed where appropriate:\n" + "\n".join(
         f"{index}. {question}" for index, question in enumerate(progress["questions"], 1))
@@ -157,8 +185,22 @@ def apply_answers(state: WorkflowState, answers: dict[str, str], *, captured=Fal
         if len(text) > spec["max_length"]:
             raise ValueError(f"{spec['label']} exceeds its supported length.")
         group, key = identifier.split(".", 1)
-        if captured and (not text or group == "fact"):
+        unconfirmed = text.lower() in ("unconfirmed", "unknown") and (
+            group != "runtime" or text.lower() == "unconfirmed")
+        if unconfirmed:
+            if identifier not in state.interview_unconfirmed:
+                state.interview_unconfirmed.append(identifier)
+            if group == "fact":
+                state.interview_answers.pop(key, None)
+                if state.interview_diagnosis is None:
+                    state.interview_diagnosis = WorkflowDiagnosis()
+                state.interview_diagnosis.evidence[key] = FactEvidence(status="inferred")
+                continue
+            text = ""
+        if captured and not unconfirmed and (not text or group == "fact"):
             continue
+        if not unconfirmed and identifier in state.interview_unconfirmed:
+            state.interview_unconfirmed.remove(identifier)
         if text == current.get(identifier, ""):
             continue
         if group == "fact":
@@ -171,13 +213,13 @@ def apply_answers(state: WorkflowState, answers: dict[str, str], *, captured=Fal
         elif group == "context":
             if key == "preferred_region" and not re.fullmatch(r"[a-z0-9-]{0,100}", text):
                 raise ValueError("Preferred region must be a region code for the selected cloud.")
-            if not captured or not getattr(state.enterprise_context, key):
+            if not captured or unconfirmed or not getattr(state.enterprise_context, key):
                 setattr(state.enterprise_context, key, text)
         elif group == "pilot":
-            if not captured or not getattr(state.readiness_assessment.pilot, key):
+            if not captured or unconfirmed or not getattr(state.readiness_assessment.pilot, key):
                 setattr(state.readiness_assessment.pilot, key, text)
         elif group == "runtime":
-            if not captured or key not in state.runtime_requirement_sources:
+            if not captured or unconfirmed or key not in state.runtime_requirement_sources:
                 values = state.runtime_requirements.model_dump()
                 values[key] = text or RuntimeRequirements().model_dump()[key]
                 state.runtime_requirements = RuntimeRequirements.model_validate(values)
@@ -191,7 +233,7 @@ def apply_answers(state: WorkflowState, answers: dict[str, str], *, captured=Fal
             if check is None:
                 check = ReadinessCheckInput(id=key)
                 state.readiness_assessment.checks.append(check)
-            if (not captured or not check.finding) and text != check.finding:
+            if (not captured or unconfirmed or not check.finding) and text != check.finding:
                 check.finding = text
                 check.status = "needs_validation" if text else "unknown"
                 check.evidence_ids = []

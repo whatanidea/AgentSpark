@@ -22,6 +22,67 @@ A seven-stage pipeline orchestrated with **LangGraph**:
 
 Every run emits an **agent trace** (per-step status + latency) for observability/audit.
 
+### Business discovery engagements
+
+The **Discovery engagements** workspace starts before technical intake. Record
+the business objective, units, sponsor, owner, required/excluded topics, optional
+ISO dates and planned/active/completed status. Add up to 20 manual contribution
+notes, 20 candidate opportunities and 20 existing assessment links. These are
+human-recorded hypotheses, not verified evidence or automatically ranked opportunities.
+Topics document scope; they do not change linked interview prompts.
+
+`GET/POST /api/v1/engagements` lists/creates records. `GET/PUT/DELETE
+/api/v1/engagements/{id}` reads, conditionally updates or deletes a record.
+PUT requires the returned `version`; DELETE requires `?version=...`.
+Stale writes/deletes return 409. Lists use bounded cursor pagination. Assessment
+links must be readable in the same selected workspace. Deleted/expired links are
+reported as unavailable, not silently removed; dependency outages remain errors.
+Deleting an engagement does not delete linked assessments.
+
+Engagements reuse owner/team authorization, input screening, redaction, Cosmos
+conditional writes and session TTL. Workspace readers can see contributions:
+there are no anonymous interviews, engagement invitations or automatic synthesis.
+Engagements cannot enter assessment endpoints or appear as assessments in Home.
+
+### Role-based diagnostic interviews
+
+Select **Business operator**, **Process owner**, **Technical owner**, or the
+legacy **Complete assessment (all roles)** path. Questions and checklist filters
+follow field assignments; global missing requirements and deferred questions
+remain visible. Roles describe interview contributions, not access permissions
+or invitations to independently authenticated participants.
+
+Changing only the role preserves analysis and advisory approval. Answer changes
+invalidate both. The existing ten-round limit remains shared across the
+assessment; the checklist remains available afterward. Exact `unknown` or
+`unconfirmed` chat replies acknowledge the current grouped questions without a
+model call. Checklist unconfirmed answers may withdraw previously supplied facts,
+including intake values. They never substitute enum defaults, authorize readiness
+or allow missing essential facts to be scored. Intake still requires an explicit
+Azure/AWS target and, in live mode, an administrator-enabled assessment model.
+
+### Executive decision brief
+
+Analysis deterministically persists a versioned, source-linked summary alongside
+the existing assessment. It recommends investigating further, conventional
+automation, considering a bounded AI pilot, or not proceeding. Recorded rejection
+takes precedence. A pilot recommendation requires complete suitability facts and
+the strict `ready` readiness outcome, not `ready_with_conditions`. Advisory approval
+does not authorize pilot execution or production.
+
+Benefit ranges reuse existing ROI sensitivity scenarios and explicit assumptions:
+gross capacity value is **not realized cash savings**, a confidence interval or a
+measured result. Unknown facts, readiness gaps, pilot gaps and validation tasks
+remain visible. No additional inference call is made.
+
+Analysis, restored sessions, Blueprint, review and archived decision snapshots
+share the same brief. Changes invalidate it; review refreshes its advisory status.
+Historical records without a brief are labeled, not backfilled. Markdown includes
+full sources; the one-page PDF uses bounded excerpts and points to the full
+assessment. `GET /api/v1/sessions/{id}/executive-brief/pdf?version=...` checks the
+session ETag before and after generation and rejects stale exports. The full
+assessment PDF also includes the brief.
+
 ### Evidence-backed assessments (Phase 1)
 
 Open **Evidence & assumptions** after saving intake to record client-stated facts,

@@ -6,13 +6,14 @@ from typing import Literal, Annotated
 from app.utils.models import (
     HumanReview, SessionId, SignalLevel, DemoScenario, ROIAssumptions, CloudProvider,
     EvidenceInput, EvidenceEntry, EvidenceConfirmation, ReadinessAssessment,
-    WorkflowDiagnosis, InterviewDiagnosis,
+    WorkflowDiagnosis, InterviewDiagnosis, InterviewRole,
 )
 from app.utils.interview import (
     apply_answers, merge_diagnosis, interview_progress, interview_reply, MAX_INTERVIEW_ROUNDS,
 )
 from app.utils.readiness import build_readiness_report, readiness_catalog
-from app.utils.pdf_report import build_blueprint_pdf
+from app.utils.pdf_report import build_blueprint_pdf, build_executive_brief_pdf
+from app.utils.executive_brief import build_executive_brief
 from app.utils.errors import InvalidDependencyResponse
 from app.agents.cloud_catalog import pattern_for_cloud
 from app.utils.runtime import demo_mode
@@ -57,7 +58,8 @@ def restore_session(session_id: SessionId):
         organization = tenant_directory.get(state.organization_id, "organization")
         team = tenant_directory.get(state.organization_id, f"team-{state.team_id}")
         workspace = {"organization_name": organization.name, "team_name": team.name}
-    return {**state.model_dump(mode="json", exclude={"owner_id"}), "permissions": db_client.permissions(state),
+    return {**state.model_dump(mode="json", exclude={"owner_id"}), "version": state._etag,
+            "permissions": db_client.permissions(state),
             "workspace": workspace}
 
 
@@ -147,6 +149,7 @@ class ReadinessRequest(RequestModel):
 class InterviewRequest(RequestModel):
     version: str = Field(min_length=1, max_length=1000)
     answers: dict[str, Annotated[str, Field(max_length=2000)]] = Field(max_length=64)
+    role: InterviewRole | None = None
 
 
 def interview_response(state):
@@ -174,10 +177,14 @@ def save_interview(session_id: SessionId, req: InterviewRequest):
     except (ValidationError, ValueError) as exc:
         raise HTTPException(422, "Invalid checklist answer. Check whole-number counts, signal choices, "
                             "region code and field length limits.") from exc
+    content_changed = before != state.model_dump(mode="json")
+    if req.role is not None:
+        state.interview_role = req.role
     if before == state.model_dump(mode="json"):
         return interview_response(state)
-    state.invalidate_analysis()
-    state.invalidate_readiness_context()
+    if content_changed:
+        state.invalidate_analysis()
+        state.invalidate_readiness_context()
     db_client.save_workflow_state(state)
     return interview_response(state)
 
@@ -346,6 +353,8 @@ def save_intake(req: IntakeRequest):
         for context_key, fact in (("existing_systems", "systems"), ("compliance_requirements", "compliance_sensitivity")):
             if previous_context[0][context_key] != getattr(state.enterprise_context, context_key):
                 state.interview_answers.pop(fact, None)
+                state.interview_unconfirmed = [
+                    identifier for identifier in state.interview_unconfirmed if identifier != f"fact.{fact}"]
     db_client.save_workflow_state(state)
     return {"status": "success", "session_id": req.session_id,
             "enterprise_context": state.enterprise_context.model_dump(),
@@ -384,10 +393,15 @@ def chat_interaction(req: ChatRequest):
         raise HTTPException(409, "Interview capture is complete. Review the checklist or run analysis.")
     scenario = req.demo_scenario or state.demo_scenario
     message = redact_pii(req.message)
+    progress = interview_progress(state)
+    explicit_unknown = message.strip().lower().rstrip(".") in ("unconfirmed", "unknown")
     with assessment_model(state.inference_model) as selection:
-        diagnosis = diagnostic_agent.analyze_chat_history(
-            state.chat_history + [{"role": "user", "content": message}],
-            state.enterprise_context, scenario, include_readiness=True)
+        if explicit_unknown:
+            diagnosis = InterviewDiagnosis()
+        else:
+            diagnosis = diagnostic_agent.analyze_chat_history(
+                state.chat_history + [{"role": "user", "content": message}],
+                state.enterprise_context, scenario, include_readiness=True)
         state.inference_model = selection
         state.model_locked = True
     previous_diagnosis = state.interview_diagnosis or state.diagnosis
@@ -397,6 +411,9 @@ def chat_interaction(req: ChatRequest):
         WorkflowDiagnosis.model_validate(redact_data(diagnosis.model_dump())))
     if isinstance(diagnosis, InterviewDiagnosis):
         try:
+            if explicit_unknown:
+                apply_answers(state, {field["id"]: "unconfirmed" for field in progress["fields"]
+                                      if field["question"] in progress["questions"]}, captured=True)
             apply_answers(state, redact_data({key: answer.value for key, answer in diagnosis.answers.items()}), captured=True)
             for key, answer in diagnosis.answers.items():
                 if key.startswith("runtime."):
@@ -440,6 +457,7 @@ def analyze_workflow(session_id: SessionId, req: AnalyzeRequest | None = None):
         "evidence_report": s.evidence_report,
         "readiness_report": s.readiness_report,
         "runtime_decision": s.runtime_decision.model_dump() if s.runtime_decision else None,
+        "executive_brief": s.executive_brief.model_dump() if s.executive_brief else None,
         "inference_model": s.inference_model.model_dump() if s.inference_model else None,
     })
 
@@ -468,6 +486,7 @@ def get_blueprint(session_id: SessionId):
     res["evidence_report"] = state.evidence_report
     res["readiness_report"] = state.readiness_report
     res["runtime_decision"] = state.runtime_decision.model_dump() if state.runtime_decision else None
+    res["executive_brief"] = state.executive_brief.model_dump() if state.executive_brief else None
     if state.suitability_score:
         res["suitability_score"] = state.suitability_score.model_dump()
     if state.workflow_intelligence:
@@ -504,6 +523,20 @@ def download_blueprint_pdf(
     })
 
 
+@router.get("/sessions/{session_id}/executive-brief/pdf")
+def download_executive_brief(session_id: SessionId, version: Annotated[str, Query(min_length=1, max_length=1000)]):
+    state = db_client.get_workflow_state(session_id)
+    if not state.executive_brief:
+        raise HTTPException(404, "Run analysis to generate the executive decision brief.")
+    if version != state._etag:
+        raise HTTPException(409, "Assessment changed; reload before exporting the brief.")
+    document = build_executive_brief_pdf(redact_data(state.executive_brief.model_dump(mode="json")))
+    if db_client.get_workflow_state(session_id)._etag != version:
+        raise HTTPException(409, "Assessment changed during export; reload before exporting.")
+    return Response(document, media_type="application/pdf", headers={
+        "Content-Disposition": 'attachment; filename="AgentSpark_Executive_Brief.pdf"', "Pragma": "no-cache"})
+
+
 @router.get("/review/{session_id}")
 def get_review(session_id: SessionId):
     state = db_client.get_workflow_state(session_id)
@@ -517,6 +550,7 @@ def get_review(session_id: SessionId):
         "evidence_report": state.evidence_report,
         "readiness_report": state.readiness_report,
         "runtime_decision": state.runtime_decision.model_dump() if state.runtime_decision else None,
+        "executive_brief": state.executive_brief.model_dump() if state.executive_brief else None,
     }
 
 
@@ -545,6 +579,7 @@ def submit_review(session_id: SessionId, req: ReviewRequest):
     state.status = "completed" if req.decision == "approve" else "rejected"
     if req.decision == "reject":
         state.blueprint = None
+    state.executive_brief = build_executive_brief(state)
     db_client.save_workflow_state(state, action="review")
     return {
         "status": state.status,

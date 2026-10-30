@@ -16,7 +16,7 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
 import jwt
 
-from app.api import routes
+from app.api import discovery, routes
 from app.database.cosmos_client import DatabaseClient
 from app.database.decision_archive import LocalDecisionArchive
 from app.database.tenant_directory import DirectoryRecord, TenantDirectory, tenant_directory
@@ -46,6 +46,7 @@ class TenantFoundationTests(unittest.TestCase):
             patch.object(auth, "key_client", return_value=SimpleNamespace(
                 get_signing_key_from_jwt=lambda token: SimpleNamespace(key=self.key.public_key()))),
             patch.object(routes, "db_client", self.database),
+            patch.object(discovery, "db_client", self.database),
             patch.object(langgraph_flow, "db_client", self.database),
             patch.object(tenant_directory, "archive", LocalDecisionArchive()),
             patch.object(tenant_directory, "use_mock", True),
@@ -101,6 +102,32 @@ class TenantFoundationTests(unittest.TestCase):
 
     def review_body(self, analysis):
         return {"analysis_id": analysis, "decision": "approve", "reviewer": "forged", "note": "Fictional controls checked."}
+
+    def test_discovery_enforces_personal_and_team_scope_on_records_and_assessment_links(self):
+        private = self.draft(subject="creator")
+        value = {"title": "Fictional discovery", "objective": "Find process bottlenecks",
+                 "business_units": "Finance", "sponsor": "Fictional sponsor", "engagement_owner": "Fictional owner"}
+        created = self.call("POST", "/engagements", subject="creator", body={"engagement": value})
+        path = f"/engagements/{created['id']}"
+        self.call("GET", path, subject="other", status=404)
+        self.assertEqual(self.call("GET", "/engagements", subject="other")["items"], [])
+        self.call("POST", "/engagements", subject="other",
+                  body={"engagement": {**value, "assessment_ids": [private]}}, status=404)
+        organization, team = self.organization()
+        self.member(organization, team, "creator", ["contributor"])
+        self.member(organization, team, "viewer", ["viewer"])
+        scoped = {"organization": organization, "team": team}
+        created = self.call("POST", "/engagements", **scoped, subject="creator", body={"engagement": value})
+        path = f"/engagements/{created['id']}"
+        self.call("GET", path, subject="creator", status=404)
+        self.call("POST", "/engagements", **scoped, subject="creator",
+                  body={"engagement": {**value, "assessment_ids": [private]}}, status=404)
+        visible = self.call("GET", path, **scoped, subject="viewer")
+        self.assertFalse(visible["permissions"]["write"])
+        self.call("PUT", path, **scoped, subject="viewer",
+                  body={"version": created["version"], "engagement": value}, status=403)
+        self.call("DELETE", path + "?version=" + created["version"], **scoped, subject="viewer", status=403)
+        self.call("POST", "/engagements", **scoped, subject="viewer", body={"engagement": value}, status=403)
 
     def test_evidence_edit_and_confirmation_use_team_permissions_and_authenticated_identity(self):
         organization, team = self.organization()

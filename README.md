@@ -17,6 +17,15 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
 
 ## What you can do
 
+- **Start business-first discovery:** create a scoped engagement with an objective,
+  sponsor, business units, topics and dates; save manual role contributions,
+  candidate opportunities and links to existing assessments.
+- **Interview by role:** business operators, process owners and technical owners
+  receive their assigned questions. Unconfirmed answers remain unresolved; role
+  completion never bypasses the full assessment's evidence requirements.
+- **Make an executive decision:** inspect a source-linked executive brief with
+  an advisory decision, illustrative capacity value, gaps and next action.
+  Export Markdown or a one-page PDF without confusing suitability with pilot readiness.
 - **Explore before signing in:** the interactive front page illustrates claims,
   invoice and onboarding workflows, step-level AI/rules/human boundaries,
   readiness gaps, transparent capacity assumptions and Azure/AWS service candidates.
@@ -51,8 +60,13 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
 - **Download a PDF report:** use **Export PDF** in Blueprint & Review for the current
   assessment, including evidence, implementation readiness, ROI and approval status.
 
-**Flow:** Intake -> Diagnostic interview -> Evidence & assumptions -> Analysis ->
+**Flow:** Optional discovery engagement -> Intake -> Role-based diagnostic interview -> Evidence & assumptions -> Analysis ->
 Blueprint & review -> Decision archive.
+
+Discovery notes are workspace-visible, not anonymous or verified evidence.
+They inherit session retention (24 hours by default); they are not long-lived
+engagement archives. Invitations, automated opportunity synthesis/ranking and
+discovery-to-assessment fact propagation are not part of this release.
 
 ## Run locally
 

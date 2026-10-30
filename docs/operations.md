@@ -1,5 +1,25 @@
 # Delivery and operations runbook
 
+## Discovery and executive briefs
+
+This release adds no Azure resources, containers, secrets, model connections or
+environment flags. Discovery records share the workflows collection and session
+TTL (`SESSION_RETENTION_HOURS`, 24 hours by default), not the retained decision
+archive. Do not promise durable engagement storage beyond that TTL. Deletion of
+an engagement leaves its assessment links' targets unchanged.
+
+Existing owner/team permissions and workspace selection apply. Notes are visible
+to workspace readers and are never anonymous. Listing and storage failures are
+explicit; stale edits/deletes and executive PDF exports return 409 and require
+reload. Missing assessment links are shown separately from dependency failures.
+Assessment APIs reject discovery records using the persisted record discriminator.
+Legacy documents default to assessment; existing archived decisions are unchanged.
+
+Role selection does not grant authorization or invite another participant.
+Executive briefs reuse deterministic assessment/ROI results, retain source
+references in archives and exports, and make no extra model calls. Neither a
+brief nor an advisory approval is execution authorization.
+
 ## Assessment inference models
 
 New live assessments require an approved model ID at intake, before interviewing.

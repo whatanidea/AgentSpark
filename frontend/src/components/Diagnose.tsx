@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type DemoScenario, type InterviewProgress } from "../api";
+import { api, type DemoScenario, type InterviewProgress, type InterviewRole } from "../api";
 import { Card, Button } from "./ui";
 
 type Msg = { role: "user" | "assistant"; content: string; blocked?: boolean };
@@ -23,9 +23,12 @@ export default function Diagnose({ sessionId, context, initialHistory = [], demo
   const [dirty, setDirty] = useState(false);
   const [showChecklist, setShowChecklist] = useState(false);
   const [showAll, setShowAll] = useState(false);
+  const [showOtherRoles, setShowOtherRoles] = useState(false);
 
   function accept(value: InterviewProgress) {
-    setProgress(value); setAnswers(value.answers); setDirty(false);
+    setProgress(value);
+    setAnswers({ ...value.answers, ...Object.fromEntries(value.unconfirmed_fields.map(id => [id, "unconfirmed"])) });
+    setDirty(false);
   }
   useEffect(() => {
     if (!sessionId) return;
@@ -77,7 +80,19 @@ export default function Diagnose({ sessionId, context, initialHistory = [], demo
     } catch (e) { setError(e instanceof Error ? e.message : "Could not save answers. Reload before retrying."); }
     finally { setBusy(false); onBusyChange(false); }
   }
-  const visibleFields = progress?.fields.filter(field => showAll || progress.missing_fields.includes(field.id)) || [];
+  async function changeRole(role: InterviewRole) {
+    if (!progress || busy || dirty) return;
+    setBusy(true); onBusyChange(true); setError(""); setMessage("");
+    try {
+      accept(await api.saveInterview(sessionId, progress.version, {}, role));
+      setShowOtherRoles(false);
+      await onRefresh();
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not change interview role. Reload before retrying."); }
+    finally { setBusy(false); onBusyChange(false); }
+  }
+  const visibleFields = progress?.fields.filter(field =>
+    (showOtherRoles || progress.role === "all" || field.assigned_role === progress.role)
+    && (showAll || progress.missing_fields.includes(field.id))) || [];
   const groups = [...new Set(visibleFields.map(field => field.group))];
   return <div className="space-y-6">
     <header className="page-header">
@@ -94,6 +109,19 @@ export default function Diagnose({ sessionId, context, initialHistory = [], demo
     {error && <p role="alert" className="notice text-rose-700">{error}</p>}
     {message && <p role="status" className="notice">{message}</p>}
     {progress && <>
+      <Card title="Your contribution">
+        <label className="text-sm font-semibold">Interview role
+          <select aria-label="Interview role" className="form-control mt-2" value={progress.role}
+            disabled={busy || dirty || !progress.permissions.write}
+            onChange={event => void changeRole(event.target.value as InterviewRole)}>
+            {Object.entries(progress.roles).map(([role, label]) => <option key={role} value={role}>{label}</option>)}
+          </select>
+        </label>
+        <p className="text-sm mt-2">{progress.role_missing_fields.length} questions outstanding for this role.
+          {" "}{progress.deferred_fields.length} unresolved questions are assigned to other roles.</p>
+        <p className="text-xs text-slate-500">Roles route questions, not access permissions. Mark facts Unconfirmed in the checklist
+          when you cannot establish them; this never confirms readiness or invents a score.</p>
+      </Card>
       <Card title={`Interview rounds: ${progress.rounds_used} / ${progress.max_rounds}`}>
         <progress aria-label="Interview rounds used" value={progress.rounds_used} max={progress.max_rounds} className="w-full" />
         <p>{progress.missing_facts.length} required workflow facts and {progress.missing_fields.length - progress.missing_facts.length} readiness/deployment/pilot answers outstanding.</p>
@@ -102,7 +130,8 @@ export default function Diagnose({ sessionId, context, initialHistory = [], demo
           Complete remaining answers in the editable checklist below; unknowns will not be invented.
         </p> : progress.can_chat ? <ol className="list-decimal pl-5 mt-3">
           {progress.questions.map(question => <li key={question}>{question}</li>)}
-        </ol> : <p>Interview capture complete. Review the checklist, then run analysis.</p>}
+        </ol> : <p>Your role contribution is complete. Unconfirmed facts and other roles' questions remain unresolved.
+          Review the checklist or switch roles before the full assessment.</p>}
         <div className="flex flex-wrap gap-3 mt-3">
           <Button variant="ghost" onClick={() => setShowChecklist(value => !value)} disabled={busy}>
             Review answers / complete checklist
@@ -141,24 +170,35 @@ export default function Diagnose({ sessionId, context, initialHistory = [], demo
         {demoMode && <p className="notice">Demo chat uses a fictional fixture; enter your own draft readiness in this checklist.</p>}
         <label className="flex gap-2 mt-3"><input type="checkbox" checked={showAll}
           onChange={event => setShowAll(event.target.checked)} />Show captured answers too</label>
+        <label className="flex gap-2 mt-3"><input type="checkbox" checked={showOtherRoles}
+          onChange={event => setShowOtherRoles(event.target.checked)} />Show questions assigned to other roles</label>
         <form onSubmit={event => { event.preventDefault(); void save(); }}>
           <fieldset disabled={busy || !progress.permissions.write} className="space-y-4 mt-4">
             {groups.map(group => <details key={group} open>
               <summary className="font-semibold">{group}</summary>
               <div className="grid gap-4 md:grid-cols-2 mt-3">
-                {visibleFields.filter(field => field.group === group).map(field => <label key={field.id} className="text-sm">
+                {visibleFields.filter(field => field.group === group).map(field => <div key={field.id} className="text-sm"><label>
                   <span className="font-semibold">{field.label}</span>
                   <span className="block text-slate-500">{field.question}</span>
                   {field.kind === "select" ? <select className="form-control mt-1" value={answers[field.id] || ""}
                     onChange={event => { setAnswers(current => ({ ...current, [field.id]: event.target.value })); setDirty(true); }}>
                     <option value="">Not supplied</option>
+                    <option value="unconfirmed">Unconfirmed</option>
                     {field.options.map(option => <option key={option}>{option}</option>)}
                   </select> : field.kind === "number" ?
-                    <input className="form-control mt-1" type="number" min={0} step={1} value={answers[field.id] || ""}
+                    <input className="form-control mt-1" type="number" min={0} step={1}
+                      disabled={answers[field.id] === "unconfirmed"} value={answers[field.id] === "unconfirmed" ? "" : answers[field.id] || ""}
                       onChange={event => { setAnswers(current => ({ ...current, [field.id]: event.target.value })); setDirty(true); }} /> :
                     <textarea className="form-control mt-1" maxLength={field.max_length} value={answers[field.id] || ""}
                       onChange={event => { setAnswers(current => ({ ...current, [field.id]: event.target.value })); setDirty(true); }} />}
-                </label>)}
+                </label>
+                  {field.kind !== "select" && <label className="flex gap-2 mt-2">
+                    <input type="checkbox" aria-label={`${field.label} unconfirmed`} checked={answers[field.id] === "unconfirmed"}
+                      onChange={event => { setAnswers(current => ({ ...current, [field.id]: event.target.checked ? "unconfirmed" : "" })); setDirty(true); }} />
+                    Unconfirmed - ask the assigned owner to validate
+                  </label>}
+                  <p className="text-xs text-slate-500 mt-1">Assigned to {progress.roles[field.assigned_role]}</p>
+                </div>)}
               </div>
             </details>)}
             {!visibleFields.length && <p>No unanswered fields. Enable Show captured answers too to review or correct them.</p>}
