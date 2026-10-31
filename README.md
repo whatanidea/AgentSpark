@@ -30,12 +30,18 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
 - **Make an executive decision:** inspect a source-linked executive brief with
   an advisory decision, illustrative capacity value, gaps and next action.
   Export Markdown or a one-page PDF without confusing suitability with pilot readiness.
-- **Explore before signing in:** the interactive front page illustrates claims,
-  invoice and onboarding workflows, step-level AI/rules/human boundaries,
-  readiness gaps, transparent capacity assumptions and Azure/AWS service candidates.
-  Examples make no model calls and do not create assessments. **Assess my workflow**
-  opens intake (through organization access in live mode); **Workspace** opens your
-  library. Use **Product overview** to return without discarding active work.
+- **Explore before signing in:** the business-first public website has accessible
+  About, Platform, Solutions and Resources navigation, plus a fictional
+  Discover → Synthesize → Prioritize → Assess walkthrough. Source disagreements,
+  explicit rating assumptions and withheld scores remain visible. The existing
+  claims, invoice and onboarding explorer illustrates AI/rules/human boundaries,
+  readiness gaps, capacity assumptions and Azure/AWS service candidates.
+  Public previews make no model calls and create no records. **Start discovery**
+  opens discovery engagements through organization access in live mode, preserving
+  the selected destination after sign-in and any restored assessment.
+  **Assess my workflow** still opens intake; **Workspace** opens your library.
+  **Product overview** returns without discarding active work. This redesign does
+  not change the signed-in workspace or imply deployment or pilot readiness.
 - **Assess a workflow:** use up to 10 grouped interview rounds for suitability and
   draft readiness, then finish missing answers in an editable checklist.
 - **Select the assessment model before interviewing:** choose an administrator-enabled
