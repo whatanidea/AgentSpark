@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { api, uid, type DiscoveryEngagement, type DiscoveryRecord, type HomeItem } from "../api";
 import { Button, Card } from "./ui";
 import DiscoveryWorkflow from "./DiscoveryWorkflow";
@@ -36,7 +36,7 @@ export default function Discovery({ canCreate, onOpen, onBusyChange, onManageAcc
   const canWrite = record ? record.permissions.write : canCreate;
 
   useEffect(() => { onBusyChange(busy); return () => onBusyChange(false); }, [busy, onBusyChange]);
-  useEffect(() => { onUnsavedChange(dirty); return () => onUnsavedChange(false); }, [dirty, onUnsavedChange]);
+  useLayoutEffect(() => { onUnsavedChange(dirty); return () => onUnsavedChange(false); }, [dirty, onUnsavedChange]);
   useEffect(() => {
     let alive = true;
     setBusy(true);

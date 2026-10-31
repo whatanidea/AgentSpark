@@ -129,13 +129,16 @@ test("browser Back protects an unsaved discovery draft without creating records"
   await page.getByRole("button", { name: "New discovery engagement", exact: true }).click();
   const title = page.getByRole("textbox", { name: "Engagement title", exact: true });
   await title.fill("Fictional unsaved navigation draft");
-  page.once("dialog", dialog => dialog.dismiss());
+  const confirmations: string[] = [];
+  page.once("dialog", dialog => { confirmations.push(dialog.message()); return dialog.dismiss(); });
   await page.goBack();
   await expect(page).toHaveURL(/\/workspace$/);
   await expect(title).toHaveValue("Fictional unsaved navigation draft");
-  page.once("dialog", dialog => dialog.accept());
+  expect(confirmations).toEqual(["Discard unsaved discovery changes?"]);
+  page.once("dialog", dialog => { confirmations.push(dialog.message()); return dialog.accept(); });
   await page.goBack();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("heading", { level: 1, name: pages[0][2], exact: true })).toBeVisible();
+  expect(confirmations).toEqual(["Discard unsaved discovery changes?", "Discard unsaved discovery changes?"]);
   expect(writes).toEqual([]);
 });

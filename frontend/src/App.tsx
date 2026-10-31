@@ -60,6 +60,11 @@ export default function App() {
   const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
   const [discoveryUnsaved, setDiscoveryUnsaved] = useState(false);
+  const discoveryUnsavedRef = useRef(false);
+  const updateDiscoveryUnsaved = useCallback((dirty: boolean) => {
+    discoveryUnsavedRef.current = dirty;
+    setDiscoveryUnsaved(dirty);
+  }, []);
   const [starting, setStarting] = useState(true);
   const [message, setMessage] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -71,8 +76,8 @@ export default function App() {
   const sessionId = snapshot?.session_id || "";
   const canWrite = snapshot ? snapshot.permissions.write : workspace?.permissions.write !== false;
   const canDelete = snapshot ? snapshot.permissions.delete : workspace?.permissions.delete !== false;
-  const blocker = useBlocker(({ nextLocation, historyAction }) =>
-    historyAction === "POP" && discoveryUnsaved && location.pathname === "/workspace" && nextLocation.pathname !== "/workspace");
+  const blocker = useBlocker(({ currentLocation, nextLocation, historyAction }) =>
+    historyAction === "POP" && discoveryUnsavedRef.current && currentLocation.pathname === "/workspace" && nextLocation.pathname !== "/workspace");
   useEffect(() => {
     if (blocker.state === "blocked") {
       if (window.confirm("Discard unsaved discovery changes?")) blocker.proceed();
@@ -381,7 +386,7 @@ export default function App() {
               onSelect={changeWorkspace} onBusyChange={setBusy} inviteCode={pendingInvite}
               onInviteHandled={() => setPendingInvite("")} />}
             {view === "discovery" && <Discovery canCreate={workspace?.permissions.write !== false}
-              onOpen={openWorkflow} onBusyChange={setBusy} onUnsavedChange={setDiscoveryUnsaved}
+              onOpen={openWorkflow} onBusyChange={setBusy} onUnsavedChange={updateDiscoveryUnsaved}
               onManageAccess={() => void changeView("workspaces")} />}
             {view === "home" && <Home demo={auth?.mode === "local-demo"} retentionDays={auth?.archive_retention_days ?? 30}
               workspaceName={workspace ? `${workspace.organization_name} / ${workspace.team_name}` : undefined}
