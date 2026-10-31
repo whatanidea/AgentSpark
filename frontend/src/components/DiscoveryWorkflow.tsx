@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { api, type CloudProvider, type DiscoveryParticipant, type DiscoveryRatings, type DiscoveryRecord,
   type InferenceModel, type ModelCatalog } from "../api";
 import { Button, Card } from "./ui";
@@ -35,7 +35,7 @@ export default function DiscoveryWorkflow({ record, blocked, onChange, onBusyCha
   const contributionDirty = JSON.stringify(answers) !== JSON.stringify(mine?.answers || {});
   const ratingsDirty = JSON.stringify(ratings) !== JSON.stringify(selected?.ratings || emptyRatings());
   const busy = blocked || working;
-  useEffect(() => {
+  useLayoutEffect(() => {
     onDirtyChange(contributionDirty || ratingsDirty);
     return () => onDirtyChange(false);
   }, [contributionDirty, ratingsDirty, onDirtyChange]);

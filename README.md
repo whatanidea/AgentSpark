@@ -30,18 +30,24 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
 - **Make an executive decision:** inspect a source-linked executive brief with
   an advisory decision, illustrative capacity value, gaps and next action.
   Export Markdown or a one-page PDF without confusing suitability with pilot readiness.
-- **Explore before signing in:** the business-first public website has accessible
-  About, Platform, Solutions and Resources navigation, plus a fictional
-  Discover → Synthesize → Prioritize → Assess walkthrough. Source disagreements,
-  explicit rating assumptions and withheld scores remain visible. The existing
-  claims, invoice and onboarding explorer illustrates AI/rules/human boundaries,
-  readiness gaps, capacity assumptions and Azure/AWS service candidates.
+- **Explore before signing in:** the concise public homepage links to 11 focused
+  About, Platform, Solutions and Resources pages. Each submenu has a dedicated URL,
+  page title and active-navigation state; direct links, refresh and browser history
+  work without discarding a restored assessment. The homepage uses visitor-controlled
+  product slides, while subtle page/scroll animations respect reduced-motion settings.
+  Platform pages show the fictional discovery walkthrough and explicit source/rating
+  limitations. `/resources/example-assessment` preserves the claims, invoice and
+  onboarding explorer, readiness gaps, capacity assumptions and Azure/AWS candidates.
   Public previews make no model calls and create no records. **Start discovery**
   opens discovery engagements through organization access in live mode, preserving
   the selected destination after sign-in and any restored assessment.
   **Assess my workflow** still opens intake; **Workspace** opens your library.
   **Product overview** returns without discarding active work. This redesign does
   not change the signed-in workspace or imply deployment or pilot readiness.
+  `/workspace` is the private entry boundary; legacy root assessment restoration
+  remains supported. Browser Back and overview actions protect unsaved discovery.
+  Unknown public URLs show a clear not-found page; unknown `/api` paths remain
+  JSON 404 responses rather than being rewritten to the public website.
 - **Assess a workflow:** use up to 10 grouped interview rounds for suitability and
   draft readiness, then finish missing answers in an editable checklist.
 - **Select the assessment model before interviewing:** choose an administrator-enabled

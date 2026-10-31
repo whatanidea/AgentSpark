@@ -63,7 +63,9 @@ test("an unavailable Claude connection cannot be selected and catalog failures b
   await expect(page.getByRole("button", { name: "Submit Intake", exact: true })).toBeEnabled();
   await page.route("**/api/v1/models", route => route.fulfill({ status: 503, json: { detail: "Catalog unavailable." } }));
   await page.reload();
-  await page.getByRole("button", { name: "Assess my workflow", exact: true }).first().click();
+  await expect(page).toHaveURL(/\/workspace$/);
+  await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "1 · Enterprise Intake", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("Model catalog could not be loaded");
   await expect(page.getByRole("button", { name: "Submit Intake", exact: true })).toBeDisabled();
 });

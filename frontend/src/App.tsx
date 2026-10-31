@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useBlocker, useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError, AuthConfig, Identity, parseInviteCode, Readiness, SessionSnapshot, setAccessToken, setTokenProvider, setWorkspace, type WorkspaceSelection } from "./api";
 const signInModule = () => import("./auth");
 import Intake from "./components/Intake";
@@ -7,7 +8,7 @@ import Analyze from "./components/Analyze";
 import Blueprint from "./components/Blueprint";
 import Portfolio from "./components/Portfolio";
 import Home from "./components/Home";
-import Landing from "./components/Landing";
+const Landing = lazy(() => import("./components/Landing"));
 import Workspaces from "./components/Workspaces";
 import Discovery from "./components/Discovery";
 import EvidenceRegister from "./components/EvidenceRegister";
@@ -43,19 +44,27 @@ function forgetPointer() { try { sessionStorage.removeItem(POINTER); } catch {} 
 function takeInviteFromUrl(): string {
   if (!/^#invite=/.test(window.location.hash)) return "";
   const code = parseInviteCode(window.location.hash);
-  window.history.replaceState(null, "", window.location.pathname + window.location.search);
+  window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
   return code;
 }
 
 export default function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const previousPath = useRef(location.pathname);
   const [view, setView] = useState<View>("home");
-  const [showLanding, setShowLanding] = useState(true);
+  const [showLanding, setShowLanding] = useState(() => location.pathname !== "/workspace");
   const [snapshot, setSnapshot] = useState<SessionSnapshot | null>(null);
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [auth, setAuth] = useState<AuthConfig | null>(null);
   const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
   const [discoveryUnsaved, setDiscoveryUnsaved] = useState(false);
+  const discoveryUnsavedRef = useRef(false);
+  const updateDiscoveryUnsaved = useCallback((dirty: boolean) => {
+    discoveryUnsavedRef.current = dirty;
+    setDiscoveryUnsaved(dirty);
+  }, []);
   const [starting, setStarting] = useState(true);
   const [message, setMessage] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -67,6 +76,20 @@ export default function App() {
   const sessionId = snapshot?.session_id || "";
   const canWrite = snapshot ? snapshot.permissions.write : workspace?.permissions.write !== false;
   const canDelete = snapshot ? snapshot.permissions.delete : workspace?.permissions.delete !== false;
+  const blocker = useBlocker(({ currentLocation, nextLocation, historyAction }) =>
+    historyAction === "POP" && discoveryUnsavedRef.current && currentLocation.pathname === "/workspace" && nextLocation.pathname !== "/workspace");
+  useEffect(() => {
+    if (blocker.state === "blocked") {
+      if (window.confirm("Discard unsaved discovery changes?")) blocker.proceed();
+      else blocker.reset();
+    }
+  }, [blocker]);
+  useLayoutEffect(() => {
+    if (previousPath.current !== location.pathname) {
+      previousPath.current = location.pathname;
+      setShowLanding(location.pathname !== "/workspace");
+    }
+  }, [location.pathname]);
 
   const connect = useCallback(async () => {
     setWorkspace(null); selectWorkspace(null);
@@ -78,7 +101,7 @@ export default function App() {
         setWorkspace(pointer.workspace ?? null);
         const state = await api.session(pointer.session);
         setSnapshot(state);
-        setShowLanding(false);
+        if (window.location.pathname === "/" || window.location.pathname === "/workspace") setShowLanding(false);
         if (state.organization_id && state.team_id) selectWorkspace({
           organization_id: state.organization_id, team_id: state.team_id,
           organization_name: state.workspace?.organization_name || state.organization_id,
@@ -217,14 +240,15 @@ export default function App() {
   }
   function enterFromWebsite(next: View) {
     websiteDestination.current = identity ? null : next;
+    void navigate("/workspace");
     void changeView(next);
   }
 
-  if (showLanding && !pendingInvite) return <Landing
+  if (showLanding && !pendingInvite) return <Suspense fallback={<div role="status" className="min-h-screen grid place-items-center">Loading product overview…</div>}><Landing
     onStart={() => enterFromWebsite(sessionId ? "home" : "intake")}
     onWorkspace={() => enterFromWebsite("home")}
     onDiscover={() => enterFromWebsite("discovery")}
-    disabled={busy || starting} hasSession={!!sessionId} signedIn={!!identity} message={message} />;
+    disabled={busy || starting} hasSession={!!sessionId} signedIn={!!identity} message={message} /></Suspense>;
 
   return (
     <div className="min-h-screen flex flex-col md:flex-row">
@@ -243,7 +267,8 @@ export default function App() {
           <p className="hidden md:block text-xs leading-relaxed text-slate-500 mt-5">The agent that tells you where agents belong.</p>
           <button className="text-xs text-teal-800 mt-4 hover:underline" disabled={busy}
             onClick={() => {
-              if (view !== "discovery" || !discoveryUnsaved || window.confirm("Discard unsaved discovery changes?")) setShowLanding(true);
+              if (view === "discovery" && discoveryUnsaved && !window.confirm("Discard unsaved discovery changes?")) return;
+              void navigate("/"); setShowLanding(true);
             }}>Product overview <span aria-hidden="true">↗</span></button>
         </div>
         <nav aria-label="Workflow steps" className="flex md:block md:flex-1 overflow-x-auto px-4 pb-4 md:pb-5 gap-2 md:space-y-1.5">
@@ -285,6 +310,7 @@ export default function App() {
           </>}
           {identity && auth?.mode === "oidc" && <Button variant="ghost" disabled={busy} onClick={() => {
             setAccessToken(""); setWorkspace(null); selectWorkspace(null); setIdentity(null); setSnapshot(null); setView("home"); setShowLanding(true); forgetPointer();
+            void navigate("/", { replace: true });
           }}>Sign out</Button>}
         </div>
       </aside>
@@ -360,7 +386,7 @@ export default function App() {
               onSelect={changeWorkspace} onBusyChange={setBusy} inviteCode={pendingInvite}
               onInviteHandled={() => setPendingInvite("")} />}
             {view === "discovery" && <Discovery canCreate={workspace?.permissions.write !== false}
-              onOpen={openWorkflow} onBusyChange={setBusy} onUnsavedChange={setDiscoveryUnsaved}
+              onOpen={openWorkflow} onBusyChange={setBusy} onUnsavedChange={updateDiscoveryUnsaved}
               onManageAccess={() => void changeView("workspaces")} />}
             {view === "home" && <Home demo={auth?.mode === "local-demo"} retentionDays={auth?.archive_retention_days ?? 30}
               workspaceName={workspace ? `${workspace.organization_name} / ${workspace.team_name}` : undefined}

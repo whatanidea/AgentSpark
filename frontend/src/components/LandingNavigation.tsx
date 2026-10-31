@@ -1,22 +1,11 @@
 import { useEffect, useRef, useState } from "react";
+import { Link, NavLink, useLocation } from "react-router-dom";
+import { PUBLIC_PAGES } from "./publicPages";
 
 const menus = {
-  Platform: [
-    ["#platform", "Discovery & stakeholder input", "Start with the business brief and the people doing the work."],
-    ["#discovery-showcase", "Synthesis & prioritization", "Follow the sources. Make the assumptions visible."],
-    ["#deliverables", "Assessment & executive decisions", "Separate the opportunity from the case for a pilot."],
-    ["#report-title", "Architecture & review", "Explore a reviewable blueprint, not automatic execution."],
-  ],
-  Solutions: [
-    ["#audience-transformation", "Transformation teams", "Build an evidence-led shortlist before committing resources."],
-    ["#audience-operations", "Finance & operations", "Investigate repeated work, exceptions and human decisions."],
-    ["#audience-advisory", "Consultancies & advisory teams", "Structure discovery with existing signed-in team members."],
-  ],
-  Resources: [
-    ["#how-it-works", "How it works", "From business friction to a reviewed next step."],
-    ["#workflow-explorer", "Illustrative assessment", "Explore an example without creating a record."],
-    ["#trust", "Trust & limitations", "Understand sources, unknowns, oversight and retention."],
-  ],
+  Platform: PUBLIC_PAGES.filter(page => page.section === "Platform"),
+  Solutions: PUBLIC_PAGES.filter(page => page.section === "Solutions"),
+  Resources: PUBLIC_PAGES.filter(page => page.section === "Resources"),
 } as const;
 type Menu = keyof typeof menus;
 
@@ -25,9 +14,11 @@ export default function LandingNavigation({ disabled, signedIn, onWorkspace, onD
 }) {
   const [open, setOpen] = useState<Menu | null>(null);
   const [mobile, setMobile] = useState(false);
+  const { pathname } = useLocation();
   const header = useRef<HTMLElement>(null);
   const toggle = useRef<HTMLButtonElement>(null);
   const triggers = useRef<Partial<Record<Menu, HTMLButtonElement | null>>>({});
+  useEffect(() => { setOpen(null); setMobile(false); }, [pathname]);
   useEffect(() => {
     const outside = (event: PointerEvent) => {
       if (event.target instanceof Node && !header.current?.contains(event.target)) {
@@ -47,20 +38,20 @@ export default function LandingNavigation({ disabled, signedIn, onWorkspace, onD
     }
   }}>
     <div className="landing-container marketing-header-inner">
-      <a className="landing-brand" href="#top" aria-label="AgentSpark overview" onClick={close}>
+      <Link className="landing-brand" to="/" aria-label="AgentSpark overview" onClick={close}>
         <span className="landing-brand-mark" aria-hidden="true">✦</span> AgentSpark
-      </a>
+      </Link>
       <nav id="marketing-navigation" className="marketing-navigation" data-mobile-open={mobile} aria-label="Product navigation">
-        <a href="#about" onClick={close}>About</a>
+        <NavLink to="/about" onClick={close}>About</NavLink>
         {(Object.keys(menus) as Menu[]).map(name => <div className="marketing-menu" key={name}>
-          <button ref={element => { triggers.current[name] = element; }} aria-expanded={open === name}
+          <button ref={element => { triggers.current[name] = element; }} aria-expanded={open === name} data-active={pathname.startsWith(`/${name.toLowerCase()}/`)}
             aria-controls={`marketing-${name.toLowerCase()}`} onClick={() => setOpen(current => current === name ? null : name)}>
             {name}<svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="m3 4 3 3 3-3" fill="none" stroke="currentColor" /></svg>
           </button>
           <div id={`marketing-${name.toLowerCase()}`} className="marketing-dropdown" hidden={open !== name}>
             <p className="landing-eyebrow">{name === "Platform" ? "From discovery to decision" : name === "Solutions" ? "Built around your work" : "Explore with clarity"}</p>
-            <ul>{menus[name].map(([href, label, description]) => <li key={href}>
-              <a href={href} onClick={close}><strong>{label}<span aria-hidden="true">↗</span></strong><small>{description}</small></a>
+            <ul>{menus[name].map(page => <li key={page.path}>
+              <NavLink to={page.path} onClick={close}><strong>{page.name}<span aria-hidden="true">↗</span></strong><small>{page.summary}</small></NavLink>
             </li>)}</ul>
           </div>
         </div>)}

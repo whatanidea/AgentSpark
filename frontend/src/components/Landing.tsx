@@ -1,8 +1,11 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { Link, useLocation } from "react-router-dom";
 import type { CloudProvider } from "../api";
 import Icon, { type IconName } from "./Icon";
 import LandingNavigation from "./LandingNavigation";
 import DiscoveryShowcase from "./DiscoveryShowcase";
+import HomeSlides from "./HomeSlides";
+import { publicPage } from "./publicPages";
 import "./Landing.css";
 import "./Marketing.css";
 
@@ -45,61 +48,96 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
   const example = EXAMPLES[exampleIndex];
   const step = example.steps[stepIndex];
   const startLabel = hasSession ? "Open your workspace" : "Assess my workflow";
+  const { pathname } = useLocation();
+  const page = publicPage(pathname);
+  const home = page?.path === "/";
+  const examplePage = page?.path === "/resources/example-assessment";
+  const howPage = page?.path === "/resources/how-it-works";
+  const trustPage = page?.path === "/resources/trust";
+  const title = useRef<HTMLHeadingElement>(null);
+  const site = useRef<HTMLDivElement>(null);
+  const previousPath = useRef(pathname);
+  useEffect(() => {
+    const oldTitle = document.title;
+    const existing = document.querySelector<HTMLMetaElement>('meta[name="description"]');
+    const description = existing ?? document.createElement("meta");
+    const oldDescription = description.content;
+    if (!existing) { description.name = "description"; document.head.append(description); }
+    document.title = `${page?.name ?? "Page not found"} | AgentSpark`;
+    description.content = page?.summary ?? "This AgentSpark page could not be found.";
+    if (previousPath.current !== pathname) {
+      window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+      title.current?.focus({ preventScroll: true });
+      previousPath.current = pathname;
+    }
+    if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches && "IntersectionObserver" in window) {
+      const observer = new IntersectionObserver(entries => {
+        for (const entry of entries) if (entry.isIntersecting) {
+          entry.target.classList.add("marketing-revealed"); observer.unobserve(entry.target);
+        }
+      }, { threshold: 0.12 });
+      site.current?.querySelectorAll("[data-reveal]").forEach(element => observer.observe(element));
+      return () => {
+        observer.disconnect(); document.title = oldTitle;
+        if (existing) description.content = oldDescription; else description.remove();
+      };
+    }
+    return () => { document.title = oldTitle; if (existing) description.content = oldDescription; else description.remove(); };
+  }, [page, pathname]);
 
-  return <div className="landing">
+  return <div ref={site} className="landing multipage-site" data-page={page?.path ?? "not-found"}>
     <a className="landing-skip" href="#landing-main">Skip to content</a>
     <LandingNavigation disabled={disabled} signedIn={signedIn} onWorkspace={onWorkspace} onDiscover={onDiscover} />
 
-    <main id="landing-main">
-      <section id="top" className="landing-hero landing-container" aria-labelledby="landing-title">
+    <main id="landing-main" key={page?.path ?? pathname}>
+      {home ? <section id="top" className="landing-hero landing-container" aria-labelledby="landing-title">
         <div className="landing-hero-copy">
           <div className="landing-kicker"><span aria-hidden="true" /> Business first. Evidence throughout.</div>
-          <h1 id="landing-title">Choose the right<br />AI opportunities.<br /><span>Before you build anything.</span></h1>
-          <p>Bring your teams into structured discovery, connect recommendations to their sources, and prioritize opportunities before committing to an implementation.</p>
+          <h1 ref={title} tabIndex={-1} id="landing-title">Choose the right<br />AI opportunities.<br /><span>Before you build anything.</span></h1>
+          <p>Discover opportunities with your team. Prioritize with evidence. Assess before you build.</p>
           <div className="landing-actions">
             <button className="landing-button landing-button-primary" disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">↗</span></button>
-            <a className="landing-button landing-button-secondary" href="#discovery-showcase">Explore an example <span aria-hidden="true">↓</span></a>
+            <Link className="landing-button landing-button-secondary" to="/resources/example-assessment">Explore an example <span aria-hidden="true">↗</span></Link>
           </div>
           <p className="landing-fine">Already have a workflow in mind? <button className="marketing-inline-action" disabled={disabled} onClick={onStart}>{startLabel}</button></p>
           {message && <p role="status" className="landing-feedback">{message}</p>}
           <div className="landing-hero-proof"><span>Evidence, not guesswork</span><span>Human oversight built in</span></div>
         </div>
-        <DiscoveryShowcase />
-      </section>
+        <HomeSlides />
+      </section> : <section id="top" className="marketing-page-hero landing-container" aria-labelledby="landing-title">
+        <nav className="marketing-breadcrumb" aria-label="Breadcrumb"><Link to="/">Home</Link><span aria-hidden="true">/</span>
+          {page && <span>{page.section}</span>}</nav>
+        <p className="landing-eyebrow">{page?.name ?? "That destination is unavailable"}</p>
+        <h1 ref={title} tabIndex={-1} id="landing-title">{page?.title ?? "Page not found."}</h1>
+        <p>{page?.summary ?? "This link does not point to an AgentSpark page. Return to the overview or use the navigation to explore the platform."}</p>
+        {page && <div className="landing-actions">
+          <button className="landing-button landing-button-primary" disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">↗</span></button>
+          <button className="landing-button landing-button-secondary" disabled={disabled} onClick={onStart}>{startLabel}</button>
+        </div>}
+        {!page && <Link className="landing-button landing-button-primary" to="/">Return to overview</Link>}
+        {message && <p role="status" className="landing-feedback">{message}</p>}
+      </section>}
 
-      <section id="about" className="landing-principles marketing-philosophy" aria-labelledby="about-title">
-        <div className="landing-container"><span className="landing-eyebrow">Our philosophy</span>
-          <h2 id="about-title">Better decisions before<br />bigger commitments.</h2>
-          <p>Not everything needs an agent. Keep rules predictable, use AI where it helps, and keep people accountable.</p></div>
-      </section>
-
-      <section id="platform" className="landing-section landing-container" aria-labelledby="platform-title">
-        <div className="landing-section-heading"><div><p className="landing-eyebrow">One connected discovery journey</p>
-          <h2 id="platform-title">From scattered perspectives<br />to a defensible next step.</h2></div>
-          <p>Make the work, the evidence and the unknowns visible before choosing a solution.</p></div>
+      {home && <section data-reveal className="marketing-home-outcomes landing-container" aria-labelledby="outcomes-title">
+        <p className="landing-eyebrow">Three decisions. One connected journey.</p><h2 id="outcomes-title">Know where to start.<br />Know what to question.</h2>
         <div className="marketing-capabilities">{[
-          ["01", "Discover together", "Define a business brief and collect structured input from operators, process owners and technical owners."],
-          ["02", "Connect the evidence", "Synthesize submitted statements into source-linked themes, opportunities, disagreements and open questions."],
-          ["03", "Prioritize transparently", "Compare explicit assumptions about value, feasibility, confidence, risk and effort. Incomplete inputs remain unranked."],
-          ["04", "Review into assessment", "Hand a selected hypothesis into a separate assessment. Preserve provenance without treating it as confirmed fact."],
-        ].map(([number, title, detail]) => <article key={number}><span>{number}</span><h3>{title}</h3><p>{detail}</p></article>)}</div>
-      </section>
+          ["Discover together", "Hear the people who know the work.", "/platform/discovery"],
+          ["Prioritize transparently", "Connect the shortlist to its sources.", "/platform/prioritization"],
+          ["Assess responsibly", "Make the facts and gaps visible.", "/platform/assessment"],
+        ].map(([heading, text, path], index) => <article key={path}><span>0{index + 1}</span><h3>{heading}</h3><p>{text}</p>
+          <Link to={path}>Explore this stage <span aria-hidden="true">↗</span></Link></article>)}</div>
+        <p className="marketing-home-boundary">Advisory decisions, not autonomous execution. <Link to="/resources/trust">Understand the boundaries ↗</Link></p>
+      </section>}
 
-      <section id="solutions" className="marketing-solutions" aria-labelledby="solutions-title">
-        <div className="landing-container landing-section">
-          <div className="landing-section-heading"><div><p className="landing-eyebrow">Built around your work</p>
-            <h2 id="solutions-title">Different perspectives.<br />A shared basis for decisions.</h2></div>
-            <p>A useful conversation for the people identifying opportunities, running operations and advising on change.</p></div>
-          <div className="marketing-audiences">{[
-            ["audience-transformation", "Transformation teams", "Build the shortlist before the backlog.", "Bring stakeholder input and comparable assumptions into one discovery engagement."],
-            ["audience-operations", "Finance & operations", "Start with the friction people recognize.", "Explore repeated work, exceptions and decisions that must stay human-controlled."],
-            ["audience-advisory", "Consultancies & advisory teams", "Structure the conversation with your clients.", "Use existing signed-in team access to organize discovery and prepare evidence-led recommendations."],
-          ].map(([id, title, heading, detail]) => <article id={id} key={id}><p className="landing-eyebrow">{title}</p>
-            <h3>{heading}</h3><p>{detail}</p><a href="#how-it-works">Explore the approach <span aria-hidden="true">↗</span></a></article>)}</div>
-        </div>
-      </section>
-
-      <section className="landing-section landing-container marketing-workflow-section" aria-labelledby="explorer-title">
+      {!!page?.details.length && <section data-reveal className="landing-section landing-container marketing-page-details" aria-label={`${page.name} capabilities`}>
+        <div className="marketing-capabilities">{page.details.map(([heading, text], index) =>
+          <article key={heading}><span>0{index + 1}</span><h2>{heading}</h2><p>{text}</p></article>)}</div>
+        <Link className="landing-button landing-button-secondary" to="/resources/example-assessment">Explore an illustrative assessment ↗</Link>
+      </section>}
+      {page?.stage && <section data-reveal className="landing-container marketing-stage-section" aria-label="Fictional product walkthrough">
+        <DiscoveryShowcase key={page.path} initialStage={page.stage} />
+      </section>}
+      {examplePage && <section data-reveal className="landing-section landing-container marketing-workflow-section" aria-labelledby="explorer-title">
         <div className="landing-section-heading"><div><p className="landing-eyebrow">When an opportunity needs a closer look</p>
           <h2 id="explorer-title">Understand the workflow.<br />Not just the technology.</h2></div>
           <p>Explore a fictional example of how rules, AI assistance and human decisions can fit together.</p></div>
@@ -128,9 +166,9 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
           </div>
           <p className="landing-explorer-note">Explore freely. No sign-in, model calls or saved assessment from these examples.</p>
         </div>
-      </section>
+      </section>}
 
-      <section id="how-it-works" className="landing-section landing-container" aria-labelledby="how-title">
+      {howPage && <section data-reveal id="how-it-works" className="landing-section landing-container" aria-labelledby="how-title">
         <div className="landing-section-heading"><div><p className="landing-eyebrow">From possibility to a plan</p><h2 id="how-title">Less AI guesswork.<br />More forward motion.</h2></div>
           <p>A structured path from how work happens today to what a responsible pilot would need.</p></div>
         <ol className="landing-journey">
@@ -143,9 +181,9 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
             <div className="landing-journey-number">0{index + 1}<span>{label}</span></div><h3>{title}</h3><p>{detail}</p>
           </li>)}
         </ol>
-      </section>
+      </section>}
 
-      <section id="deliverables" className="landing-deliverables" aria-labelledby="deliverables-title">
+      {examplePage && <section data-reveal id="deliverables" className="landing-deliverables" aria-labelledby="deliverables-title">
         <div className="landing-container">
           <div className="landing-section-heading"><div><p className="landing-eyebrow">An assessment you can actually use</p><h2 id="deliverables-title">See the decision.<br />And what sits behind it.</h2></div>
             <p>This preview follows <strong>{example.name.toLowerCase()}</strong>. Change the workflow above to explore another example.</p></div>
@@ -191,9 +229,9 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
             </div>
           </div>
         </div>
-      </section>
+      </section>}
 
-      <section className="landing-section landing-container landing-report-section" aria-labelledby="report-title">
+      {examplePage && <section data-reveal className="landing-section landing-container landing-report-section" aria-labelledby="report-title">
         <div className="landing-report-copy"><p className="landing-eyebrow">Built for the conversation after the demo</p>
           <h2 id="report-title">A report to review.<br />Not another black box.</h2>
           <p>Bring suitability, implementation gaps, evidence, ROI assumptions and the proposed architecture into one downloadable PDF.</p>
@@ -208,27 +246,27 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
           <ol>{["Suitability & rationale", "Evidence & assumptions", "Implementation readiness", "Business case scenarios", "Proposed blueprint & review"].map((item, index) => <li key={item}><span>0{index + 1}</span>{item}</li>)}</ol>
           <p className="landing-report-note">This cover is an example, not a generated report. Create an assessment to export your own PDF.</p>
         </article>
-      </section>
+      </section>}
 
-      <section id="trust" className="landing-section landing-container marketing-trust" aria-labelledby="trust-title">
-        <div><p className="landing-eyebrow">Trust starts with clear boundaries</p><h2 id="trust-title">Know what is supported.<br />Know what is still unknown.</h2>
-          <p>AgentSpark supports a responsible decision process. It does not independently verify your evidence or execute a business workflow.</p></div>
+      {trustPage && <section data-reveal id="trust" className="landing-section landing-container marketing-trust" aria-labelledby="trust-title">
+        <div><p className="landing-eyebrow">Trust starts with clear boundaries</p><h2 id="trust-title">Clear boundaries<br />at every stage.</h2>
+          <p>Read how sources, rating assumptions, human authority and retention are handled throughout the decision process.</p></div>
         <div className="marketing-trust-list">{[
           ["Sources stay visible", "Stakeholder statements and generated hypotheses remain unverified. Drafts are excluded from synthesis; source edits mark snapshots stale."],
           ["Assumptions stay explicit", "Priority ratings are assessor judgments, not suitability scores, guaranteed savings or verified confidence."],
           ["People stay accountable", "A reviewed handoff does not confirm diagnostic facts, grant permissions or authorize autonomous execution."],
           ["Retention stays bounded", "New engagements expire after 30 days unless explicitly renewed. Ordinary edits do not extend expiry; assessment and archive copies follow their own retention."],
         ].map(([title, detail]) => <details key={title}><summary>{title}<span aria-hidden="true">+</span></summary><p>{detail}</p></details>)}</div>
-      </section>
+      </section>}
 
-      <section className="landing-final landing-container" aria-labelledby="final-title">
+      {page && <section data-reveal className="landing-final landing-container" aria-labelledby="final-title">
         <span className="landing-final-spark" aria-hidden="true">✦</span><p className="landing-eyebrow">Start small. Decide with clarity.</p>
         <h2 id="final-title">Start with a business question.<br />Leave with a clearer next step.</h2><p>No autonomous business actions. No deployment implied.<br />Just a clearer, evidence-led next step.</p>
         <button className="landing-button landing-button-primary" disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">↗</span></button>
-      </section>
+      </section>}
     </main>
     <footer className="landing-footer landing-container"><span>AgentSpark <small>Business first. Evidence throughout.</small></span>
-      <a href="#about">About</a><a href="#platform">Platform</a><a href="#trust">Trust & limitations</a>
+      <Link to="/about">About</Link><Link to="/platform/discovery">Platform</Link><Link to="/resources/trust">Trust & limitations</Link>
       <p>Advisory assessment, not compliance certification.</p><a href="#top">Back to top ↑</a></footer>
   </div>;
 }

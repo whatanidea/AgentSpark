@@ -1,14 +1,15 @@
 import { useState } from "react";
 
 const stages = ["Discover", "Synthesize", "Prioritize", "Assess"] as const;
+export type DiscoveryStage = typeof stages[number];
 const sources = [
   ["S1", "Business operator", "We repeat invoice checks. Finance owns exception decisions."],
   ["S2", "Process owner", "Procurement owns exception decisions. Baseline volumes are unconfirmed."],
   ["S3", "Technical owner", "API access and data quality still need validation."],
 ];
 
-export default function DiscoveryShowcase() {
-  const [stage, setStage] = useState<typeof stages[number]>("Discover");
+export default function DiscoveryShowcase({ initialStage = "Discover" }: { initialStage?: DiscoveryStage }) {
+  const [stage, setStage] = useState<DiscoveryStage>(initialStage);
   return <article id="discovery-showcase" className="discovery-showcase" aria-label="Illustrative discovery walkthrough">
     <div className="showcase-top"><span>DISCOVERY TO DECISION</span><span className="showcase-example">Fictional example</span></div>
     <div className="showcase-project"><span className="showcase-project-icon" aria-hidden="true">↗</span>

@@ -612,6 +612,7 @@ test("team workspace restores its scope, prevents self-review and stays separate
   await expect(page.getByRole("button", { name: "Open Invoice Approval Pending review", exact: true })).toHaveCount(0);
   expect(await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1"))).toBeNull();
   await administration.click();
+  await page.getByRole("combobox", { name: "Organization", exact: true }).selectOption({ label: "Fictional browser organization (owner)" });
   await page.getByRole("button", { name: "Use Browser finance", exact: true }).click();
   await page.getByRole("button", { name: "Open Invoice Approval Pending review", exact: true }).click();
   await expect(page.getByText("Your identity cannot review this workflow.", { exact: false })).toBeVisible();
