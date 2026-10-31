@@ -109,6 +109,7 @@ def decision_record(state: WorkflowState, now: datetime, retention_days: int) ->
             "readiness_report": state.readiness_report,
             "runtime_decision": state.runtime_decision.model_dump(mode="json") if state.runtime_decision else None,
             "executive_brief": state.executive_brief.model_dump(mode="json") if state.executive_brief else None,
+            "discovery_origin": state.discovery_origin.model_dump(mode="json") if state.discovery_origin else None,
             "workflow_intelligence": state.workflow_intelligence.model_dump(mode="json") if state.workflow_intelligence else None,
             "suitability_score": state.suitability_score.model_dump(mode="json") if state.suitability_score else None,
             "governance": state.governance,

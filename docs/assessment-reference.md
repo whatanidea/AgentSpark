@@ -28,7 +28,7 @@ The **Discovery engagements** workspace starts before technical intake. Record
 the business objective, units, sponsor, owner, required/excluded topics, optional
 ISO dates and planned/active/completed status. Add up to 20 manual contribution
 notes, 20 candidate opportunities and 20 existing assessment links. These are
-human-recorded hypotheses, not verified evidence or automatically ranked opportunities.
+human-recorded hypotheses, not verified evidence.
 Topics document scope; they do not change linked interview prompts.
 
 `GET/POST /api/v1/engagements` lists/creates records. `GET/PUT/DELETE
@@ -40,9 +40,61 @@ reported as unavailable, not silently removed; dependency outages remain errors.
 Deleting an engagement does not delete linked assessments.
 
 Engagements reuse owner/team authorization, input screening, redaction, Cosmos
-conditional writes and session TTL. Workspace readers can see contributions:
-there are no anonymous interviews, engagement invitations or automatic synthesis.
+conditional writes. New engagements retain data for a fixed 30 days; ordinary
+reads/edits do not renew it. Explicit authorized `POST /engagements/{id}/renew`
+starts another 30 days. Legacy expiry remains unchanged until renewal, and expired
+records cannot be restored. Workspace readers can see contributions:
+there are no anonymous interviews or engagement-only external invitations.
 Engagements cannot enter assessment endpoints or appear as assessments in Home.
+
+### Stakeholder discovery, synthesis and reviewed handoff
+
+Use existing organization/team invitations, then assign up to 20 active members
+with `PUT /engagements/{id}/participants/{identity}` and a business operator,
+process owner or technical owner role. GET `eligible-participants` returns a
+bounded paginated team roster (plus the caller on the first page); DELETE a
+participant removes current answers, not historical snapshots. Role changes
+clear answers; membership generation changes require fresh assignment. Assignment
+does not send another email or grant new workspace access.
+
+An assigned signed-in member uses `PUT /engagements/{id}/contribution` with their
+own three-question `answers`, `submit` flag and current `version`. Drafts may be
+partial; submission requires all assigned answers, including explicit unconfirmed
+answers where appropriate. Assigned viewers can submit only their own answers;
+they gain no general write permission. Statements remain workspace-visible and
+unverified. Manual notes must not be portrayed as authenticated responses.
+
+`POST /engagements/{id}/synthesis` requires `version` and an explicit approved
+`model_id`. Only saved notes and submitted answers become source IDs. Generation
+produces themes, opportunity hypotheses, disagreements and open questions, with
+validated source citations. Disagreements need two distinct sources; absence of a
+reported disagreement does not establish agreement. Demo mode illustrates linkage,
+not semantic analysis. Objective/topic/source edits mark the saved snapshot stale.
+Accept a current candidate with `POST /engagements/{id}/candidates/{candidate}/accept`;
+acceptance creates an unverified proposed opportunity, not a supplied workflow fact.
+
+Opportunity `ratings` are optional strict integers 1-5 with an explicit rationale.
+`discovery-priority-v1` uses value 30%, feasibility 25%, evidence confidence 20%,
+risk 15%, effort 10%. Each positive dimension contributes `(rating-1)/4 * weight`;
+risk/effort contribute `(5-rating)/4 * weight`. Results are 0-100 with stable-ID
+tie breaks. Missing ratings/rationale, confidence above 1 without source IDs, or
+stale source-linked synthesis withhold scores. Confidence is an assessor judgment,
+not evidence verification. Rankings are neither suitability scores nor savings.
+
+Mark an opportunity selected and review its sources, then POST
+`/engagements/{id}/opportunities/{opportunity}/handoff` with `version`, `reviewed:
+true`, `target_cloud` and approved `model_id`. Frozen `discovery_origin` includes
+sources, priority assumptions and reviewer/time. Evidence copies are unconfirmed
+client statements, without diagnostic fact links. No interview answer, workflow
+fact, readiness confirmation or execution approval is filled automatically.
+Origin survives reassessment, blueprint Markdown/PDF and retained decision snapshots.
+The new child uses normal assessment expiry, not 30-day engagement retention.
+
+Handoff creation reserves a stable child before writing it; cross-partition
+failures leave a visible pending state and explicit error. Reload and retry the
+same target/model to resume without duplicates. A completed deleted/expired child
+is never recreated. Changed frozen sources/title/problem or target/model require a
+new opportunity. All mutations require a current ETag; 409 requires reload/review.
 
 ### Role-based diagnostic interviews
 

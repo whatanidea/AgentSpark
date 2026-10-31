@@ -27,6 +27,7 @@ PRIVATE_FIELDS = (
     "evidence_register", "evidence_report", "readiness_assessment", "readiness_report",
     "interview_diagnosis", "interview_answers",
     "discovery", "executive_brief", "runtime_requirement_sources", "runtime_decision",
+    "discovery_participants", "discovery_synthesis", "discovery_handoffs", "discovery_origin",
 )
 
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, uid, type DiscoveryEngagement, type DiscoveryRecord, type HomeItem } from "../api";
 import { Button, Card } from "./ui";
+import DiscoveryWorkflow from "./DiscoveryWorkflow";
 
 const empty = (): DiscoveryEngagement => ({
   title: "", objective: "", business_units: "", sponsor: "", engagement_owner: "",
@@ -15,8 +16,9 @@ const textFields = [
 ] as const;
 const roles = { business_operator: "Business operator", process_owner: "Process owner", technical_owner: "Technical owner" } as const;
 
-export default function Discovery({ canCreate, onOpen, onBusyChange }: {
+export default function Discovery({ canCreate, onOpen, onBusyChange, onManageAccess, onUnsavedChange }: {
   canCreate: boolean; onOpen: (session: string) => Promise<void>; onBusyChange: (busy: boolean) => void;
+  onManageAccess: () => void; onUnsavedChange: (dirty: boolean) => void;
 }) {
   const [items, setItems] = useState<HomeItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -28,10 +30,13 @@ export default function Discovery({ canCreate, onOpen, onBusyChange }: {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [deleting, setDeleting] = useState(false);
-  const dirty = draft !== null && JSON.stringify(draft) !== JSON.stringify(record?.engagement || empty());
+  const [workflowDirty, setWorkflowDirty] = useState(false);
+  const formDirty = draft !== null && JSON.stringify(draft) !== JSON.stringify(record?.engagement || empty());
+  const dirty = formDirty || workflowDirty;
   const canWrite = record ? record.permissions.write : canCreate;
 
   useEffect(() => { onBusyChange(busy); return () => onBusyChange(false); }, [busy, onBusyChange]);
+  useEffect(() => { onUnsavedChange(dirty); return () => onUnsavedChange(false); }, [dirty, onUnsavedChange]);
   useEffect(() => {
     let alive = true;
     setBusy(true);
@@ -99,7 +104,7 @@ export default function Discovery({ canCreate, onOpen, onBusyChange }: {
       }}>New discovery engagement</Button>
     </header>
     <p className="notice">Discovery notes are visible to readers of this workspace, not anonymous.
-      Existing session retention applies. Required/excluded topics record scope; they do not automatically modify linked interviews.</p>
+      New engagements retain data for 30 days with explicit renewal. Required/excluded topics record scope; they do not automatically modify linked interviews.</p>
     {error && <p role="alert" className="notice text-rose-700">{error}</p>}
     {message && <p role="status" className="notice">{message}</p>}
     <Card title="Saved engagements">
@@ -111,6 +116,7 @@ export default function Discovery({ canCreate, onOpen, onBusyChange }: {
       {cursor && <Button variant="ghost" disabled={busy} onClick={() => void more("engagements")}>More engagements</Button>}
     </Card>
     {draft && <form onSubmit={event => { event.preventDefault(); void save(); }} className="space-y-5">
+      <fieldset disabled={workflowDirty} className="space-y-5 min-w-0">
       <Card title={record ? "Engagement brief" : "Create engagement"}>
         {record && <p className="text-sm mb-3">Saved progress: {record.progress.contributions} notes /
           {" "}{record.progress.opportunities} opportunities / {record.progress.assessments} available assessments.
@@ -168,7 +174,7 @@ export default function Discovery({ canCreate, onOpen, onBusyChange }: {
             <Button variant="ghost" onClick={() => update("opportunities", draft.opportunities.filter(item => item.id !== opportunity.id))}>Remove opportunity</Button>
           </div>)}
           <Button variant="ghost" disabled={draft.opportunities.length >= 20} onClick={() =>
-            update("opportunities", [...draft.opportunities, { id: uid(), title: "", problem: "", status: "proposed" }])}>Add candidate opportunity</Button>
+            update("opportunities", [...draft.opportunities, { id: uid(), title: "", problem: "", status: "proposed", source_ids: [], ratings: null }])}>Add candidate opportunity</Button>
         </fieldset>
       </Card>
       <Card title="Linked assessments" description="Links only; discovery notes are not copied into confirmed workflow facts.">
@@ -194,13 +200,17 @@ export default function Discovery({ canCreate, onOpen, onBusyChange }: {
           Open {item.title}
         </Button>)}
       </Card>
+      </fieldset>
       {dirty && <p role="status" className="notice">Unsaved discovery changes.</p>}
       <div className="flex flex-wrap gap-3">
-        <Button type="submit" disabled={busy || !canWrite || (!dirty && !!record)}>Save discovery engagement</Button>
+        <Button type="submit" disabled={busy || workflowDirty || !canWrite || (!formDirty && !!record)}>Save discovery engagement</Button>
         {record && <Button variant="ghost" disabled={busy} onClick={() => void open(record.id)}>Reload engagement</Button>}
         {record?.permissions.delete && <Button variant="danger" disabled={busy} onClick={() => setDeleting(true)}>Delete engagement</Button>}
       </div>
     </form>}
+    {record && <DiscoveryWorkflow key={record.id} record={record} blocked={busy || formDirty}
+      onChange={result => { setRecord(result); setDraft(result.engagement); }} onBusyChange={setBusy}
+      onDirtyChange={setWorkflowDirty} onOpen={onOpen} onManageAccess={onManageAccess} />}
     {deleting && record && <section role="alertdialog" aria-label="Confirm engagement deletion" className="notice">
       <p>Delete this engagement and its notes? Linked assessments will remain unchanged.</p>
       <Button variant="danger" disabled={busy} onClick={() => void remove()}>Confirm engagement deletion</Button>

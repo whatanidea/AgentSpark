@@ -487,6 +487,7 @@ def get_blueprint(session_id: SessionId):
     res["readiness_report"] = state.readiness_report
     res["runtime_decision"] = state.runtime_decision.model_dump() if state.runtime_decision else None
     res["executive_brief"] = state.executive_brief.model_dump() if state.executive_brief else None
+    res["discovery_origin"] = state.discovery_origin.model_dump(mode="json") if state.discovery_origin else None
     if state.suitability_score:
         res["suitability_score"] = state.suitability_score.model_dump()
     if state.workflow_intelligence:

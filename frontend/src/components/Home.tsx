@@ -127,6 +127,10 @@ export default function Home({ demo, retentionDays, workspaceName, canCreate, on
         </dl>
       </Card>
       <ExecutiveBriefSummary brief={decision.details.executive_brief} />
+      {decision.details.discovery_origin && <Card title="Discovery origin - unverified snapshot">
+        <p>Reviewed for handoff, not confirmation of workflow facts or execution approval.</p>
+        <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(decision.details.discovery_origin, null, 2)}</pre>
+      </Card>}
       <Card title="Reviewed deployment target">
         <p className="text-sm">{decision.details.deployment_preferences?.target_cloud === "aws" ? "AWS" : "Azure"} / {decision.details.deployment_preferences?.preferred_region || "Region not specified"} (unverified)</p>
         <p className="text-sm mt-2">Data residency: {decision.details.deployment_preferences?.data_residency_requirements || "Not specified"}</p>

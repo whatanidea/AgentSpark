@@ -188,6 +188,9 @@ def build_blueprint_pdf(snapshot: dict) -> bytes:
     report.heading(intel.get("workflow_name") or context.get("business_domain") or "Workflow assessment", minor=True)
     report.paragraph(_STATUS[status], report.h2)
     report.field("Analysis ID", snapshot["analysis_id"])
+    if snapshot.get("discovery_origin"):
+        report.heading("Discovery origin - unverified source snapshot")
+        report.details(snapshot["discovery_origin"])
     report.field("Generated at (UTC)", datetime.now(timezone.utc).isoformat())
     if snapshot.get("executive_brief"):
         report.heading("Executive decision brief")

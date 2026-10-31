@@ -55,6 +55,7 @@ export default function App() {
   const [auth, setAuth] = useState<AuthConfig | null>(null);
   const [token, setToken] = useState("");
   const [busy, setBusy] = useState(false);
+  const [discoveryUnsaved, setDiscoveryUnsaved] = useState(false);
   const [starting, setStarting] = useState(true);
   const [message, setMessage] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -151,6 +152,7 @@ export default function App() {
     setSnapshot(state);
   }
   async function changeView(next: View) {
+    if (view === "discovery" && next !== view && discoveryUnsaved && !window.confirm("Discard unsaved discovery changes?")) return;
     setShowLanding(false);
     if (next === view) return;
     setBusy(true);
@@ -194,6 +196,7 @@ export default function App() {
     finally { setBusy(false); }
   }
   function newWorkflow() {
+    if (view === "discovery" && discoveryUnsaved && !window.confirm("Discard unsaved discovery changes?")) return;
     forgetPointer(); setSnapshot(null); setView("intake"); setConfirmDelete(false);
     setMessage("New workflow. The previous server session remains until expiry unless deleted.");
   }
@@ -229,7 +232,9 @@ export default function App() {
           </div>
           <p className="hidden md:block text-xs leading-relaxed text-slate-500 mt-5">The agent that tells you where agents belong.</p>
           <button className="text-xs text-teal-800 mt-4 hover:underline" disabled={busy}
-            onClick={() => setShowLanding(true)}>Product overview <span aria-hidden="true">↗</span></button>
+            onClick={() => {
+              if (view !== "discovery" || !discoveryUnsaved || window.confirm("Discard unsaved discovery changes?")) setShowLanding(true);
+            }}>Product overview <span aria-hidden="true">↗</span></button>
         </div>
         <nav aria-label="Workflow steps" className="flex md:block md:flex-1 overflow-x-auto px-4 pb-4 md:pb-5 gap-2 md:space-y-1.5">
           <p className="hidden md:block px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Workspace</p>
@@ -299,6 +304,11 @@ export default function App() {
           {snapshot && <p className="text-xs text-slate-600">Assessment model: <strong>{snapshot.inference_model
             ? `${snapshot.inference_model.provider} / ${snapshot.inference_model.model}` : "Legacy Azure OpenAI default (historical provenance not recorded)"}</strong>.
             {" "}No automatic provider fallback.</p>}
+          {snapshot?.discovery_origin && <details className="notice">
+            <summary>Discovery origin: {snapshot.discovery_origin.title} (unverified)</summary>
+            <p>Reviewed for handoff, not confirmed as workflow facts. All readiness and diagnostic gates still apply.</p>
+            <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(snapshot.discovery_origin, null, 2)}</pre>
+          </details>}
           {identity && !snapshot && readPointer() && <Button disabled={busy} variant="ghost" onClick={async () => {
             setBusy(true);
             try { await connect(); }
@@ -340,7 +350,8 @@ export default function App() {
               onSelect={changeWorkspace} onBusyChange={setBusy} inviteCode={pendingInvite}
               onInviteHandled={() => setPendingInvite("")} />}
             {view === "discovery" && <Discovery canCreate={workspace?.permissions.write !== false}
-              onOpen={openWorkflow} onBusyChange={setBusy} />}
+              onOpen={openWorkflow} onBusyChange={setBusy} onUnsavedChange={setDiscoveryUnsaved}
+              onManageAccess={() => void changeView("workspaces")} />}
             {view === "home" && <Home demo={auth?.mode === "local-demo"} retentionDays={auth?.archive_retention_days ?? 30}
               workspaceName={workspace ? `${workspace.organization_name} / ${workspace.team_name}` : undefined}
               canCreate={workspace?.permissions.write !== false}
