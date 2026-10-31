@@ -3,9 +3,12 @@
 ## Discovery and executive briefs
 
 This release adds no Azure resources, containers, secrets, model connections or
-environment flags. Discovery records share the workflows collection and session
-TTL (`SESSION_RETENTION_HOURS`, 24 hours by default), not the retained decision
-archive. Do not promise durable engagement storage beyond that TTL. Deletion of
+environment flags. Discovery records share the workflows collection with a fixed
+30-day expiry from creation or explicit renewal. Ordinary reads/writes do not
+slide expiry. Existing unexpired engagements keep their old expiry until renewed;
+expired/deleted documents are not restored. Assessment children still use
+`SESSION_RETENTION_HOURS` (24 hours by default); copied origin snapshots follow
+assessment and decision-archive retention, not the source engagement's expiry. Deletion of
 an engagement leaves its assessment links' targets unchanged.
 
 Existing owner/team permissions and workspace selection apply. Notes are visible
@@ -14,6 +17,26 @@ explicit; stale edits/deletes and executive PDF exports return 409 and require
 reload. Missing assessment links are shown separately from dependency failures.
 Assessment APIs reject discovery records using the persisted record discriminator.
 Legacy documents default to assessment; existing archived decisions are unchanged.
+
+Stakeholder assignment requires existing active organization/team membership.
+Viewers assigned a role may save only their own narrowly scoped contribution;
+they cannot edit an engagement, assign participants, synthesize or create handoffs.
+Assignments bind to membership generation: revocation/re-addition requires fresh
+assignment. Role replacement clears current answers. Submitted statements remain
+unverified; drafts are excluded from generation, not hidden from workspace readers.
+
+Synthesis uses the selected enabled model, the existing timeout/retry behavior,
+a bounded input budget and validated source IDs. There is no provider fallback.
+Live generation adds a model call; deterministic demo explicitly does not perform
+semantic synthesis/conflict detection. Source edits preserve but stale snapshots.
+Ranking is deterministic and makes no inference call.
+
+Handoff uses an ETag-protected parent reservation, stable child ID, then a separate
+child write and parent completion write. Cosmos partitions cannot make these
+writes atomic. Failures surface explicitly: reload to inspect a pending reservation
+and retry with the same cloud/model. Retries reuse the child; completed deleted or
+expired children are not recreated. Changed frozen source snapshots require a new
+opportunity. Handoff copying is never a confirmation or bypass of readiness gates.
 
 Role selection does not grant authorization or invite another participant.
 Executive briefs reuse deterministic assessment/ROI results, retain source

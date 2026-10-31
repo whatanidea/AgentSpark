@@ -20,6 +20,10 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
 - **Start business-first discovery:** create a scoped engagement with an objective,
   sponsor, business units, topics and dates; save manual role contributions,
   candidate opportunities and links to existing assessments.
+- **Build a stakeholder-backed opportunity shortlist:** assign active team members
+  their own structured contributions, generate source-linked hypotheses using an
+  approved model, and rank opportunities using explicit weighted assumptions.
+  Review a selected opportunity into an assessment without confirming its claims.
 - **Interview by role:** business operators, process owners and technical owners
   receive their assigned questions. Unconfirmed answers remain unresolved; role
   completion never bypasses the full assessment's evidence requirements.
@@ -64,9 +68,13 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
 Blueprint & review -> Decision archive.
 
 Discovery notes are workspace-visible, not anonymous or verified evidence.
-They inherit session retention (24 hours by default); they are not long-lived
-engagement archives. Invitations, automated opportunity synthesis/ranking and
-discovery-to-assessment fact propagation are not part of this release.
+New engagements expire 30 days after creation; reads and ordinary edits never
+extend that period. Authorized explicit renewal starts another 30 days. Legacy
+engagements keep their old expiry until renewed. Participation uses existing
+signed-in organization/team invitations, not anonymous or external access links.
+Draft responses are excluded from synthesis; source changes mark snapshots stale.
+Unknown ratings withhold priority scores. Reviewed handoffs copy unverified
+provenance, not confirmed facts, and retain ordinary assessment/decision expiry.
 
 ## Run locally
 

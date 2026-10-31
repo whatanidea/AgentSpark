@@ -22,13 +22,42 @@ export type DiscoveryEngagement = {
   required_topics: string; excluded_topics: string; starts_on: string; ends_on: string;
   status: "planned" | "active" | "completed";
   contributions: { id: string; role: Exclude<InterviewRole, "all">; statement: string }[];
-  opportunities: { id: string; title: string; problem: string; status: "proposed" | "selected" | "parked" }[];
+  opportunities: { id: string; title: string; problem: string; status: "proposed" | "selected" | "parked";
+    source_ids: string[]; ratings: DiscoveryRatings | null }[];
   assessment_ids: string[];
+};
+export type DiscoveryRatings = {
+  value: number | null; feasibility: number | null; evidence_confidence: number | null;
+  risk: number | null; effort: number | null; rationale: string;
+};
+export type DiscoverySource = { id: string; label: string; statement: string };
+export type DiscoveryFinding = { id: string | null; title: string; statement: string; source_ids: string[] };
+export type DiscoveryPriority = {
+  opportunity_id: string; title: string; score: number | null; missing: string[];
+  source_ids: string[]; ratings: DiscoveryRatings | null;
+};
+export type DiscoveryOrigin = {
+  engagement_id: string; opportunity_id: string; source_version: string; title: string; problem: string;
+  sources: DiscoverySource[]; priority: DiscoveryPriority; reviewed_by: string; reviewed_at: string;
+};
+export type DiscoveryParticipant = {
+  identity_id: string; role: Exclude<InterviewRole, "all">; assigned_by: string; assigned_at: string;
+  status: "invited" | "draft" | "submitted"; answers: Record<string, string>; submitted_at: string | null;
 };
 export type DiscoveryRecord = {
   id: string; version: string; engagement: DiscoveryEngagement; permissions: Permissions; expires_at: string;
   assessments: { session_id: string; title: string; status: string }[]; unavailable_assessments: string[];
   progress: { contributions: number; opportunities: number; assessments: number }; limitations: string;
+  retention: { days: number; created_at: string | null; policy: string };
+  participation: { participants: DiscoveryParticipant[]; identity_id: string; can_assign: boolean;
+    can_submit: boolean; questions: Record<Exclude<InterviewRole, "all">, Record<string, string>> };
+  synthesis: { rules_version: string; source_digest: string; sources: DiscoverySource[];
+    content: { themes: DiscoveryFinding[]; opportunities: DiscoveryFinding[]; conflicts: DiscoveryFinding[]; open_questions: string[] };
+    model: InferenceModel; generated_by: string; generated_at: string } | null;
+  synthesis_current: boolean;
+  prioritization: { rules_version: string; weights: Record<string, number>; items: DiscoveryPriority[]; limitations: string };
+  handoffs: { session_id: string; origin: DiscoveryOrigin; context: { target_cloud: CloudProvider };
+    model: InferenceModel; assessment_expires_at: string; status: "pending" | "completed" }[];
 };
 export type RuntimeRequirements = {
   reasoning: "unknown" | "deterministic" | "bounded" | "dynamic";
@@ -123,6 +152,7 @@ export type ArchivedDecision = {
     readiness_report?: ImplementationReadinessReport | null;
     runtime_decision?: RuntimeDecision | null;
     executive_brief?: ExecutiveBrief | null;
+    discovery_origin?: DiscoveryOrigin | null;
     workflow_intelligence: { summary: string; systems: string[] } | null;
     suitability_score: { agent_score: number; recommended_pattern: string; explanation: string } | null;
     human_review: { decision: "approve" | "reject"; reviewer: string; note: string; reviewed_at: string } | null;
@@ -196,6 +226,7 @@ export type SessionSnapshot = {
   session_id: string;
   version: string;
   executive_brief: ExecutiveBrief | null;
+  discovery_origin: DiscoveryOrigin | null;
   enterprise_context: Record<string, string>;
   evidence_register: EvidenceEntry[];
   evidence_revision: number;
@@ -340,6 +371,24 @@ export const api = {
     request(`/engagements/${encodeURIComponent(id)}`, "PUT", { version, engagement }),
   deleteEngagement: (id: string, version: string) =>
     request(`/engagements/${encodeURIComponent(id)}?${new URLSearchParams({ version })}`, "DELETE"),
+  renewEngagement: (id: string, version: string): Promise<DiscoveryRecord> =>
+    post(`/engagements/${encodeURIComponent(id)}/renew`, { version }),
+  eligibleParticipants: (id: string, cursor = ""): Promise<DirectoryPage<{ identity_id: string }>> =>
+    get(`/engagements/${encodeURIComponent(id)}/eligible-participants?${new URLSearchParams({ cursor })}`),
+  assignParticipant: (id: string, identity: string, version: string, role: Exclude<InterviewRole, "all">): Promise<DiscoveryRecord> =>
+    request(`/engagements/${encodeURIComponent(id)}/participants/${encodeURIComponent(identity)}`, "PUT", { version, role }),
+  removeParticipant: (id: string, identity: string, version: string): Promise<DiscoveryRecord> =>
+    request(`/engagements/${encodeURIComponent(id)}/participants/${encodeURIComponent(identity)}`, "DELETE", { version }),
+  saveContribution: (id: string, version: string, answers: Record<string, string>, submit: boolean): Promise<DiscoveryRecord> =>
+    request(`/engagements/${encodeURIComponent(id)}/contribution`, "PUT", { version, answers, submit }),
+  synthesizeDiscovery: (id: string, version: string, model_id: InferenceModel["id"]): Promise<DiscoveryRecord> =>
+    post(`/engagements/${encodeURIComponent(id)}/synthesis`, { version, model_id }),
+  acceptDiscoveryCandidate: (id: string, candidate: string, version: string): Promise<DiscoveryRecord> =>
+    post(`/engagements/${encodeURIComponent(id)}/candidates/${encodeURIComponent(candidate)}/accept`, { version }),
+  handoffOpportunity: (id: string, opportunity: string, version: string, model_id: InferenceModel["id"],
+    target_cloud: CloudProvider, reviewed: boolean): Promise<{ session_id: string; engagement: DiscoveryRecord }> =>
+    post(`/engagements/${encodeURIComponent(id)}/opportunities/${encodeURIComponent(opportunity)}/handoff`,
+      { version, model_id, target_cloud, reviewed }),
   executiveBriefPdf: async (id: string, version: string): Promise<Blob> =>
     (await requestResponse(`/sessions/${encodeURIComponent(id)}/executive-brief/pdf?${new URLSearchParams({ version })}`)).blob(),
   evidence: (id: string): Promise<EvidenceRegisterResponse> => get(`/sessions/${encodeURIComponent(id)}/evidence`),

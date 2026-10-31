@@ -98,6 +98,7 @@ Advisory recommendation only; approval does not execute or deploy a business wor
 ${bp.assessment_limitations || "Region availability, model access, residency and prices are unverified. AgentSpark remains Azure-hosted."}
 ${bp.demo_scenario ? `Fictional demo fixture: ${bp.demo_scenario}; not extracted customer facts.` : ""}
 
+${bp.discovery_origin ? `## Discovery origin - unverified frozen snapshot\n\`\`\`json\n${JSON.stringify(bp.discovery_origin, null, 2)}\n\`\`\`\n` : ""}
 ## Selected cloud service candidates
 \`\`\`json
 ${JSON.stringify(bp.cloud_mapping, null, 2)}

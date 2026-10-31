@@ -471,6 +471,83 @@ class DiscoveryOpportunity(BaseModel):
     title: WorkflowLabel
     problem: str = Field(min_length=1, max_length=2000)
     status: Literal["proposed", "selected", "parked"] = "proposed"
+    source_ids: List[Annotated[str, StringConstraints(min_length=1, max_length=200)]] = Field(default_factory=list, max_length=20)
+    ratings: Optional["DiscoveryRatings"] = None
+
+
+class DiscoveryRatings(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    value: Optional[int] = Field(default=None, strict=True, ge=1, le=5)
+    feasibility: Optional[int] = Field(default=None, strict=True, ge=1, le=5)
+    evidence_confidence: Optional[int] = Field(default=None, strict=True, ge=1, le=5)
+    risk: Optional[int] = Field(default=None, strict=True, ge=1, le=5)
+    effort: Optional[int] = Field(default=None, strict=True, ge=1, le=5)
+    rationale: str = Field(default="", max_length=1000)
+
+
+class DiscoveryParticipant(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    identity_id: SessionId
+    role: Literal["business_operator", "process_owner", "technical_owner"]
+    assigned_by: SessionId
+    assigned_at: datetime
+    membership_generation: str
+    status: Literal["invited", "draft", "submitted"] = "invited"
+    answers: Dict[str, Annotated[str, StringConstraints(max_length=1000)]] = Field(default_factory=dict, max_length=3)
+    submitted_at: Optional[datetime] = None
+
+
+class DiscoverySource(BaseModel):
+    id: str
+    label: str
+    statement: str
+
+
+class DiscoveryFinding(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    title: WorkflowLabel
+    statement: str = Field(min_length=1, max_length=1000)
+    source_ids: List[Annotated[str, StringConstraints(min_length=1, max_length=200)]] = Field(min_length=1, max_length=20)
+    id: Optional[SessionId] = None
+
+
+class DiscoverySynthesisContent(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    themes: List[DiscoveryFinding] = Field(default_factory=list, max_length=10)
+    opportunities: List[DiscoveryFinding] = Field(default_factory=list, max_length=10)
+    conflicts: List[DiscoveryFinding] = Field(default_factory=list, max_length=10)
+    open_questions: List[Annotated[str, StringConstraints(min_length=1, max_length=500)]] = Field(default_factory=list, max_length=10)
+
+
+class DiscoverySynthesis(BaseModel):
+    rules_version: Literal["discovery-synthesis-v1"] = "discovery-synthesis-v1"
+    source_digest: str
+    sources: List[DiscoverySource]
+    content: DiscoverySynthesisContent
+    model: InferenceModel
+    generated_by: SessionId
+    generated_at: datetime
+
+
+class DiscoveryOrigin(BaseModel):
+    engagement_id: SessionId
+    opportunity_id: SessionId
+    source_version: str
+    title: str
+    problem: str
+    sources: List[DiscoverySource]
+    priority: Dict[str, Any]
+    reviewed_by: SessionId
+    reviewed_at: datetime
+
+
+class DiscoveryHandoff(BaseModel):
+    session_id: SessionId
+    origin: DiscoveryOrigin
+    context: EnterpriseContext
+    model: InferenceModel
+    assessment_expires_at: datetime
+    status: Literal["pending", "completed"] = "pending"
 
 
 class DiscoveryEngagement(BaseModel):
@@ -509,6 +586,11 @@ class WorkflowState(BaseModel):
     session_id: SessionId
     record_kind: Literal["assessment", "discovery"] = "assessment"
     discovery: Optional[DiscoveryEngagement] = None
+    discovery_created_at: Optional[datetime] = None
+    discovery_participants: List[DiscoveryParticipant] = Field(default_factory=list, max_length=20)
+    discovery_synthesis: Optional[DiscoverySynthesis] = None
+    discovery_handoffs: List[DiscoveryHandoff] = Field(default_factory=list, max_length=20)
+    discovery_origin: Optional[DiscoveryOrigin] = None
     owner_id: str = "local-demo"
     organization_id: Optional[SessionId] = None
     team_id: Optional[SessionId] = None
