@@ -1,7 +1,10 @@
 import { useState } from "react";
 import type { CloudProvider } from "../api";
 import Icon, { type IconName } from "./Icon";
+import LandingNavigation from "./LandingNavigation";
+import DiscoveryShowcase from "./DiscoveryShowcase";
 import "./Landing.css";
+import "./Marketing.css";
 
 type Step = { title: string; kind: "assist" | "rules" | "human"; detail: string; gap: string; azure: string; aws: string };
 type Example = { name: string; icon: IconName; team: string; steps: Step[] };
@@ -30,8 +33,8 @@ const KINDS = { assist: "AI assistance", rules: "Deterministic rules", human: "H
 const VIEWS = ["Suitability", "Readiness", "Business case", "Blueprint"] as const;
 type Preview = typeof VIEWS[number];
 
-export default function Landing({ onStart, onWorkspace, disabled, hasSession, signedIn, message }: {
-  onStart: () => void; onWorkspace: () => void; disabled: boolean; hasSession: boolean;
+export default function Landing({ onStart, onWorkspace, onDiscover, disabled, hasSession, signedIn, message }: {
+  onStart: () => void; onWorkspace: () => void; onDiscover: () => void; disabled: boolean; hasSession: boolean;
   signedIn: boolean; message: string;
 }) {
   const [exampleIndex, setExampleIndex] = useState(0);
@@ -45,31 +48,61 @@ export default function Landing({ onStart, onWorkspace, disabled, hasSession, si
 
   return <div className="landing">
     <a className="landing-skip" href="#landing-main">Skip to content</a>
-    <header className="landing-nav landing-container">
-      <a className="landing-brand" href="#top" aria-label="AgentSpark overview">
-        <span className="landing-brand-mark" aria-hidden="true">✦</span> AgentSpark
-      </a>
-      <nav aria-label="Product navigation">
-        <a href="#how-it-works">How it works</a><a href="#deliverables">What you get</a>
-        <button className="landing-link" disabled={disabled} onClick={onWorkspace}>{signedIn ? "Workspace" : "Sign in"}</button>
-      </nav>
-    </header>
+    <LandingNavigation disabled={disabled} signedIn={signedIn} onWorkspace={onWorkspace} onDiscover={onDiscover} />
 
     <main id="landing-main">
       <section id="top" className="landing-hero landing-container" aria-labelledby="landing-title">
         <div className="landing-hero-copy">
-          <div className="landing-kicker"><span aria-hidden="true" /> A clearer path to enterprise AI</div>
-          <h1 id="landing-title">Find where<br />AI agents fit.<br /><span>Before you build.</span></h1>
-          <p>Turn one business workflow into an informed AI decision. Explore the fit, uncover the gaps, and create a blueprint your team can review.</p>
+          <div className="landing-kicker"><span aria-hidden="true" /> Business first. Evidence throughout.</div>
+          <h1 id="landing-title">Choose the right<br />AI opportunities.<br /><span>Before you build anything.</span></h1>
+          <p>Bring your teams into structured discovery, connect recommendations to their sources, and prioritize opportunities before committing to an implementation.</p>
           <div className="landing-actions">
-            <button className="landing-button landing-button-primary" disabled={disabled} onClick={onStart}>{startLabel} <span aria-hidden="true">↗</span></button>
-            <a className="landing-button landing-button-secondary" href="#workflow-explorer">Explore an example <span aria-hidden="true">↓</span></a>
+            <button className="landing-button landing-button-primary" disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">↗</span></button>
+            <a className="landing-button landing-button-secondary" href="#discovery-showcase">Explore an example <span aria-hidden="true">↓</span></a>
           </div>
-          <p className="landing-fine">One workflow. Up to 10 guided interview rounds. A reviewable next step.</p>
+          <p className="landing-fine">Already have a workflow in mind? <button className="marketing-inline-action" disabled={disabled} onClick={onStart}>{startLabel}</button></p>
           {message && <p role="status" className="landing-feedback">{message}</p>}
           <div className="landing-hero-proof"><span>Evidence, not guesswork</span><span>Human oversight built in</span></div>
         </div>
+        <DiscoveryShowcase />
+      </section>
 
+      <section id="about" className="landing-principles marketing-philosophy" aria-labelledby="about-title">
+        <div className="landing-container"><span className="landing-eyebrow">Our philosophy</span>
+          <h2 id="about-title">Better decisions before<br />bigger commitments.</h2>
+          <p>Not everything needs an agent. Keep rules predictable, use AI where it helps, and keep people accountable.</p></div>
+      </section>
+
+      <section id="platform" className="landing-section landing-container" aria-labelledby="platform-title">
+        <div className="landing-section-heading"><div><p className="landing-eyebrow">One connected discovery journey</p>
+          <h2 id="platform-title">From scattered perspectives<br />to a defensible next step.</h2></div>
+          <p>Make the work, the evidence and the unknowns visible before choosing a solution.</p></div>
+        <div className="marketing-capabilities">{[
+          ["01", "Discover together", "Define a business brief and collect structured input from operators, process owners and technical owners."],
+          ["02", "Connect the evidence", "Synthesize submitted statements into source-linked themes, opportunities, disagreements and open questions."],
+          ["03", "Prioritize transparently", "Compare explicit assumptions about value, feasibility, confidence, risk and effort. Incomplete inputs remain unranked."],
+          ["04", "Review into assessment", "Hand a selected hypothesis into a separate assessment. Preserve provenance without treating it as confirmed fact."],
+        ].map(([number, title, detail]) => <article key={number}><span>{number}</span><h3>{title}</h3><p>{detail}</p></article>)}</div>
+      </section>
+
+      <section id="solutions" className="marketing-solutions" aria-labelledby="solutions-title">
+        <div className="landing-container landing-section">
+          <div className="landing-section-heading"><div><p className="landing-eyebrow">Built around your work</p>
+            <h2 id="solutions-title">Different perspectives.<br />A shared basis for decisions.</h2></div>
+            <p>A useful conversation for the people identifying opportunities, running operations and advising on change.</p></div>
+          <div className="marketing-audiences">{[
+            ["audience-transformation", "Transformation teams", "Build the shortlist before the backlog.", "Bring stakeholder input and comparable assumptions into one discovery engagement."],
+            ["audience-operations", "Finance & operations", "Start with the friction people recognize.", "Explore repeated work, exceptions and decisions that must stay human-controlled."],
+            ["audience-advisory", "Consultancies & advisory teams", "Structure the conversation with your clients.", "Use existing signed-in team access to organize discovery and prepare evidence-led recommendations."],
+          ].map(([id, title, heading, detail]) => <article id={id} key={id}><p className="landing-eyebrow">{title}</p>
+            <h3>{heading}</h3><p>{detail}</p><a href="#how-it-works">Explore the approach <span aria-hidden="true">↗</span></a></article>)}</div>
+        </div>
+      </section>
+
+      <section className="landing-section landing-container marketing-workflow-section" aria-labelledby="explorer-title">
+        <div className="landing-section-heading"><div><p className="landing-eyebrow">When an opportunity needs a closer look</p>
+          <h2 id="explorer-title">Understand the workflow.<br />Not just the technology.</h2></div>
+          <p>Explore a fictional example of how rules, AI assistance and human decisions can fit together.</p></div>
         <div id="workflow-explorer" className="landing-explorer">
           <div className="landing-explorer-top"><span className="landing-live-dot" aria-hidden="true" /><span>WORKFLOW EXPLORER</span><span className="landing-demo-label">Illustrative example</span></div>
           <h2>Start with the work.<br />Not the technology.</h2>
@@ -97,19 +130,15 @@ export default function Landing({ onStart, onWorkspace, disabled, hasSession, si
         </div>
       </section>
 
-      <section className="landing-principles" aria-label="Assessment principles">
-        <div className="landing-container"><span>Not everything needs an agent.</span><p>Keep rules predictable. Use AI where it helps. Keep people accountable.</p></div>
-      </section>
-
       <section id="how-it-works" className="landing-section landing-container" aria-labelledby="how-title">
         <div className="landing-section-heading"><div><p className="landing-eyebrow">From possibility to a plan</p><h2 id="how-title">Less AI guesswork.<br />More forward motion.</h2></div>
           <p>A structured path from how work happens today to what a responsible pilot would need.</p></div>
         <ol className="landing-journey">
           {[
-            ["Describe", "Bring one workflow", "Capture the steps, systems, volumes and human decisions in a bounded interview."],
-            ["Assess", "Understand the fit", "Explore suitability, proposed patterns and an estimated business case."],
-            ["Validate", "Make the gaps visible", "Record integration, data, security and operational findings with owners and evidence."],
-            ["Review", "Decide what comes next", "Review the proposed blueprint and export a report. Approval is advisory, not execution authority."],
+            ["Discover", "Listen to the people doing the work", "Record the scope and collect role-based input from active signed-in team members."],
+            ["Prioritize", "Build a source-linked shortlist", "Review generated hypotheses and explicit rating assumptions. Resolve disagreements and unknowns."],
+            ["Assess", "Validate a selected workflow", "Confirm workflow facts, assess suitability, and record integration, data, security and operating gaps."],
+            ["Review", "Decide what comes next", "Review the executive brief and proposed architecture. Export an assessment; approval remains advisory."],
           ].map(([label, title, detail], index) => <li key={label}>
             <div className="landing-journey-number">0{index + 1}<span>{label}</span></div><h3>{title}</h3><p>{detail}</p>
           </li>)}
@@ -181,12 +210,25 @@ export default function Landing({ onStart, onWorkspace, disabled, hasSession, si
         </article>
       </section>
 
+      <section id="trust" className="landing-section landing-container marketing-trust" aria-labelledby="trust-title">
+        <div><p className="landing-eyebrow">Trust starts with clear boundaries</p><h2 id="trust-title">Know what is supported.<br />Know what is still unknown.</h2>
+          <p>AgentSpark supports a responsible decision process. It does not independently verify your evidence or execute a business workflow.</p></div>
+        <div className="marketing-trust-list">{[
+          ["Sources stay visible", "Stakeholder statements and generated hypotheses remain unverified. Drafts are excluded from synthesis; source edits mark snapshots stale."],
+          ["Assumptions stay explicit", "Priority ratings are assessor judgments, not suitability scores, guaranteed savings or verified confidence."],
+          ["People stay accountable", "A reviewed handoff does not confirm diagnostic facts, grant permissions or authorize autonomous execution."],
+          ["Retention stays bounded", "New engagements expire after 30 days unless explicitly renewed. Ordinary edits do not extend expiry; assessment and archive copies follow their own retention."],
+        ].map(([title, detail]) => <details key={title}><summary>{title}<span aria-hidden="true">+</span></summary><p>{detail}</p></details>)}</div>
+      </section>
+
       <section className="landing-final landing-container" aria-labelledby="final-title">
         <span className="landing-final-spark" aria-hidden="true">✦</span><p className="landing-eyebrow">Start small. Decide with clarity.</p>
-        <h2 id="final-title">Your next AI project<br />starts with one workflow.</h2><p>No autonomous business actions. No deployment implied.<br />Just a clearer, evidence-led next step.</p>
-        <button className="landing-button landing-button-primary" disabled={disabled} onClick={onStart}>{startLabel} <span aria-hidden="true">↗</span></button>
+        <h2 id="final-title">Start with a business question.<br />Leave with a clearer next step.</h2><p>No autonomous business actions. No deployment implied.<br />Just a clearer, evidence-led next step.</p>
+        <button className="landing-button landing-button-primary" disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">↗</span></button>
       </section>
     </main>
-    <footer className="landing-footer landing-container"><span>AgentSpark <small>The agent that tells you where agents belong.</small></span><p>Advisory assessment, not compliance certification.</p><a href="#top">Back to top ↑</a></footer>
+    <footer className="landing-footer landing-container"><span>AgentSpark <small>Business first. Evidence throughout.</small></span>
+      <a href="#about">About</a><a href="#platform">Platform</a><a href="#trust">Trust & limitations</a>
+      <p>Advisory assessment, not compliance certification.</p><a href="#top">Back to top ↑</a></footer>
   </div>;
 }

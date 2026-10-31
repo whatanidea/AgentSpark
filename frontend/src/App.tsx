@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, ApiError, AuthConfig, Identity, parseInviteCode, Readiness, SessionSnapshot, setAccessToken, setTokenProvider, setWorkspace, type WorkspaceSelection } from "./api";
 const signInModule = () => import("./auth");
 import Intake from "./components/Intake";
@@ -63,6 +63,7 @@ export default function App() {
   const [runtimeError, setRuntimeError] = useState("");
   const [workspace, selectWorkspace] = useState<WorkspaceSelection | null>(null);
   const [pendingInvite, setPendingInvite] = useState(takeInviteFromUrl);
+  const websiteDestination = useRef<View | null>(null);
   const sessionId = snapshot?.session_id || "";
   const canWrite = snapshot ? snapshot.permissions.write : workspace?.permissions.write !== false;
   const canDelete = snapshot ? snapshot.permissions.delete : workspace?.permissions.delete !== false;
@@ -92,6 +93,10 @@ export default function App() {
       }
     } else {
       forgetPointer();
+    }
+    if (websiteDestination.current) {
+      setView(websiteDestination.current); setShowLanding(false);
+      websiteDestination.current = null;
     }
   }, []);
 
@@ -210,10 +215,15 @@ export default function App() {
     setView(["completed", "rejected", "awaiting_human_review"].includes(state.status) ? "blueprint"
       : state.status === "needs_clarification" ? "analyze" : state.chat_history.length ? "diagnose" : "intake");
   }
+  function enterFromWebsite(next: View) {
+    websiteDestination.current = identity ? null : next;
+    void changeView(next);
+  }
 
   if (showLanding && !pendingInvite) return <Landing
-    onStart={() => void changeView(sessionId ? "home" : "intake")}
-    onWorkspace={() => void changeView("home")}
+    onStart={() => enterFromWebsite(sessionId ? "home" : "intake")}
+    onWorkspace={() => enterFromWebsite("home")}
+    onDiscover={() => enterFromWebsite("discovery")}
     disabled={busy || starting} hasSession={!!sessionId} signedIn={!!identity} message={message} />;
 
   return (
