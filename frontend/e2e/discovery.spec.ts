@@ -61,7 +61,8 @@ test("discovery starts before intake, persists notes and recovers from stale sav
     await expect(page.getByRole("combobox", { name: "Status", exact: true })).toHaveValue("active");
     await expect(page.getByRole("textbox", { name: "Engagement title", exact: true })).toHaveValue("Fictional Finance discovery");
     await page.reload();
-    await page.getByRole("button", { name: "Workspace", exact: true }).click();
+    await expect(page).toHaveURL(/\/workspace$/);
+    await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Discovery engagements", exact: true }).click();
     await page.getByRole("button", { name: "Fictional Finance discovery", exact: true }).click();
     await expect(page.getByRole("textbox", { name: "Contribution statement", exact: true })).toHaveValue("Fictional manual review delays.");

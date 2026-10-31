@@ -12,6 +12,8 @@ test("public examples explain workflow boundaries without authentication, writes
   await page.goto("/");
   await expect(page.getByRole("heading", { name: "Choose the right AI opportunities. Before you build anything.", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeEnabled();
+  await expect(page.getByRole("group", { name: "Example workflow", exact: true })).toHaveCount(0);
+  await page.goto("/platform/discovery");
   const showcase = page.getByRole("article", { name: "Illustrative discovery walkthrough" });
   await expect(showcase).toContainText("3 role contributions");
   await showcase.getByRole("button", { name: "02 Synthesize", exact: true }).click();
@@ -26,6 +28,7 @@ test("public examples explain workflow boundaries without authentication, writes
   await showcase.getByRole("button", { name: "04 Assess", exact: true }).click();
   await expect(showcase).toContainText("14 workflow facts still need confirmation");
   await expect(showcase).toContainText("not pilot readiness");
+  await page.goto("/resources/example-assessment");
   const picker = page.getByRole("group", { name: "Example workflow", exact: true });
   await picker.getByRole("button", { name: "Invoice processing", exact: true }).click();
   await page.getByRole("button", { name: "Step 4: Authorize payment", exact: true }).click();
@@ -42,7 +45,7 @@ test("public examples explain workflow boundaries without authentication, writes
 });
 
 test("deliverables follow the selected workflow and expose cloud and capacity assumptions", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/resources/example-assessment");
   await page.getByRole("group", { name: "Example workflow" }).getByRole("button", { name: "Invoice processing", exact: true }).click();
   await page.getByRole("button", { name: "Step 2: Extract the details", exact: true }).click();
   const previews = page.getByRole("group", { name: "Deliverable preview", exact: true });
@@ -71,8 +74,10 @@ test("landing supports keyboard operation, narrow viewports and reduced motion",
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
+  await expect(page.getByRole("link", { name: "Skip to content", exact: true })).toBeAttached();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Skip to content", exact: true })).toBeFocused();
+  await page.goto("/resources/example-assessment");
   const example = page.getByRole("group", { name: "Example workflow" }).getByRole("button", { name: "Employee onboarding", exact: true });
   expect((await example.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await example.focus();
@@ -178,14 +183,15 @@ test("desktop dropdowns support keyboard dismissal, outside close and substantiv
     const links = nav.locator(".marketing-dropdown:visible a");
     for (const link of await links.all()) {
       const href = (await link.getAttribute("href"))!;
-      expect(await page.locator(href).count()).toBe(1);
-      expect((await page.locator(href).textContent())!.length).toBeGreaterThan(20);
+      expect(href).toMatch(/^\/(platform|solutions|resources)\/[a-z-]+$/);
+      const response = await page.request.get(href);
+      expect(response.status()).toBe(200);
     }
     await page.keyboard.press("Escape");
   }
   await nav.getByRole("button", { name: "Resources", exact: true }).click();
   await nav.getByRole("link", { name: "Trust & limitations", exact: false }).click();
-  await expect(page).toHaveURL(/#trust$/);
+  await expect(page).toHaveURL(/\/resources\/trust$/);
   await expect(page.getByRole("heading", { name: "Know what is supported. Know what is still unknown.", exact: true })).toBeVisible();
 });
 
@@ -201,12 +207,13 @@ test("mobile navigation remains usable at 320px and closes after destination sel
   await nav.getByRole("button", { name: "Solutions", exact: true }).click();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await nav.getByRole("link", { name: "Finance & operations", exact: false }).click();
-  await expect(page).toHaveURL(/#audience-operations$/);
+  await expect(page).toHaveURL(/\/solutions\/operations$/);
   await expect(nav).toBeHidden();
   await toggle.click();
   await page.keyboard.press("Escape");
   await expect(toggle).toBeFocused();
   await expect(nav).toBeHidden();
+  await page.goto("/platform/discovery");
   const stages = page.getByRole("group", { name: "Discovery preview stage" });
   for (const button of await stages.getByRole("button").all())
     expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
@@ -235,7 +242,7 @@ test("discovery sign-in retries retain the destination and the restored assessme
       if (request.url().includes("/api/") && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method()))
         writes.push(`${request.method()} ${new URL(request.url()).pathname}`);
     });
-    await page.reload();
+    await page.goto("/platform/discovery");
     await page.getByRole("button", { name: "Start discovery", exact: false }).first().click();
     await page.getByLabel("Access token", { exact: true }).fill("fictional-retry-token");
     await page.getByRole("button", { name: "Connect securely", exact: true }).click();

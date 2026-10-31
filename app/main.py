@@ -102,6 +102,8 @@ if os.path.isdir(_DIST):
 
     @app.get("/{full_path:path}")
     def spa_fallback(full_path: str):
+        if full_path == "api" or full_path.startswith("api/"):
+            return JSONResponse(status_code=404, content={"detail": "Not found."})
         # Serve real files if they exist, else fall back to index.html (SPA routing).
         candidate = os.path.realpath(os.path.join(_DIST, full_path))
         try:
