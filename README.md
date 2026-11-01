@@ -51,6 +51,9 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   settings keep the experience accessible. The premium redesign replaces
   the previous 2000px homepage limit with six bounded sections and a 4800px desktop
   ceiling, making room for product evidence without copying a long competitor page.
+  The visual palette keeps violet for primary actions, deep navy for product panels,
+  teal for process/evidence accents and restrained amber for unresolved validation
+  cues. Color is decorative or supplementary; explicit labels carry status.
   The shared discovery invitation illustrates question, team insights, evidence and
   a human-reviewed next step. Its background and stage highlights play once on entry
   and settle within five seconds; keyboard-accessible replay is optional. Small

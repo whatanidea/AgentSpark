@@ -11,6 +11,8 @@ test("signature, product stages and technology boundaries explain real capabilit
   await expect(hero).toContainText("Reported friction");
   await expect(hero).toContainText("Source S1");
   await expect(hero).toContainText("Human review required");
+  await expect(hero.locator(".signature-opportunity")).toHaveCSS("background-color", "rgb(20, 36, 58)");
+  await expect(hero.locator(".signature-avatar").first()).toHaveCSS("color", "rgb(15, 118, 110)");
   await page.getByRole("link", { name: "Explore the product", exact: false }).click();
   const showcase = page.getByRole("region", { name: "See the work. Then decide what changes.", exact: true });
   await expect(showcase.getByRole("tabpanel", { name: /Discover/ })).toContainText("Clarification needed");
@@ -20,6 +22,7 @@ test("signature, product stages and technology boundaries explain real capabilit
     await expect(showcase).toContainText("fictional and unverified");
   }
   await expect(showcase).toContainText("Customer implementation and authorization remain separate");
+  await expect(showcase.locator(".premium-product-screen")).toHaveCSS("background-color", "rgb(20, 36, 58)");
   const technology = page.getByRole("region", { name: "Your decisions first. The stack follows.", exact: true });
   await expect(technology.getByRole("article")).toHaveCount(3);
   await expect(technology).toContainText("Not connected integrations");
