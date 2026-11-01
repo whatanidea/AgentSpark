@@ -174,7 +174,14 @@ class DiscoveryProcessTests(unittest.TestCase):
         self.call("PUT", f"/organizations/{organization}/teams/{team}/members/{self.operator}",
                   body={"roles": ["viewer"], "version": grant.version})
         self.contribute(task, status=403)
-        self.request("PUT", f"/tasks/{task}", {"version": self.record["version"], "assignee": self.reviewer}, status=405)
+        before = next(item for item in self.request("GET", "")["tasks"] if item["id"] == task)
+        attempted = self.client.put(f"/api/v1/engagements/{self.record['id']}/tasks/{task}",
+                                    headers=self.headers(**self.scope),
+                                    json={"version": self.record["version"], "assignee": self.reviewer})
+        self.assertIn(attempted.status_code, (404, 405), attempted.text)
+        after = next(item for item in self.request("GET", "")["tasks"] if item["id"] == task)
+        self.assertEqual(after["assignee"], before["assignee"])
+        self.assertEqual(after["membership_generation"], before["membership_generation"])
 
     def test_process_and_task_etags_reject_stale_writes_and_storage_conflicts(self):
         self.fixture()
