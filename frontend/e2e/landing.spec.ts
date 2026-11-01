@@ -176,7 +176,7 @@ test("desktop dropdowns support keyboard dismissal, outside close and substantiv
   await platform.click();
   await nav.getByRole("button", { name: "Solutions", exact: true }).click();
   await expect(platform).toHaveAttribute("aria-expanded", "false");
-  await page.getByRole("heading", { level: 1 }).click();
+  await page.locator("main").click({ position: { x: 8, y: 8 } });
   await expect(nav.getByRole("button", { name: "Solutions", exact: true })).toHaveAttribute("aria-expanded", "false");
   for (const name of ["Platform", "Solutions", "Resources"]) {
     await nav.getByRole("button", { name, exact: true }).click();

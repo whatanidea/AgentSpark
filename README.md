@@ -43,8 +43,21 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
 - **Explore before signing in:** the concise public homepage links to 11 focused
   About, Platform, Solutions and Resources pages. Each submenu has a dedicated URL,
   page title and active-navigation state; direct links, refresh and browser history
-  work without discarding a restored assessment. The homepage uses visitor-controlled
-  product slides, while subtle page/scroll animations respect reduced-motion settings.
+  work without discarding a restored assessment. The public experience uses an
+  original process-to-opportunity hero, a visitor-controlled four-stage product
+  reconstruction, illustrated product/solution pages and grouped visual menus.
+  Discover, Prioritize, Prepare and Decide previews are fictional and make no
+  model calls or saved records. Keyboard tabs, finite entry motion and reduced-motion
+  settings keep the experience accessible. The premium redesign replaces
+  the previous 2000px homepage limit with six bounded sections and a 4800px desktop
+  ceiling, making room for product evidence without copying a long competitor page.
+  The visual palette keeps violet for primary actions, deep navy for product panels,
+  teal for process/evidence accents and restrained amber for unresolved validation
+  cues. Color is decorative or supplementary; explicit labels carry status.
+  The shared discovery invitation illustrates question, team insights, evidence and
+  a human-reviewed next step. Its background and stage highlights play once on entry
+  and settle within five seconds; keyboard-accessible replay is optional. Small
+  mobile screens and reduced-motion settings use a static illustration.
   Its original AI readiness and Process intelligence use-case cards explain data,
   ownership and pilot gaps alongside process steps and improvement alternatives.
   Both remain visible without autoplay and use clearly fictional previews, not
@@ -52,6 +65,13 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   The homepage identifies AgentSpark as an AI opportunity discovery and assessment
   platform and names the shortlist, readiness gaps, architecture and executive brief
   customers can review before investing in a pilot.
+  Technology panels separate available platform capabilities, Azure/AWS blueprint
+  candidates and customer implementation responsibilities. User-supplied, approved
+  Azure/AWS SVG assets accompany the cloud labels with their original colors and
+  proportions; they do not imply connected integrations or vendor endorsements.
+  The assets are bundled locally with no third-party image requests.
+  The workflow-review call to action uses
+  existing authenticated discovery, not an unimplemented booking/contact service.
   Platform pages show the fictional discovery walkthrough and explicit source/rating
   limitations. `/resources/example-assessment` preserves the claims, invoice and
   onboarding explorer, readiness gaps, capacity assumptions and Azure/AWS candidates.

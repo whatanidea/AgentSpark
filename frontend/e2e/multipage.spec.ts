@@ -15,6 +15,61 @@ const pages = [
   ["/resources/trust", "Trust & limitations", "Know what is supported. Know what is still unknown."],
 ] as const;
 
+test("discovery invitation animates once, replays accessibly and stays static on mobile or reduced motion", async ({ page }) => {
+  const writes: string[] = [];
+  page.on("request", request => {
+    if (request.url().includes("/api/") && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method()))
+      writes.push(request.method());
+  });
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto("/");
+  const invitation = page.getByRole("region", { name: "Start with a business question. Leave with a clearer next step.", exact: true });
+  await invitation.scrollIntoViewIfNeeded();
+  const journey = invitation.getByRole("figure", { name: "From business question to a reviewed next step" });
+  await expect(journey.getByRole("listitem")).toHaveText(["Business question", "Team insights", "Evidence", "Clear next step"]);
+  await expect(journey).toContainText("People review the next step");
+  await expect(invitation.locator(".invitation-art")).toHaveAttribute("data-animated", "true");
+  const contrast = await invitation.evaluate(section => {
+    const luminance = (color: string) => {
+      const channels = color.match(/[\d.]+/g)?.slice(0, 3).map(Number);
+      if (!channels || channels.length !== 3) throw new Error(`Unsupported color: ${color}`);
+      const linear = channels.map(value => {
+        const channel = value / 255;
+        return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
+      });
+      return linear[0] * .2126 + linear[1] * .7152 + linear[2] * .0722;
+    };
+    const background = luminance(getComputedStyle(section).backgroundColor);
+    return [...section.querySelectorAll(".invitation-copy h2, .invitation-copy p")].map(node => {
+      const text = luminance(getComputedStyle(node).color);
+      return (Math.max(background, text) + .05) / (Math.min(background, text) + .05);
+    });
+  });
+  for (const ratio of contrast) expect(ratio).toBeGreaterThanOrEqual(4.5);
+  const height = (await invitation.boundingBox())!.height;
+  await expect.poll(() => invitation.evaluate(node =>
+    node.getAnimations({ subtree: true }).every(animation => animation.playState === "finished")
+  ), { timeout: 6000 }).toBe(true);
+  const replay = invitation.getByRole("button", { name: "Replay illustration", exact: true });
+  await replay.focus(); await page.keyboard.press("Enter");
+  await expect(replay).toBeFocused();
+  await expect.poll(() => invitation.evaluate(node =>
+    node.getAnimations({ subtree: true }).some(animation => animation.playState === "running")
+  )).toBe(true);
+  expect((await invitation.boundingBox())!.height).toBeCloseTo(height, 0);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  expect(await invitation.evaluate(node => node.getAnimations({ subtree: true }).length)).toBe(0);
+  await expect(replay).toBeHidden();
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.setViewportSize({ width: 320, height: 900 });
+  await invitation.scrollIntoViewIfNeeded();
+  expect(await invitation.evaluate(node => node.getAnimations({ subtree: true }).length)).toBe(0);
+  await expect(replay).toBeHidden();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  expect((await invitation.getByRole("button", { name: "Start discovery", exact: true }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  expect(writes).toEqual([]);
+});
+
 test("homepage explains exactly two use cases with original examples, outputs and clear limits", async ({ page }) => {
   const calls: string[] = [];
   page.on("request", request => {
@@ -126,28 +181,28 @@ test("menu links navigate without document reloads and history restores heading 
   expect(documents).toHaveLength(1);
 });
 
-test("homepage is concise and manual slides support keyboard, stable layout and reduced motion", async ({ page }) => {
+test("homepage has a bounded product story with manual stages, stable layout and reduced motion", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 900 });
   await page.goto("/");
-  await expect(page.getByRole("article", { name: "Product preview" })).toBeVisible();
+  const preview = page.getByRole("region", { name: "See the work. Then decide what changes.", exact: true });
+  await preview.scrollIntoViewIfNeeded();
   await expect(page.getByRole("group", { name: "Example workflow" })).toHaveCount(0);
   await expect(page.getByRole("group", { name: "Deliverable preview" })).toHaveCount(0);
-  expect(await page.locator("main > section").count()).toBeLessThanOrEqual(4);
-  expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(2000);
-  const preview = page.getByRole("article", { name: "Product preview" });
+  expect(await page.locator("main > section").count()).toBeLessThanOrEqual(6);
+  expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(4800);
   const height = (await preview.boundingBox())!.height;
   await page.clock.install();
   await page.clock.fastForward(60000);
-  await expect(preview.getByRole("group", { name: "1 of 3: Discover", exact: true })).toBeVisible();
-  const next = page.getByRole("button", { name: "Next product slide", exact: true });
-  await next.focus(); await page.keyboard.press("Enter");
-  await expect(preview.getByRole("group", { name: "2 of 3: Prioritize", exact: true })).toBeVisible();
+  await expect(preview.getByRole("tab", { name: /Discover/ })).toHaveAttribute("aria-selected", "true");
+  await preview.getByRole("tab", { name: /Discover/ }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(preview.getByRole("tabpanel", { name: /Prioritize/ })).toBeVisible();
   expect((await preview.boundingBox())!.height).toBeCloseTo(height, 0);
   await page.keyboard.press("ArrowRight");
-  await expect(preview.getByRole("group", { name: "3 of 3: Assess", exact: true })).toBeVisible();
+  await expect(preview.getByRole("tabpanel", { name: /Prepare/ })).toBeVisible();
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.keyboard.press("ArrowRight");
-  await expect(page.locator(".home-slide")).toHaveCSS("animation-name", "none");
+  await expect(page.locator(".premium-product-screen")).toHaveCSS("animation-name", "none");
   await page.setViewportSize({ width: 320, height: 900 });
   for (const button of await preview.getByRole("button").all())
     expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);

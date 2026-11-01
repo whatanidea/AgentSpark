@@ -100,6 +100,55 @@
 .landing .landing-final h2 { font-size: clamp(30px, 3.8vw, 48px); }
 .landing[data-page="/"] .landing-final { padding-block: 24px; margin-bottom: 24px; }
 .landing[data-page="/"] .landing-final h2 { font-size: clamp(30px, 3.1vw, 40px); }
+.landing .discovery-invitation { display: grid; grid-template-columns: 1.15fr 1fr; align-items: center; gap: 32px; isolation: isolate; padding: 24px 32px; color: #30234d; text-align: left; }
+.discovery-invitation .invitation-copy { position: relative; z-index: 1; }
+.landing .discovery-invitation .landing-eyebrow { color: #6045a0; margin: 0 0 12px; }
+.landing .discovery-invitation h2 { font-size: clamp(28px, 2.4vw, 34px); line-height: 1.2; margin: 0; color: #30234d; }
+.landing .discovery-invitation h2 + p { margin: 14px 0 18px; color: #57496b; }
+.invitation-journey { margin: 0; text-align: center; }
+.invitation-stages { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 0; margin: 0; list-style: none; }
+.invitation-stages li { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; min-height: 108px; padding: 12px 6px; border: 1px solid #d4cae8; border-radius: 12px; background: #faf8ff; color: #574278; font-size: 12px; font-weight: 600; line-height: 1.4; }
+.invitation-stages li:not(:last-child)::after { content: ""; position: absolute; left: 100%; top: 50%; width: 13px; border-top: 2px solid #ae9bd2; }
+.invitation-stages li:last-child { border-color: #8669bf; background: #e8def8; color: #402768; }
+.invitation-journey figcaption { position: relative; z-index: 1; margin-top: 14px; color: #57496b; font-size: 12px; line-height: 1.5; }
+.invitation-replay { position: relative; z-index: 1; display: inline-flex; align-items: center; gap: 7px; min-height: 44px; padding: 6px 12px; margin-top: 4px; border: 0; border-radius: 6px; background: transparent; color: #6045a0; font-size: 12px; cursor: pointer; }
+.invitation-replay:hover { background: #e4dcf0; }
+.invitation-replay span { font-size: 20px; }
+.invitation-background { position: absolute; inset: 0; z-index: -1; overflow: hidden; pointer-events: none; }
+.invitation-glow { position: absolute; width: 270px; height: 270px; border-radius: 50%; filter: blur(40px); opacity: .3; background: #c3a8ec; }
+.invitation-glow-first { left: -100px; bottom: -160px; }
+.invitation-glow-second { right: -90px; top: -170px; background: #b4b9ee; }
+.invitation-background > svg { position: absolute; right: -20px; top: 0; width: 55%; height: 100%; stroke: #896ab4; stroke-width: 1; opacity: .16; }
+.invitation-background circle { fill: #896ab4; }
+.invitation-art[data-animated="true"] .invitation-glow { animation: invitation-drift 4.8s ease-out both; }
+.invitation-art[data-animated="true"] .invitation-glow-second { animation-direction: reverse; }
+.invitation-art[data-animated="true"] .invitation-background > svg { animation: invitation-focus 4.8s ease-out both; }
+.invitation-art[data-animated="true"] .invitation-stages li { animation: invitation-stage .9s ease-in-out both; }
+.invitation-art[data-animated="true"] .invitation-stages li:nth-child(2) { animation-delay: .9s; }
+.invitation-art[data-animated="true"] .invitation-stages li:nth-child(3) { animation-delay: 1.8s; }
+.invitation-art[data-animated="true"] .invitation-stages li:nth-child(4) { animation-delay: 2.7s; }
+@keyframes invitation-drift { from { transform: translate(-18px, 12px) scale(.94); } to { transform: translate(18px, -12px) scale(1.06); } }
+@keyframes invitation-focus { from { transform: translate(12px, -10px); opacity: .06; } to { transform: translate(0, 0); opacity: .16; } }
+@keyframes invitation-stage { 0%, 100% { transform: translateY(0); } 45% { transform: translateY(-5px); box-shadow: 0 0 0 3px #b49cd640; } }
+@media (max-width: 980px) {
+  .landing .discovery-invitation { grid-template-columns: 1fr; gap: 24px; text-align: center; padding-inline: 24px; }
+  .invitation-journey { width: 100%; max-width: 520px; justify-self: center; }
+}
+@media (max-width: 600px) {
+  .landing .discovery-invitation { padding-inline: 16px; }
+  .invitation-stages { gap: 6px; }
+  .invitation-stages li { padding-inline: 3px; min-height: 100px; }
+  .invitation-stages li:not(:last-child)::after { width: 7px; }
+  .invitation-background > svg, .invitation-replay { display: none; }
+  .invitation-art[data-animated="true"] .invitation-glow,
+  .invitation-art[data-animated="true"] .invitation-stages li { animation: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .invitation-art[data-animated="true"] .invitation-glow,
+  .invitation-art[data-animated="true"] .invitation-background > svg,
+  .invitation-art[data-animated="true"] .invitation-stages li { animation: none; }
+  .invitation-replay { display: none; }
+}
 .landing .landing-footer { gap: 22px; flex-wrap: wrap; }
 .landing .landing-footer > a { font-size: 11px; min-height: 44px; display: inline-flex; align-items: center; }
 .landing .landing-footer > p { margin-left: auto; font-size: 10px; }
