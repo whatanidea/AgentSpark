@@ -1,5 +1,7 @@
 import { Link } from "react-router-dom";
 import { MarketingIcon } from "./MarketingVisuals";
+import azureLogo from "../assets/Azure.svg";
+import awsLogo from "../assets/aws.svg";
 
 export function TechnologyBoundaries() {
   return <section className="premium-technology landing-container" aria-labelledby="technology-title">
@@ -10,7 +12,7 @@ export function TechnologyBoundaries() {
       <article><MarketingIcon name="lock" /><span className="premium-category-label">IN THE PLATFORM</span><h3>Scoped collaboration</h3>
         <p>Microsoft sign-in, team-scoped discovery, source provenance and reviewed assessment outputs.</p><span className="premium-tech-badge">AgentSpark capability</span></article>
       <article><MarketingIcon name="cloud" /><span className="premium-category-label">IN THE BLUEPRINT</span><h3>Cloud-aligned candidates</h3>
-        <div className="premium-cloud-options" aria-label="Proposed target cloud options"><span><MarketingIcon name="cloud" />Azure</span><span><MarketingIcon name="cloud" />AWS</span></div>
+        <div className="premium-cloud-options" aria-label="Proposed target cloud options"><span><img src={azureLogo} alt="" width="28" height="28" />Azure</span><span><img src={awsLogo} alt="" width="48" height="28" />AWS</span></div>
         <p>Service candidates for the selected assessment cloud. Not connected integrations, provisioned infrastructure or model-provider endorsements.</p></article>
       <article><MarketingIcon name="blueprint" /><span className="premium-category-label">WITH YOUR DELIVERY TEAM</span><h3>Validation and implementation</h3>
         <p>Your team confirms data access, permissions, availability, controls and deployment before using a proposed design.</p><Link to="/platform/architecture">Review delivery boundaries ↗</Link></article>

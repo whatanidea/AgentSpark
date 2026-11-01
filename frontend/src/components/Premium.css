@@ -158,7 +158,7 @@
 .premium-tech-badge, .premium-cloud-options > span { display: inline-flex; align-items: center; min-height: 38px; padding: 8px 12px; border: 1px solid #d6c7e9; border-radius: 7px; background: #f4eefb; color: #65428a; font-size: 12px; }
 .premium-cloud-options { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 18px; }
 .premium-cloud-options > span { gap: 8px; }
-.premium-cloud-options svg { width: 20px; height: 20px; flex-shrink: 0; }
+.premium-cloud-options img { display: block; object-fit: contain; flex-shrink: 0; }
 .premium-cloud-options > span:last-child { border-color: #dfccb0; background: #fbf5e9; color: #78572b; }
 .premium-technology-grid a { display: inline-flex; align-items: center; min-height: 44px; color: var(--accent); font-size: 12px; font-weight: 600; }
 .premium-buyer { display: grid; grid-template-columns: 1fr 1fr; gap: 80px; align-items: center; padding: 36px; margin-bottom: 40px; border: 1px solid #ddd5e9; border-radius: 24px; background: linear-gradient(145deg, #f0ebf8, #f8f6fc 55%, #e8f0ed); }
