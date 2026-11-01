@@ -27,6 +27,13 @@ test("signature, product stages and technology boundaries explain real capabilit
   await expect(technology.getByRole("article")).toHaveCount(3);
   await expect(technology).toContainText("Not connected integrations");
   await expect(technology.getByLabel("Proposed target cloud options")).toHaveText("AzureAWS");
+  const cloudOptions = technology.getByLabel("Proposed target cloud options");
+  for (const name of ["Azure", "AWS"]) {
+    const icon = cloudOptions.locator("span").filter({ hasText: name }).locator("svg");
+    await expect(icon).toBeVisible();
+    await expect(icon).toHaveAttribute("aria-hidden", "true");
+    await expect(icon).toHaveAttribute("focusable", "false");
+  }
   expect(calls.filter(call => !["GET /api/v1/auth/config", "GET /api/v1/auth/me"].includes(call))).toEqual([]);
   expect(await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1"))).toBeNull();
 });

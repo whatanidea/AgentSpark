@@ -66,8 +66,9 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   platform and names the shortlist, readiness gaps, architecture and executive brief
   customers can review before investing in a pilot.
   Technology panels separate available platform capabilities, Azure/AWS blueprint
-  candidates and customer implementation responsibilities; logos never imply
-  unsupported model or tool integrations. The workflow-review call to action uses
+  candidates and customer implementation responsibilities. Original decorative
+  cloud icons accompany the Azure/AWS labels, not vendor logos or connected
+  integrations. The workflow-review call to action uses
   existing authenticated discovery, not an unimplemented booking/contact service.
   Platform pages show the fictional discovery walkthrough and explicit source/rating
   limitations. `/resources/example-assessment` preserves the claims, invoice and
