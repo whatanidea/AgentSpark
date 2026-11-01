@@ -24,6 +24,16 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   their own structured contributions, generate source-linked hypotheses using an
   approved model, and rank opportunities using explicit weighted assumptions.
   Review a selected opportunity into an assessment without confirming its claims.
+- **Collaborate around a process:** create process cards with owners, steps,
+  systems, goals and baselines. Request process/step-specific input from active
+  signed-in team members, with due dates and visible submission/clarification status.
+  People retain their own drafts; submitted sources inform synthesis and selected
+  opportunities. Review evidence and resolve clarifications without automatically
+  confirming assessment facts. Compare unchanged work, process improvement,
+  deterministic automation, AI assistance and hybrid options using explicit rationales.
+  Source edits stale reviews, synthesis and ratings; reviewed handoffs and report
+  exports retain frozen process provenance. Legacy engagements retain their existing
+  source digest and fixed retention. See [process collaboration](docs/discovery-processes.md).
 - **Interview by role:** business operators, process owners and technical owners
   receive their assigned questions. Unconfirmed answers remain unresolved; role
   completion never bypasses the full assessment's evidence requirements.
@@ -35,9 +45,20 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   page title and active-navigation state; direct links, refresh and browser history
   work without discarding a restored assessment. The homepage uses visitor-controlled
   product slides, while subtle page/scroll animations respect reduced-motion settings.
+  Its original AI readiness and Process intelligence use-case cards explain data,
+  ownership and pilot gaps alongside process steps and improvement alternatives.
+  Both remain visible without autoplay and use clearly fictional previews, not
+  measured customer results, organizational monitoring or process-mining claims.
+  The homepage identifies AgentSpark as an AI opportunity discovery and assessment
+  platform and names the shortlist, readiness gaps, architecture and executive brief
+  customers can review before investing in a pilot.
   Platform pages show the fictional discovery walkthrough and explicit source/rating
   limitations. `/resources/example-assessment` preserves the claims, invoice and
   onboarding explorer, readiness gaps, capacity assumptions and Azure/AWS candidates.
+  `/platform/architecture` includes a fictional invoice-assistance diagram that
+  separates inputs, AI suggestions, human approval and authorized business actions.
+  It distinguishes AgentSpark's advisory blueprint from integrations, controls
+  and deployment that a customer delivery team must implement and validate.
   Public previews make no model calls and create no records. **Start discovery**
   opens discovery engagements through organization access in live mode, preserving
   the selected destination after sign-in and any restored assessment.

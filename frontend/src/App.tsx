@@ -11,6 +11,7 @@ import Home from "./components/Home";
 const Landing = lazy(() => import("./components/Landing"));
 import Workspaces from "./components/Workspaces";
 import Discovery from "./components/Discovery";
+import DiscoveryOriginSummary from "./components/DiscoveryOriginSummary";
 import EvidenceRegister from "./components/EvidenceRegister";
 import ImplementationReadiness from "./components/ImplementationReadiness";
 import Icon from "./components/Icon";
@@ -343,6 +344,7 @@ export default function App() {
           {snapshot?.discovery_origin && <details className="notice">
             <summary>Discovery origin: {snapshot.discovery_origin.title} (unverified)</summary>
             <p>Reviewed for handoff, not confirmed as workflow facts. All readiness and diagnostic gates still apply.</p>
+            <DiscoveryOriginSummary origin={snapshot.discovery_origin} />
             <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(snapshot.discovery_origin, null, 2)}</pre>
           </details>}
           {identity && !snapshot && readPointer() && <Button disabled={busy} variant="ghost" onClick={async () => {

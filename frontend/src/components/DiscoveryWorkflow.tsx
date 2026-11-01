@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { api, type CloudProvider, type DiscoveryParticipant, type DiscoveryRatings, type DiscoveryRecord,
   type InferenceModel, type ModelCatalog } from "../api";
 import { Button, Card } from "./ui";
+import DiscoveryProcesses from "./DiscoveryProcesses";
 
 const roles = { business_operator: "Business operator", process_owner: "Process owner", technical_owner: "Technical owner" } as const;
 const ratingLabels = { value: "Business value", feasibility: "Feasibility", evidence_confidence: "Evidence confidence",
@@ -30,15 +31,16 @@ export default function DiscoveryWorkflow({ record, blocked, onChange, onBusyCha
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [working, setWorking] = useState(false);
+  const [processDirty, setProcessDirty] = useState(false);
   const mine = record.participation.participants.find(item => item.identity_id === record.participation.identity_id);
   const selected = record.engagement.opportunities.find(item => item.id === opportunityId);
   const contributionDirty = JSON.stringify(answers) !== JSON.stringify(mine?.answers || {});
   const ratingsDirty = JSON.stringify(ratings) !== JSON.stringify(selected?.ratings || emptyRatings());
   const busy = blocked || working;
   useLayoutEffect(() => {
-    onDirtyChange(contributionDirty || ratingsDirty);
+    onDirtyChange(contributionDirty || ratingsDirty || processDirty);
     return () => onDirtyChange(false);
-  }, [contributionDirty, ratingsDirty, onDirtyChange]);
+  }, [contributionDirty, ratingsDirty, processDirty, onDirtyChange]);
 
   useEffect(() => {
     let alive = true;
@@ -88,10 +90,13 @@ export default function DiscoveryWorkflow({ record, blocked, onChange, onBusyCha
       onChange(result.engagement); await onOpen(result.session_id);
     });
   }
-  const dirty = contributionDirty || ratingsDirty;
+  const dirty = contributionDirty || ratingsDirty || processDirty;
   return <section className="space-y-5 break-words min-w-0" aria-label="Discovery selling workflow">
     {error && <p role="alert" className="notice text-rose-700">{error}</p>}
     {message && <p role="status" className="notice">{message}</p>}
+    <DiscoveryProcesses record={record} blocked={busy || contributionDirty || ratingsDirty}
+      onChange={onChange} onBusyChange={onBusyChange} onDirtyChange={setProcessDirty} />
+    <fieldset disabled={processDirty} className="space-y-5 min-w-0">
     <Card title="Engagement retention">
       <p>{record.retention.policy}</p>
       <p className="text-xs mt-2">Expires {new Date(record.expires_at).toLocaleString()}.
@@ -211,9 +216,7 @@ export default function DiscoveryWorkflow({ record, blocked, onChange, onBusyCha
       {selected && <form className="space-y-3 mt-3" onSubmit={event => {
         event.preventDefault();
         void run(async () => {
-          const engagement = { ...record.engagement, opportunities: record.engagement.opportunities.map(item =>
-            item.id === selected.id ? { ...item, ratings } : item) };
-          onChange(await api.saveEngagement(record.id, record.version, engagement));
+          onChange(await api.saveDiscoveryRatings(record.id, selected.id, record.version, ratings));
           setMessage("Priority assumptions saved. Ratings do not verify the source statements.");
         });
       }}>
@@ -225,7 +228,8 @@ export default function DiscoveryWorkflow({ record, blocked, onChange, onBusyCha
           <label>Priority rating rationale<textarea aria-label="Priority rating rationale" className="form-control" value={ratings.rationale} maxLength={1000}
             onChange={event => setRatings(current => ({ ...current, rationale: event.target.value }))} /></label>
         </fieldset>
-        <Button type="submit" disabled={busy || contributionDirty || !record.permissions.write || !ratingsDirty}>Save priority assumptions</Button>
+        <Button type="submit" disabled={busy || contributionDirty || !record.permissions.write || (!ratingsDirty &&
+          !record.prioritization.items.find(item => item.opportunity_id === selected.id)?.missing.includes("current rating assumptions"))}>Save priority assumptions</Button>
         {ratingsDirty && <p className="notice">Unsaved priority assumptions.</p>}
       </form>}
     </Card>
@@ -252,5 +256,6 @@ export default function DiscoveryWorkflow({ record, blocked, onChange, onBusyCha
         <Button variant="ghost" disabled={busy || dirty} onClick={() => void run(() => onOpen(item.session_id))}>Open handed-off assessment</Button>
       </div>)}
     </Card>}
+    </fieldset>
   </section>;
 }

@@ -465,6 +465,85 @@ class DiscoveryContribution(BaseModel):
     statement: str = Field(min_length=1, max_length=2000)
 
 
+class DiscoveryStep(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    id: SessionId
+    title: WorkflowLabel
+    work: str = Field(min_length=1, max_length=1000)
+    systems: str = Field(min_length=1, max_length=500)
+
+
+class DiscoveryProcess(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    id: SessionId
+    title: WorkflowLabel
+    process_owner: str = Field(min_length=1, max_length=200)
+    goal: str = Field(min_length=1, max_length=1000)
+    scope: str = Field(min_length=1, max_length=1000)
+    systems: str = Field(min_length=1, max_length=500)
+    volume: str = Field(min_length=1, max_length=500)
+    baseline_pain: str = Field(min_length=1, max_length=1000)
+    steps: List[DiscoveryStep] = Field(min_length=1, max_length=10)
+
+    @model_validator(mode="after")
+    def unique_steps(self):
+        if len({step.id for step in self.steps}) != len(self.steps):
+            raise ValueError("Process step identifiers must be unique.")
+        if any(len(f"process.{self.id}.step.{step.id}") > 200 for step in self.steps):
+            raise ValueError("Process/step source identifiers must fit the 200-character reference limit.")
+        return self
+
+
+DiscoveryAlternativeKind = Literal["unchanged", "process_improvement", "deterministic_automation", "ai_assistance", "hybrid"]
+
+
+class DiscoveryAlternative(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    kind: DiscoveryAlternativeKind
+    rationale: str = Field(min_length=1, max_length=1000)
+
+
+class DiscoveryBaseline(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    statement: str = Field(min_length=1, max_length=1000)
+    source_reference: str = Field(min_length=1, max_length=500)
+    basis: Literal["self_reported", "measured"] = "self_reported"
+
+
+class DiscoveryTask(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    id: SessionId
+    process_id: SessionId
+    step_id: SessionId
+    assignee: SessionId
+    role: Literal["business_operator", "process_owner", "technical_owner"]
+    requested_information: str = Field(min_length=1, max_length=1000)
+    due_on: str = Field(min_length=10, max_length=10)
+    assigned_by: SessionId
+    membership_generation: str
+    status: Literal["draft", "submitted", "clarification_needed"] = "draft"
+    answers: Dict[str, Annotated[str, StringConstraints(max_length=1000)]] = Field(default_factory=dict, max_length=3)
+    evidence: List[DiscoveryBaseline] = Field(default_factory=list, max_length=5)
+
+    @model_validator(mode="after")
+    def valid_due_date(self):
+        from datetime import date
+        if date.fromisoformat(self.due_on).isoformat() != self.due_on:
+            raise ValueError("Task due date must use YYYY-MM-DD.")
+        return self
+
+
+class DiscoverySourceReview(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
+    id: SessionId
+    source_ids: List[Annotated[str, StringConstraints(min_length=1, max_length=200)]] = Field(min_length=1, max_length=20)
+    status: Literal["clarification_needed", "disagreement", "resolved", "reviewer_checked"]
+    rationale: str = Field(min_length=1, max_length=1000)
+    source_digest: str
+    reviewed_by: SessionId
+    reviewed_at: datetime
+
+
 class DiscoveryOpportunity(BaseModel):
     model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
     id: SessionId
@@ -473,6 +552,19 @@ class DiscoveryOpportunity(BaseModel):
     status: Literal["proposed", "selected", "parked"] = "proposed"
     source_ids: List[Annotated[str, StringConstraints(min_length=1, max_length=200)]] = Field(default_factory=list, max_length=20)
     ratings: Optional["DiscoveryRatings"] = None
+    process_ids: List[SessionId] = Field(default_factory=list, max_length=10)
+    alternatives: List[DiscoveryAlternative] = Field(default_factory=list, max_length=5)
+    preferred_alternative: Optional[DiscoveryAlternativeKind] = None
+    ratings_source_digest: Optional[str] = Field(default=None, min_length=64, max_length=64)
+
+    @model_validator(mode="after")
+    def unique_alternatives(self):
+        kinds = [item.kind for item in self.alternatives]
+        if len(kinds) != len(set(kinds)):
+            raise ValueError("Alternative kinds must be unique.")
+        if self.preferred_alternative and self.preferred_alternative not in kinds:
+            raise ValueError("The preferred alternative requires a written rationale.")
+        return self
 
 
 class DiscoveryRatings(BaseModel):
@@ -501,6 +593,13 @@ class DiscoverySource(BaseModel):
     id: str
     label: str
     statement: str
+    process_id: Optional[SessionId] = None
+    step_id: Optional[SessionId] = None
+    task_id: Optional[SessionId] = None
+    source_reference: str = ""
+    basis: Literal["self_reported", "measured"] = "self_reported"
+    review_status: str = "not_reviewed"
+    review_rationale: str = ""
 
 
 class DiscoveryFinding(BaseModel):
@@ -539,6 +638,10 @@ class DiscoveryOrigin(BaseModel):
     priority: Dict[str, Any]
     reviewed_by: SessionId
     reviewed_at: datetime
+    processes: List[DiscoveryProcess] = Field(default_factory=list, max_length=10)
+    alternatives: List[DiscoveryAlternative] = Field(default_factory=list, max_length=5)
+    preferred_alternative: Optional[DiscoveryAlternativeKind] = None
+    source_reviews: List[DiscoverySourceReview] = Field(default_factory=list, max_length=50)
 
 
 class DiscoveryHandoff(BaseModel):
@@ -565,6 +668,7 @@ class DiscoveryEngagement(BaseModel):
     contributions: List[DiscoveryContribution] = Field(default_factory=list, max_length=20)
     opportunities: List[DiscoveryOpportunity] = Field(default_factory=list, max_length=20)
     assessment_ids: List[SessionId] = Field(default_factory=list, max_length=20)
+    processes: List[DiscoveryProcess] = Field(default_factory=list, max_length=10)
 
     @model_validator(mode="after")
     def valid_engagement(self):
@@ -575,7 +679,7 @@ class DiscoveryEngagement(BaseModel):
         if self.starts_on and self.ends_on and self.ends_on < self.starts_on:
             raise ValueError("Discovery end date must not precede its start.")
         for values in ([item.id for item in self.contributions], [item.id for item in self.opportunities],
-                       self.assessment_ids):
+                       self.assessment_ids, [item.id for item in self.processes]):
             if len(values) != len(set(values)):
                 raise ValueError("Discovery item identifiers must be unique.")
         return self
@@ -591,6 +695,8 @@ class WorkflowState(BaseModel):
     discovery_synthesis: Optional[DiscoverySynthesis] = None
     discovery_handoffs: List[DiscoveryHandoff] = Field(default_factory=list, max_length=20)
     discovery_origin: Optional[DiscoveryOrigin] = None
+    discovery_tasks: List[DiscoveryTask] = Field(default_factory=list, max_length=50)
+    discovery_source_reviews: List[DiscoverySourceReview] = Field(default_factory=list, max_length=50)
     owner_id: str = "local-demo"
     organization_id: Optional[SessionId] = None
     team_id: Optional[SessionId] = None

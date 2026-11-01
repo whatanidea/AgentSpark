@@ -30,9 +30,21 @@ ROLE_QUESTIONS = {
     },
 }
 PRIORITY_WEIGHTS = {"value": 30, "feasibility": 25, "evidence_confidence": 20, "risk": 15, "effort": 10}
+STEP_QUESTIONS = {
+    "business_operator": {"manual_work": "Describe manual work at this step.",
+                          "exceptions": "Describe exceptions and rework.",
+                          "baseline": "Describe effort, delay and frequency; say unconfirmed if unknown."},
+    "process_owner": {"rules": "Describe the rules for this step.",
+                      "authority": "Who can decide or approve, and what must remain human-controlled?",
+                      "success_measures": "What baseline and success measures apply?"},
+    "technical_owner": {"data": "What data and quality/access limitations apply?",
+                        "apis": "What APIs or integrations exist or need validation?",
+                        "constraints": "Describe privacy, residency, security and operating constraints."},
+}
+ALTERNATIVE_KINDS = {"unchanged", "process_improvement", "deterministic_automation", "ai_assistance", "hybrid"}
 
 
-def discovery_sources(state: WorkflowState) -> list[DiscoverySource]:
+def raw_discovery_sources(state: WorkflowState) -> list[DiscoverySource]:
     if state.discovery is None:
         raise ValueError("Discovery payload is required.")
     sources = [DiscoverySource(id=f"note.{note.id}", label=f"Manual {note.role} note; unverified",
@@ -44,15 +56,63 @@ def discovery_sources(state: WorkflowState) -> list[DiscoverySource]:
                 label=f"Authenticated {participant.identity_id} / {participant.role} / {key}; unverified",
                 statement=value,
             ) for key, value in sorted(participant.answers.items()) if value.strip())
+    for process in state.discovery.processes:
+        for step in process.steps:
+            sources.append(DiscoverySource(
+                id=f"process.{process.id}.step.{step.id}", process_id=process.id, step_id=step.id,
+                label=f"Process scope / {process.title} / {step.title}; self-reported, unverified",
+                statement=json.dumps({"process": process.model_dump(exclude={"steps"}),
+                                      "step": step.model_dump()}, sort_keys=True),
+                source_reference=f"Engagement process card {process.id}, step {step.id}"))
+    for task in state.discovery_tasks:
+        if task.status == "draft":
+            continue
+        process = next(item for item in state.discovery.processes if item.id == task.process_id)
+        step = next(item for item in process.steps if item.id == task.step_id)
+        context = f"Process {process.title} / step {step.title}"
+        for key, answer in sorted(task.answers.items()):
+            if answer.strip():
+                sources.append(DiscoverySource(
+                    id=f"task.{task.id}.{key}", process_id=task.process_id, step_id=task.step_id, task_id=task.id,
+                    label=f"{context} / authenticated {task.assignee} / {task.role} / {key}; self-reported, unverified",
+                    statement=answer, source_reference=f"Contribution request {task.id}"))
+        for index, evidence in enumerate(task.evidence):
+            sources.append(DiscoverySource(
+                id=f"task.{task.id}.evidence.{index}", process_id=task.process_id, step_id=task.step_id, task_id=task.id,
+                label=f"{context} / submitted baseline / {task.assignee}; {evidence.basis}, not automatically verified",
+                statement=evidence.statement, source_reference=evidence.source_reference, basis=evidence.basis))
     return sorted(sources, key=lambda source: source.id)
+
+
+def review_digest(sources: list[DiscoverySource], source_ids: list[str]) -> str:
+    return sha256(json.dumps([source.model_dump() for source in sources if source.id in source_ids],
+                             sort_keys=True).encode()).hexdigest()
+
+
+def discovery_sources(state: WorkflowState) -> list[DiscoverySource]:
+    sources = raw_discovery_sources(state)
+    current_reviews = {review.id: review.source_digest == review_digest(sources, review.source_ids)
+                       for review in state.discovery_source_reviews}
+    for source in sources:
+        reviews = [item for item in state.discovery_source_reviews if source.id in item.source_ids]
+        if reviews:
+            review = reviews[-1]
+            source.review_status = review.status if current_reviews[review.id] else "stale_review"
+            source.review_rationale = review.rationale
+    return sources
 
 
 def source_digest(state: WorkflowState) -> str:
     if state.discovery is None:
         raise ValueError("Discovery payload is required.")
+    collaborative = bool(state.discovery.processes or state.discovery_tasks or state.discovery_source_reviews)
+    sources = discovery_sources(state)
     value = {"objective": state.discovery.objective, "units": state.discovery.business_units,
              "required_topics": state.discovery.required_topics, "excluded_topics": state.discovery.excluded_topics,
-             "sources": [source.model_dump() for source in discovery_sources(state)]}
+             "sources": [source.model_dump() if collaborative else source.model_dump(include={"id", "label", "statement"})
+                         for source in sources]}
+    if collaborative:
+        value["reviews"] = [review.model_dump(mode="json") for review in state.discovery_source_reviews]
     return sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
 
 
@@ -67,7 +127,8 @@ def synthesize(state: WorkflowState) -> DiscoverySynthesisContent:
     if len(payload) > 48000:
         raise ValueError("Discovery exceeds the synthesis input budget; narrow the source notes before generating.")
     if demo_mode():
-        source = sources[0]
+        submitted = [source for source in sources if source.task_id]
+        source = submitted[0] if submitted else sources[0]
         return DiscoverySynthesisContent(
             themes=[DiscoveryFinding(title="Reported workflow friction", statement=source.statement[:1000],
                                      source_ids=[source.id])],
@@ -81,6 +142,10 @@ def synthesize(state: WorkflowState) -> DiscoverySynthesisContent:
         "candidate opportunities, explicit disagreements and unresolved questions. Every finding must cite only "
         "provided source IDs; do not invent volumes, savings, agreement, verification or execution authorization. "
         "A conflict needs at least two different source IDs. Never treat an unknown statement as evidence of readiness. "
+        "Process/step references scope each contribution. Distinguish self-reported estimates, submitted measurements "
+        "and explicit human reviewer checks; stale reviews and disagreements remain unresolved. "
+        "Consider unchanged work, process improvement and deterministic automation before AI assistance or hybrid. "
+        "Do not select an alternative: comparison rationales and preference must be written by a human. "
         "Use brief plain text. Leave finding IDs null; the server assigns candidate IDs."
     )
     allowed = {source.id for source in sources}
@@ -116,6 +181,8 @@ def priority_report(state: WorkflowState) -> dict:
             missing.append("source references for confidence above 1")
         if opportunity.source_ids and not current:
             missing.append("current source synthesis")
+        if opportunity.ratings_source_digest and opportunity.ratings_source_digest != source_digest(state):
+            missing.append("current rating assumptions")
         score = None if missing else round(sum(
             ((5 - getattr(ratings, key)) if key in ("risk", "effort") else (getattr(ratings, key) - 1))
             / 4 * weight for key, weight in PRIORITY_WEIGHTS.items()), 2)

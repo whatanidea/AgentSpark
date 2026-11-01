@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const pages = [
-  ["/", "Home", "Choose the right AI opportunities. Before you build anything."],
+  ["/", "Home", "Decide what to automate. Know where AI belongs."],
   ["/about", "About", "Better decisions before bigger commitments."],
   ["/platform/discovery", "Discovery & stakeholder input", "Hear the people who know the work."],
   ["/platform/prioritization", "Synthesis & prioritization", "Build a shortlist you can explain."],
@@ -14,6 +14,78 @@ const pages = [
   ["/resources/example-assessment", "Illustrative assessment", "Explore the work before signing in."],
   ["/resources/trust", "Trust & limitations", "Know what is supported. Know what is still unknown."],
 ] as const;
+
+test("homepage explains exactly two use cases with original examples, outputs and clear limits", async ({ page }) => {
+  const calls: string[] = [];
+  page.on("request", request => {
+    if (request.url().includes("/api/") || request.url().endsWith("/ready"))
+      calls.push(`${request.method()} ${new URL(request.url()).pathname}`);
+  });
+  await page.goto("/");
+  await expect(page.getByText("AI opportunity discovery & assessment platform", { exact: true })).toBeVisible();
+  const useCases = page.getByRole("region", { name: "Understand the work. Prepare the next step.", exact: true });
+  await expect(useCases.getByRole("article")).toHaveCount(2);
+  const readiness = useCases.getByRole("article", { name: "AI readiness", exact: true });
+  const process = useCases.getByRole("article", { name: "Process intelligence", exact: true });
+  await expect(readiness).toContainText("Assess workflow suitability separately from pilot readiness");
+  await expect(readiness.getByRole("figure")).toContainText("Needs validation");
+  await expect(process).toContainText("rules-based automation and AI assistance");
+  await expect(process.getByRole("figure")).toContainText("not measured customer data");
+  await expect(useCases.getByRole("list", { name: "AgentSpark deliverables" }).getByRole("listitem")).toHaveCount(4);
+  await expect(useCases).toContainText("not automatic system monitoring or process mining");
+  for (const width of [320, 768, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    for (const card of [readiness, process]) {
+      await card.scrollIntoViewIfNeeded();
+      await expect(card).toBeVisible();
+      expect((await card.getByRole("link").boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    }
+  }
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await readiness.getByRole("link", { name: "Explore readiness assessment" }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL(/\/platform\/assessment$/);
+  await page.goBack();
+  await process.getByRole("link", { name: "Explore process discovery" }).click();
+  await expect(page).toHaveURL(/\/platform\/discovery$/);
+  expect(calls.filter(call => !["GET /api/v1/auth/config", "GET /api/v1/auth/me"].includes(call))).toEqual([]);
+  expect(await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1"))).toBeNull();
+});
+
+test("architecture illustration separates AI suggestions, human authority and customer delivery", async ({ page }) => {
+  const writes: string[] = [];
+  page.on("request", request => {
+    if (request.url().includes("/api/") && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method()))
+      writes.push(request.method());
+  });
+  await page.goto("/platform/architecture");
+  const figure = page.getByRole("figure", { name: "Invoice assistance, with people in control.", exact: true });
+  await expect(figure).toBeVisible();
+  const capabilities = page.getByRole("region", { name: "Architecture & review capabilities", exact: true });
+  expect(await figure.evaluate(node => node.getBoundingClientRect().top))
+    .toBeLessThan(await capabilities.evaluate(node => node.getBoundingClientRect().top));
+  await expect(figure.getByRole("listitem")).toHaveCount(4);
+  await expect(figure.locator('.architecture-connector[aria-hidden="true"]')).toHaveCount(3);
+  await expect(figure.getByRole("heading", { name: "Human approval", exact: true })).toBeVisible();
+  await expect(figure).toContainText("Suggestions, not actions");
+  await expect(figure).toContainText("not AgentSpark's internal architecture or a connected, deployed workflow");
+  await expect(figure).toContainText("it does not authorize actions in your business systems");
+  await expect(figure.getByRole("heading", { name: "What your delivery team still does", exact: true })).toBeVisible();
+  for (const width of [1440, 320]) {
+    await page.setViewportSize({ width, height: 960 });
+    await figure.scrollIntoViewIfNeeded();
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const positions = await figure.getByRole("listitem").evaluateAll(items => items.map(item => {
+      const box = item.getBoundingClientRect();
+      return { x: box.x, y: box.y };
+    }));
+    for (let index = 1; index < positions.length; index++)
+      expect(width === 1440 ? positions[index].x : positions[index].y)
+        .toBeGreaterThan(width === 1440 ? positions[index - 1].x : positions[index - 1].y);
+  }
+  expect(writes).toEqual([]);
+});
 
 test("all 12 public URLs render focused content, metadata and refresh safely", async ({ page }) => {
   for (const [path, name, heading] of pages) {

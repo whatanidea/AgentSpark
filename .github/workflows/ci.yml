@@ -50,6 +50,7 @@ jobs:
         run: |
           npm --prefix frontend exec -- playwright install --with-deps chromium
           npm --prefix frontend run test:e2e
+          npm --prefix frontend run test:e2e -- --config playwright.discovery.config.ts
 
   package:
     name: Container smoke and release artifact

@@ -5,8 +5,8 @@ export type PublicPage = {
 };
 
 export const PUBLIC_PAGES: readonly PublicPage[] = [
-  { path: "/", name: "Home", section: "Overview", title: "Choose the right AI opportunities. Before you build anything.",
-    summary: "Discover opportunities with your team, prioritize with evidence, and assess before you build.", details: [] },
+  { path: "/", name: "Home", section: "Overview", title: "Decide what to automate. Know where AI belongs.",
+    summary: "AgentSpark is an AI opportunity discovery and assessment platform. Understand your processes, assess AI readiness and prepare reviewed implementation blueprints before investing in a pilot.", details: [] },
   { path: "/about", name: "About", section: "About", title: "Better decisions before bigger commitments.",
     summary: "AgentSpark helps teams decide where AI belongs in their business. Start with the work, question the assumptions, and keep people accountable.",
     details: [
@@ -15,11 +15,11 @@ export const PUBLIC_PAGES: readonly PublicPage[] = [
       ["People accountable", "Predictable rules stay deterministic. Human judgment, permissions and approval boundaries remain explicit."],
     ] },
   { path: "/platform/discovery", name: "Discovery & stakeholder input", section: "Platform", stage: "Discover",
-    title: "Hear the people who know the work.", summary: "Bring a business brief and different stakeholder perspectives into one structured discovery engagement.",
+    title: "Hear the people who know the work.", summary: "Map a process and invite the people who know its steps. Collect role-specific contributions, evidence and clarifications in one team-scoped engagement.",
     details: [
-      ["Define the conversation", "Record the business objective, sponsor, scope, required topics and exclusions before collecting input."],
-      ["Invite the right perspectives", "Assign active signed-in team members as business operators, process owners or technical owners using existing team access."],
-      ["Separate drafts from evidence", "Participants own their responses. Drafts stay out of synthesis; submitted statements remain unverified source material."],
+      ["Define the process", "Record its owner, goal, scope, steps, systems and baseline pain. Link contributions and opportunities to the work being assessed."],
+      ["Request the right perspectives", "Ask active signed-in operators, process owners and technical owners for specific process or step contributions, with a due date and visible status."],
+      ["Review the evidence", "Keep drafts out of synthesis, distinguish estimates from reviewed evidence and resolve clarifications. Stakeholder submissions do not become verified facts automatically."],
     ] },
   { path: "/platform/prioritization", name: "Synthesis & prioritization", section: "Platform", stage: "Prioritize",
     title: "Build a shortlist you can explain.", summary: "Connect hypotheses to source statements and compare explicit assumptions instead of hiding the decision in a score.",
@@ -27,6 +27,7 @@ export const PUBLIC_PAGES: readonly PublicPage[] = [
       ["Keep the differences", "Synthesis surfaces themes, opportunities, disagreements and open questions. Source edits mark existing snapshots stale."],
       ["Show the weighting", "Priority uses value 30%, feasibility 25%, confidence 20%, risk 15% and effort 10%. Higher risk and effort reduce priority."],
       ["Leave unknowns unranked", "Missing ratings or source references withhold a score. Ratings are assessor judgments, not verified confidence, suitability or measured savings."],
+      ["Consider non-AI paths", "Compare leaving the process unchanged, process improvement, deterministic automation, AI assistance and a hybrid approach with explicit rationale. More AI is not the predetermined answer."],
     ] },
   { path: "/platform/assessment", name: "Assessment & executive decisions", section: "Platform", stage: "Assess",
     title: "Turn a hypothesis into a reviewed decision.", summary: "Select an opportunity for a separate workflow assessment. Confirm the facts before deciding what a responsible pilot would need.",
