@@ -4,12 +4,16 @@ import type { CloudProvider } from "../api";
 import Icon, { type IconName } from "./Icon";
 import LandingNavigation from "./LandingNavigation";
 import DiscoveryShowcase from "./DiscoveryShowcase";
-import HomeSlides from "./HomeSlides";
+import ProductShowcase from "./ProductShowcase";
 import HomeUseCases from "./HomeUseCases";
 import ArchitectureIllustration from "./ArchitectureIllustration";
+import DiscoveryInvitation from "./DiscoveryInvitation";
+import BuyerConfidence, { TechnologyBoundaries } from "./BuyerConfidence";
+import { MarketingIcon, PageVisual, SignatureJourney } from "./MarketingVisuals";
 import { publicPage } from "./publicPages";
 import "./Landing.css";
 import "./Marketing.css";
+import "./Premium.css";
 
 type Step = { title: string; kind: "assist" | "rules" | "human"; detail: string; gap: string; azure: string; aws: string };
 type Example = { name: string; icon: IconName; team: string; steps: Step[] };
@@ -96,17 +100,17 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
         <div className="landing-hero-copy">
           <div className="landing-kicker"><span aria-hidden="true" /> AI opportunity discovery &amp; assessment platform</div>
           <h1 ref={title} tabIndex={-1} id="landing-title">Decide what to automate.<br /><span>Know where AI belongs.</span></h1>
-          <p>AgentSpark helps business and technology teams capture how work happens, compare AI opportunities, and produce reviewed assessments and implementation blueprints before investing in a pilot.</p>
+          <p>Turn process knowledge into source-linked opportunities, readiness gaps and a reviewable investment decision. Before you commit to a pilot.</p>
           <div className="landing-actions">
-            <button className="landing-button landing-button-primary" disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">↗</span></button>
-            <Link className="landing-button landing-button-secondary" to="/resources/example-assessment">Explore an example <span aria-hidden="true">↗</span></Link>
+            <a className="landing-button landing-button-primary" href="#product-showcase">Explore the product <span aria-hidden="true">↗</span></a>
+            <button className="landing-button landing-button-secondary" disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">↗</span></button>
           </div>
           <p className="landing-fine">Already have a workflow in mind? <button className="marketing-inline-action" disabled={disabled} onClick={onStart}>{startLabel}</button></p>
           {message && <p role="status" className="landing-feedback">{message}</p>}
-          <div className="landing-hero-proof"><span>Source-linked recommendations</span><span>Human-reviewed decisions</span></div>
         </div>
-        <HomeSlides />
+        <SignatureJourney />
       </section> : <section id="top" className="marketing-page-hero landing-container" aria-labelledby="landing-title">
+        <div className="premium-page-copy">
         <nav className="marketing-breadcrumb" aria-label="Breadcrumb"><Link to="/">Home</Link><span aria-hidden="true">/</span>
           {page && <span>{page.section}</span>}</nav>
         <p className="landing-eyebrow">{page?.name ?? "That destination is unavailable"}</p>
@@ -118,9 +122,19 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
         </div>}
         {!page && <Link className="landing-button landing-button-primary" to="/">Return to overview</Link>}
         {message && <p role="status" className="landing-feedback">{message}</p>}
+        </div>
+        {page && <PageVisual page={page} />}
       </section>}
 
+      {home && <aside className="premium-proof-strip landing-container" aria-label="What the platform makes visible">
+        <div><MarketingIcon name="people" /><span>People who know the process</span></div>
+        <div><MarketingIcon name="evidence" /><span>Evidence behind the opportunity</span></div>
+        <div><MarketingIcon name="decision" /><span>Human-reviewed next steps</span></div>
+      </aside>}
+      {home && <ProductShowcase />}
       {home && <HomeUseCases />}
+      {home && <TechnologyBoundaries />}
+      {home && <BuyerConfidence disabled={disabled} onDiscover={onDiscover} />}
 
       {page?.path === "/platform/architecture" && <section data-reveal className="landing-section landing-container" aria-labelledby="architecture-example-title">
         <ArchitectureIllustration />
@@ -255,14 +269,16 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
         ].map(([title, detail]) => <details key={title}><summary>{title}<span aria-hidden="true">+</span></summary><p>{detail}</p></details>)}</div>
       </section>}
 
-      {page && <section data-reveal className="landing-final landing-container" aria-labelledby="final-title">
-        <span className="landing-final-spark" aria-hidden="true">✦</span><p className="landing-eyebrow">Start small. Decide with clarity.</p>
-        <h2 id="final-title">Start with a business question.<br />Leave with a clearer next step.</h2><p>No autonomous business actions. No deployment implied.<br />Just a clearer, evidence-led next step.</p>
-        <button className="landing-button landing-button-primary" disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">↗</span></button>
-      </section>}
+      {page && <DiscoveryInvitation disabled={disabled} onDiscover={onDiscover} />}
     </main>
-    <footer className="landing-footer landing-container"><span>AgentSpark <small>Business first. Evidence throughout.</small></span>
-      <Link to="/about">About</Link><Link to="/platform/discovery">Platform</Link><Link to="/resources/trust">Trust & limitations</Link>
-      <p>Advisory assessment, not compliance certification.</p><a href="#top">Back to top ↑</a></footer>
+    <footer className="landing-footer landing-container premium-footer">
+      <div><span className="landing-brand"><span className="landing-brand-mark" aria-hidden="true">✦</span>AgentSpark</span>
+        <p>The work comes first.<br />The technology follows.</p><small>Advisory assessment, not autonomous execution.</small></div>
+      <div><strong>Platform</strong><Link to="/platform/discovery">Discovery</Link><Link to="/platform/prioritization">Prioritization</Link>
+        <Link to="/platform/assessment">Assessment</Link><Link to="/platform/architecture">Architecture & review</Link></div>
+      <div><strong>Explore</strong><Link to="/about">About</Link><Link to="/resources/how-it-works">How it works</Link>
+        <Link to="/resources/example-assessment">Example assessment</Link><Link to="/resources/trust">Trust & limitations</Link></div>
+      <a className="premium-back-top" href="#top">Back to top ↑</a>
+    </footer>
   </div>;
 }

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { PUBLIC_PAGES } from "./publicPages";
+import { MarketingIcon, publicVisual } from "./MarketingVisuals";
 
 const menus = {
   Platform: PUBLIC_PAGES.filter(page => page.section === "Platform"),
@@ -49,10 +50,18 @@ export default function LandingNavigation({ disabled, signedIn, onWorkspace, onD
             {name}<svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="m3 4 3 3 3-3" fill="none" stroke="currentColor" /></svg>
           </button>
           <div id={`marketing-${name.toLowerCase()}`} className="marketing-dropdown" hidden={open !== name}>
-            <p className="landing-eyebrow">{name === "Platform" ? "From discovery to decision" : name === "Solutions" ? "Built around your work" : "Explore with clarity"}</p>
+            <div className="premium-menu-feature" aria-hidden="true">
+              <span className="premium-category-label">{name === "Platform" ? "FROM DISCOVERY TO DECISION" : name === "Solutions" ? "BUILT AROUND YOUR WORK" : "EXPLORE WITH CLARITY"}</span>
+              <strong>{name === "Platform" ? "The work comes first." : name === "Solutions" ? "One process. A clearer next step." : "See what a decision needs."}</strong>
+              <div className="premium-menu-map"><MarketingIcon name="process" /><span /><MarketingIcon name="evidence" /><span /><MarketingIcon name="decision" /></div>
+              <small>Evidence-led. Human-reviewed.</small>
+            </div>
+            <div className="premium-menu-links"><p className="landing-eyebrow">{name === "Platform" ? "Discover / prepare / decide" : name === "Solutions" ? "Choose your perspective" : "Product examples & boundaries"}</p>
             <ul>{menus[name].map(page => <li key={page.path}>
-              <NavLink to={page.path} onClick={close}><strong>{page.name}<span aria-hidden="true">↗</span></strong><small>{page.summary}</small></NavLink>
+              <NavLink to={page.path} onClick={close}><span className="premium-menu-icon"><MarketingIcon name={publicVisual(page).icon} /></span>
+                <div><strong>{page.name}<span aria-hidden="true">↗</span></strong><small>{page.summary}</small></div></NavLink>
             </li>)}</ul>
+            </div>
           </div>
         </div>)}
       </nav>
