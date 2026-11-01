@@ -5,18 +5,23 @@ from typing import Annotated, Literal
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.database.cosmos_client import db_client
 from app.database.tenant_directory import Action, tenant_directory, workspace_context
 from app.security.auth import principal_context
 from app.security.guardrails import redact_data, scan_input
 from app.utils.errors import WorkflowNotFound
-from app.utils.discovery import RETENTION_DAYS, ROLE_QUESTIONS, discovery_sources, priority_report, source_digest, synthesize
+from app.utils.discovery import (
+    ALTERNATIVE_KINDS, RETENTION_DAYS, ROLE_QUESTIONS, STEP_QUESTIONS, discovery_sources,
+    raw_discovery_sources, review_digest, priority_report, source_digest, synthesize,
+)
 from app.utils.model_catalog import assessment_model, model_definition
 from app.utils.models import (
     CloudProvider, DiscoveryEngagement, DiscoveryHandoff, DiscoveryOpportunity, DiscoveryOrigin,
     DiscoveryParticipant, DiscoverySource, DiscoverySynthesis, EnterpriseContext, EvidenceEntry, SessionId, WorkflowState,
+    DiscoveryProcess, DiscoveryTask, DiscoveryBaseline, DiscoverySourceReview, DiscoveryAlternative, DiscoveryAlternativeKind,
+    DiscoveryRatings,
 )
 
 router = APIRouter()
@@ -30,7 +35,7 @@ class EngagementRequest(BaseModel):
 
 
 class VersionRequest(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(str_strip_whitespace=True, extra="forbid")
     version: str = Field(min_length=1, max_length=1000)
 
 
@@ -50,6 +55,69 @@ class GenerationRequest(VersionRequest):
 class HandoffRequest(GenerationRequest):
     target_cloud: CloudProvider
     reviewed: bool
+
+
+class ProcessRequest(VersionRequest):
+    process: DiscoveryProcess
+
+
+class TaskAssignmentRequest(VersionRequest):
+    process_id: SessionId
+    step_id: SessionId
+    assignee: SessionId
+    role: Literal["business_operator", "process_owner", "technical_owner"]
+    requested_information: str = Field(min_length=1, max_length=1000)
+    due_on: str = Field(min_length=10, max_length=10)
+
+    @field_validator("due_on")
+    @classmethod
+    def canonical_due_date(cls, value):
+        from datetime import date
+        if date.fromisoformat(value).isoformat() != value:
+            raise ValueError("Task due date must use YYYY-MM-DD.")
+        return value
+
+
+class StepContributionRequest(ContributionRequest):
+    evidence: list[DiscoveryBaseline] = Field(default_factory=list, max_length=5)
+
+
+class SourceReviewRequest(VersionRequest):
+    source_ids: list[Annotated[str, Field(min_length=1, max_length=200)]] = Field(min_length=1, max_length=20)
+    status: Literal["clarification_needed", "disagreement", "resolved", "reviewer_checked"]
+    rationale: str = Field(min_length=1, max_length=1000)
+
+
+class AlternativesRequest(VersionRequest):
+    alternatives: list[DiscoveryAlternative] = Field(min_length=5, max_length=5)
+    preferred_alternative: DiscoveryAlternativeKind
+
+
+class RatingsRequest(VersionRequest):
+    ratings: DiscoveryRatings
+
+
+def safe_payload(model):
+    payload = model.model_dump(mode="json")
+    def strings(value):
+        if isinstance(value, str):
+            yield value
+        elif isinstance(value, dict):
+            for item in value.values():
+                yield from strings(item)
+        elif isinstance(value, list):
+            for item in value:
+                yield from strings(item)
+    if any(not scan_input(text).safe for text in strings(payload)):
+        raise HTTPException(422, "Discovery contains instruction-override content. Please rephrase.")
+    return type(model).model_validate(redact_data(payload))
+
+
+def process_step(state, process_id, step_id):
+    process = next((item for item in state.discovery.processes if item.id == process_id), None)
+    if not process or not any(step.id == step_id for step in process.steps):
+        raise HTTPException(422, "Choose a saved process and a step belonging to that process.")
+    return process
 
 
 def checked_state(engagement_id: str, version: str, action: Action = "write") -> WorkflowState:
@@ -75,7 +143,10 @@ def validate_content(engagement: DiscoveryEngagement, previous_ids=(), known_sou
         if (len(opportunity.source_ids) != len(set(opportunity.source_ids))
                 or not set(opportunity.source_ids).issubset(known_sources)):
             raise HTTPException(422, "Opportunity source references must be unique IDs from the saved synthesis.")
-    return DiscoveryEngagement.model_validate(redact_data(payload))
+        if len(set(opportunity.process_ids)) != len(opportunity.process_ids) or not set(opportunity.process_ids).issubset(
+                process.id for process in engagement.processes):
+            raise HTTPException(422, "Opportunity process references must be unique saved process IDs.")
+    return safe_payload(engagement)
 
 
 def response(state):
@@ -107,7 +178,11 @@ def response(state):
             "participation": {"participants": [item.model_dump(mode="json") for item in state.discovery_participants],
                               "identity_id": identity, "can_assign": permissions["write"] and bool(state.organization_id and state.team_id),
                               "can_submit": bool(participant and member and member.active and
-                                                 participant.membership_generation == member.generation), "questions": ROLE_QUESTIONS},
+                                                 participant.membership_generation == member.generation), "questions": ROLE_QUESTIONS,
+                              "step_questions": STEP_QUESTIONS},
+            "tasks": [item.model_dump(mode="json") for item in state.discovery_tasks],
+            "source_reviews": [item.model_dump(mode="json") for item in state.discovery_source_reviews],
+            "sources": [item.model_dump(mode="json") for item in discovery_sources(state)],
             "synthesis": synthesis.model_dump(mode="json") if synthesis else None,
             "synthesis_current": synthesis is not None and synthesis.source_digest == source_digest(state),
             "prioritization": priority_report(state),
@@ -154,9 +229,27 @@ def update_engagement(engagement_id: SessionId, req: EngagementRequest):
     db_client._authorize(state, "write")
     if req.version != state._etag:
         raise HTTPException(409, "Discovery changed; reload before saving.")
+    if state.discovery:
+        old = {process.id: process for process in state.discovery.processes}
+        new = {process.id: process for process in req.engagement.processes}
+        if not set(old).issubset(new):
+            raise HTTPException(422, "Saved process cards cannot be deleted; preserve their provenance.")
+        for task in state.discovery_tasks:
+            if task.process_id not in new or not any(step.id == task.step_id for step in new[task.process_id].steps):
+                raise HTTPException(422, "Preserve steps referenced by contribution requests.")
+        for opportunity in req.engagement.opportunities:
+            previous = next((item for item in state.discovery.opportunities if item.id == opportunity.id), None)
+            if opportunity.alternatives != (previous.alternatives if previous else []) or opportunity.preferred_alternative != (
+                    previous.preferred_alternative if previous else None):
+                raise HTTPException(422, "Use the explicit alternatives comparison endpoint.")
+    previous_ratings = {item.id: item.ratings for item in state.discovery.opportunities} if state.discovery else {}
+    previous_digests = {item.id: item.ratings_source_digest for item in state.discovery.opportunities} if state.discovery else {}
     state.discovery = validate_content(req.engagement, state.discovery.assessment_ids if state.discovery else (),
                                        {source.id for source in state.discovery_synthesis.sources}
                                        if state.discovery_synthesis else ())
+    for opportunity in state.discovery.opportunities:
+        opportunity.ratings_source_digest = source_digest(state) if opportunity.ratings != previous_ratings.get(opportunity.id) else (
+            previous_digests.get(opportunity.id))
     db_client.save_workflow_state(state)
     return response(state)
 
@@ -212,6 +305,136 @@ def eligible_participants(engagement_id: SessionId,
     if not cursor and actor not in identities:
         identities.append(actor)
     return {"items": [{"identity_id": identity} for identity in identities], "next_cursor": next_cursor}
+
+
+@router.put("/engagements/{engagement_id}/processes/{process_id}")
+def save_process(engagement_id: SessionId, process_id: SessionId, req: ProcessRequest):
+    state = checked_state(engagement_id, req.version)
+    if req.process.id != process_id:
+        raise HTTPException(422, "Process ID must match the route.")
+    previous = next((item for item in state.discovery.processes if item.id == process_id), None)
+    if not previous and len(state.discovery.processes) >= 10:
+        raise HTTPException(422, "At most 10 process cards can be recorded.")
+    for task in state.discovery_tasks:
+        if task.process_id == process_id and not any(step.id == task.step_id for step in req.process.steps):
+            raise HTTPException(422, "Preserve steps referenced by contribution requests.")
+    value = safe_payload(req.process)
+    if previous:
+        state.discovery.processes[state.discovery.processes.index(previous)] = value
+    else:
+        state.discovery.processes.append(value)
+    db_client.save_workflow_state(state)
+    return response(state)
+
+
+@router.post("/engagements/{engagement_id}/tasks")
+def create_task(engagement_id: SessionId, req: TaskAssignmentRequest):
+    state = checked_state(engagement_id, req.version)
+    process_step(state, req.process_id, req.step_id)
+    member = active_member(state, req.assignee)
+    if len(state.discovery_tasks) >= 50:
+        raise HTTPException(422, "At most 50 contribution requests can be recorded.")
+    checked = safe_payload(req)
+    task = DiscoveryTask(
+        id=str(uuid4()), **checked.model_dump(exclude={"version"}),
+        assigned_by=principal_context.get().owner_id, membership_generation=member.generation)
+    state.discovery_tasks.append(task)
+    db_client.save_workflow_state(state)
+    return response(state)
+
+
+@router.put("/engagements/{engagement_id}/tasks/{task_id}/contribution")
+def save_step_contribution(engagement_id: SessionId, task_id: SessionId, req: StepContributionRequest):
+    state = checked_state(engagement_id, req.version, "read")
+    task = next((item for item in state.discovery_tasks if item.id == task_id), None)
+    if task is None:
+        raise WorkflowNotFound()
+    identity = principal_context.get().owner_id
+    if task.assignee != identity:
+        raise HTTPException(403, "Only the authenticated assignee can edit this contribution.")
+    member = active_member(state, identity)
+    if task.membership_generation != member.generation:
+        raise HTTPException(403, "Membership changed; request a new task. Existing provenance is preserved.")
+    process_step(state, task.process_id, task.step_id)
+    if not set(req.answers).issubset(STEP_QUESTIONS[task.role]):
+        raise HTTPException(422, "Answer only this request's role-specific step questions.")
+    checked = safe_payload(req)
+    answers = {key: text.strip() for key, text in checked.answers.items()}
+    if req.submit and any(not answers.get(key) for key in STEP_QUESTIONS[task.role]):
+        raise HTTPException(422, "Answer every step question; use unconfirmed for unknowns.")
+    removed = {f"task.{task.id}.evidence.{index}" for index in range(len(checked.evidence), len(task.evidence))}
+    if any(removed.intersection(review.source_ids) for review in state.discovery_source_reviews):
+        raise HTTPException(422, "Reviewed baseline evidence cannot be removed. Amend its statement or reference and request re-review.")
+    task.answers, task.evidence = answers, checked.evidence
+    task.status = "submitted" if req.submit else "draft"
+    if req.submit and any(source.task_id == task.id and source.review_status in
+                          ("clarification_needed", "disagreement", "stale_review") for source in discovery_sources(state)):
+        task.status = "clarification_needed"
+    db_client.save_workflow_state(state, action="read")
+    return response(state)
+
+
+@router.post("/engagements/{engagement_id}/source-reviews")
+def review_sources(engagement_id: SessionId, req: SourceReviewRequest):
+    state = checked_state(engagement_id, req.version, "review")
+    if not db_client.permissions(state)["review"]:
+        raise HTTPException(403, "Workspace reviewer permission is required.")
+    raw_sources = raw_discovery_sources(state)
+    known = {source.id for source in raw_sources}
+    if len(set(req.source_ids)) != len(req.source_ids) or not set(req.source_ids).issubset(known):
+        raise HTTPException(422, "Review unique current source IDs; drafts are not reviewable.")
+    if req.status == "disagreement" and len(req.source_ids) < 2:
+        raise HTTPException(422, "A disagreement must reference at least two sources.")
+    if not req.rationale.strip():
+        raise HTTPException(422, "Write a review rationale.")
+    if len(state.discovery_source_reviews) >= 50:
+        raise HTTPException(422, "At most 50 source reviews can be recorded.")
+    checked = safe_payload(req)
+    state.discovery_source_reviews.append(DiscoverySourceReview(
+        id=str(uuid4()), source_ids=checked.source_ids, status=checked.status, rationale=checked.rationale,
+        source_digest=review_digest(raw_sources, checked.source_ids),
+        reviewed_by=principal_context.get().owner_id, reviewed_at=datetime.now(timezone.utc)))
+    task_ids = {source.task_id for source in raw_sources if source.id in req.source_ids}
+    if req.status in ("clarification_needed", "disagreement"):
+        for task in state.discovery_tasks:
+            if task.id in task_ids:
+                task.status = "clarification_needed"
+    else:
+        current_sources = discovery_sources(state)
+        for task in state.discovery_tasks:
+            if task.id in task_ids and task.status == "clarification_needed" and not any(
+                    source.review_status in ("clarification_needed", "disagreement", "stale_review")
+                    for source in current_sources if source.task_id == task.id):
+                task.status = "submitted"
+    db_client.save_workflow_state(state, action="review")
+    return response(state)
+
+
+@router.put("/engagements/{engagement_id}/opportunities/{opportunity_id}/alternatives")
+def compare_alternatives(engagement_id: SessionId, opportunity_id: SessionId, req: AlternativesRequest):
+    state = checked_state(engagement_id, req.version)
+    opportunity = next((item for item in state.discovery.opportunities if item.id == opportunity_id), None)
+    if opportunity is None:
+        raise WorkflowNotFound()
+    if {item.kind for item in req.alternatives} != ALTERNATIVE_KINDS:
+        raise HTTPException(422, "Compare all five alternatives with explicit human-written rationales.")
+    checked = safe_payload(req)
+    opportunity.alternatives = checked.alternatives
+    opportunity.preferred_alternative = checked.preferred_alternative
+    db_client.save_workflow_state(state)
+    return response(state)
+
+
+@router.put("/engagements/{engagement_id}/opportunities/{opportunity_id}/ratings")
+def save_ratings(engagement_id: SessionId, opportunity_id: SessionId, req: RatingsRequest):
+    state = checked_state(engagement_id, req.version)
+    opportunity = next((item for item in state.discovery.opportunities if item.id == opportunity_id), None)
+    if opportunity is None:
+        raise WorkflowNotFound()
+    opportunity.ratings = safe_payload(req.ratings)
+    opportunity.ratings_source_digest = source_digest(state)
+    db_client.save_workflow_state(state)
+    return response(state)
 
 
 @router.put("/engagements/{engagement_id}/participants/{identity_id}")
@@ -294,7 +517,9 @@ def accept_candidate(engagement_id: SessionId, candidate_id: SessionId, req: Ver
         if len(state.discovery.opportunities) >= 20:
             raise HTTPException(422, "At most 20 candidate opportunities can be recorded.")
         state.discovery.opportunities.append(DiscoveryOpportunity(
-            id=candidate_id, title=candidate.title, problem=candidate.statement, source_ids=candidate.source_ids))
+            id=candidate_id, title=candidate.title, problem=candidate.statement, source_ids=candidate.source_ids,
+            process_ids=sorted({source.process_id for source in snapshot.sources
+                                if source.id in candidate.source_ids and source.process_id})))
         db_client.save_workflow_state(state)
     return response(state)
 
@@ -312,11 +537,22 @@ def create_handoff(engagement_id: SessionId, opportunity_id: SessionId, req: Han
     if opportunity.source_ids and (not state.discovery_synthesis or
                                    state.discovery_synthesis.source_digest != source_digest(state)):
         raise HTTPException(409, "The source synthesis is stale; regenerate and review before handoff.")
+    current_sources = [source for source in discovery_sources(state) if source.id in opportunity.source_ids]
+    process_ids = sorted(set(opportunity.process_ids) | {source.process_id for source in current_sources if source.process_id})
+    processes = [process for process in state.discovery.processes if process.id in process_ids]
+    if processes and (not opportunity.preferred_alternative or
+                      {item.kind for item in opportunity.alternatives} != ALTERNATIVE_KINDS):
+        raise HTTPException(422, "Compare all five alternatives and explicitly choose one before process handoff.")
+    if any(source.review_status in ("clarification_needed", "disagreement", "stale_review") for source in current_sources):
+        raise HTTPException(409, "Resolve or re-review the cited source clarification/disagreement before handoff.")
     model = model_definition(req.model_id)
     reservation = next((item for item in state.discovery_handoffs if item.origin.opportunity_id == opportunity_id), None)
     if reservation:
         if (reservation.origin.title != opportunity.title or reservation.origin.problem != opportunity.problem
-                or reservation.context.target_cloud != req.target_cloud or reservation.model != model):
+                or reservation.context.target_cloud != req.target_cloud or reservation.model != model
+                or reservation.origin.processes != processes
+                or reservation.origin.alternatives != opportunity.alternatives
+                or reservation.origin.preferred_alternative != opportunity.preferred_alternative):
             raise HTTPException(409, "This opportunity already has a frozen handoff. Create another opportunity for a different assessment.")
         frozen_sources = {source.id for source in reservation.origin.sources if not source.id.startswith("opportunity.")}
         current_sources = {source.id: source for source in state.discovery_synthesis.sources} if state.discovery_synthesis else {}
@@ -335,7 +571,11 @@ def create_handoff(engagement_id: SessionId, opportunity_id: SessionId, req: Han
             engagement_id=engagement_id, opportunity_id=opportunity_id, source_version=state._etag,
             title=opportunity.title, problem=opportunity.problem, sources=sources,
             priority=next(row for row in priority_report(state)["items"] if row["opportunity_id"] == opportunity_id),
-            reviewed_by=principal_context.get().owner_id, reviewed_at=datetime.now(timezone.utc))
+            reviewed_by=principal_context.get().owner_id, reviewed_at=datetime.now(timezone.utc),
+            processes=processes, alternatives=opportunity.alternatives,
+            preferred_alternative=opportunity.preferred_alternative,
+            source_reviews=[review for review in state.discovery_source_reviews
+                            if set(review.source_ids).intersection(opportunity.source_ids)])
         context = EnterpriseContext(business_domain=state.discovery.business_units[:200],
                                     pain_points=opportunity.problem, target_cloud=req.target_cloud)
         reservation = DiscoveryHandoff(

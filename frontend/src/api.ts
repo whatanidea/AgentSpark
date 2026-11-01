@@ -23,14 +23,42 @@ export type DiscoveryEngagement = {
   status: "planned" | "active" | "completed";
   contributions: { id: string; role: Exclude<InterviewRole, "all">; statement: string }[];
   opportunities: { id: string; title: string; problem: string; status: "proposed" | "selected" | "parked";
-    source_ids: string[]; ratings: DiscoveryRatings | null }[];
+    source_ids: string[]; ratings: DiscoveryRatings | null; process_ids?: string[];
+    alternatives?: DiscoveryAlternative[]; preferred_alternative?: DiscoveryAlternativeKind | null }[];
   assessment_ids: string[];
+  processes?: DiscoveryProcess[];
 };
 export type DiscoveryRatings = {
   value: number | null; feasibility: number | null; evidence_confidence: number | null;
   risk: number | null; effort: number | null; rationale: string;
 };
 export type DiscoverySource = { id: string; label: string; statement: string };
+export type DiscoveryProcess = {
+  id: string; title: string; process_owner: string; goal: string; scope: string; systems: string;
+  volume: string; baseline_pain: string;
+  steps: { id: string; title: string; work: string; systems: string }[];
+};
+export type DiscoveryAlternativeKind = "unchanged" | "process_improvement" | "deterministic_automation" | "ai_assistance" | "hybrid";
+export type DiscoveryAlternative = { kind: DiscoveryAlternativeKind; rationale: string };
+export type DiscoveryBaseline = { statement: string; source_reference: string; basis: "self_reported" | "measured" };
+export type DiscoveryTaskAssignment = {
+  process_id: string; step_id: string; assignee: string; role: Exclude<InterviewRole, "all">;
+  requested_information: string; due_on: string;
+};
+export type DiscoveryTask = DiscoveryTaskAssignment & {
+  id: string; assigned_by: string; membership_generation: string;
+  status: "draft" | "submitted" | "clarification_needed"; answers: Record<string, string>; evidence: DiscoveryBaseline[];
+};
+export type DiscoverySourceReviewInput = {
+  source_ids: string[]; status: "clarification_needed" | "disagreement" | "resolved" | "reviewer_checked"; rationale: string;
+};
+export type DiscoverySourceReview = DiscoverySourceReviewInput & {
+  id: string; source_digest: string; reviewed_by: string; reviewed_at: string;
+};
+export type DiscoveryProcessSource = DiscoverySource & {
+  process_id?: string | null; step_id?: string | null; task_id?: string | null; source_reference?: string;
+  basis?: "self_reported" | "measured"; review_status?: string; review_rationale?: string;
+};
 export type DiscoveryFinding = { id: string | null; title: string; statement: string; source_ids: string[] };
 export type DiscoveryPriority = {
   opportunity_id: string; title: string; score: number | null; missing: string[];
@@ -38,7 +66,9 @@ export type DiscoveryPriority = {
 };
 export type DiscoveryOrigin = {
   engagement_id: string; opportunity_id: string; source_version: string; title: string; problem: string;
-  sources: DiscoverySource[]; priority: DiscoveryPriority; reviewed_by: string; reviewed_at: string;
+  sources: DiscoveryProcessSource[]; priority: DiscoveryPriority; reviewed_by: string; reviewed_at: string;
+  processes?: DiscoveryProcess[]; alternatives?: DiscoveryAlternative[];
+  preferred_alternative?: DiscoveryAlternativeKind | null; source_reviews?: DiscoverySourceReview[];
 };
 export type DiscoveryParticipant = {
   identity_id: string; role: Exclude<InterviewRole, "all">; assigned_by: string; assigned_at: string;
@@ -49,8 +79,10 @@ export type DiscoveryRecord = {
   assessments: { session_id: string; title: string; status: string }[]; unavailable_assessments: string[];
   progress: { contributions: number; opportunities: number; assessments: number }; limitations: string;
   retention: { days: number; created_at: string | null; policy: string };
+  tasks?: DiscoveryTask[]; sources?: DiscoveryProcessSource[]; source_reviews?: DiscoverySourceReview[];
   participation: { participants: DiscoveryParticipant[]; identity_id: string; can_assign: boolean;
-    can_submit: boolean; questions: Record<Exclude<InterviewRole, "all">, Record<string, string>> };
+    can_submit: boolean; questions: Record<Exclude<InterviewRole, "all">, Record<string, string>>;
+    step_questions?: Record<Exclude<InterviewRole, "all">, Record<string, string>> };
   synthesis: { rules_version: string; source_digest: string; sources: DiscoverySource[];
     content: { themes: DiscoveryFinding[]; opportunities: DiscoveryFinding[]; conflicts: DiscoveryFinding[]; open_questions: string[] };
     model: InferenceModel; generated_by: string; generated_at: string } | null;
@@ -381,6 +413,21 @@ export const api = {
     request(`/engagements/${encodeURIComponent(id)}/participants/${encodeURIComponent(identity)}`, "DELETE", { version }),
   saveContribution: (id: string, version: string, answers: Record<string, string>, submit: boolean): Promise<DiscoveryRecord> =>
     request(`/engagements/${encodeURIComponent(id)}/contribution`, "PUT", { version, answers, submit }),
+  saveDiscoveryProcess: (id: string, version: string, process: DiscoveryProcess): Promise<DiscoveryRecord> =>
+    request(`/engagements/${encodeURIComponent(id)}/processes/${encodeURIComponent(process.id)}`, "PUT", { version, process }),
+  createDiscoveryTask: (id: string, version: string, assignment: DiscoveryTaskAssignment): Promise<DiscoveryRecord> =>
+    post(`/engagements/${encodeURIComponent(id)}/tasks`, { version, ...assignment }),
+  saveStepContribution: (id: string, task: string, version: string, answers: Record<string, string>,
+    evidence: DiscoveryBaseline[], submit: boolean): Promise<DiscoveryRecord> =>
+    request(`/engagements/${encodeURIComponent(id)}/tasks/${encodeURIComponent(task)}/contribution`, "PUT", { version, answers, evidence, submit }),
+  reviewDiscoverySources: (id: string, version: string, review: DiscoverySourceReviewInput): Promise<DiscoveryRecord> =>
+    post(`/engagements/${encodeURIComponent(id)}/source-reviews`, { version, ...review }),
+  compareDiscoveryAlternatives: (id: string, opportunity: string, version: string, alternatives: DiscoveryAlternative[],
+    preferred_alternative: DiscoveryAlternativeKind): Promise<DiscoveryRecord> =>
+    request(`/engagements/${encodeURIComponent(id)}/opportunities/${encodeURIComponent(opportunity)}/alternatives`, "PUT",
+      { version, alternatives, preferred_alternative }),
+  saveDiscoveryRatings: (id: string, opportunity: string, version: string, ratings: DiscoveryRatings): Promise<DiscoveryRecord> =>
+    request(`/engagements/${encodeURIComponent(id)}/opportunities/${encodeURIComponent(opportunity)}/ratings`, "PUT", { version, ratings }),
   synthesizeDiscovery: (id: string, version: string, model_id: InferenceModel["id"]): Promise<DiscoveryRecord> =>
     post(`/engagements/${encodeURIComponent(id)}/synthesis`, { version, model_id }),
   acceptDiscoveryCandidate: (id: string, candidate: string, version: string): Promise<DiscoveryRecord> =>

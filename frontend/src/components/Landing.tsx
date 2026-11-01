@@ -5,6 +5,8 @@ import Icon, { type IconName } from "./Icon";
 import LandingNavigation from "./LandingNavigation";
 import DiscoveryShowcase from "./DiscoveryShowcase";
 import HomeSlides from "./HomeSlides";
+import HomeUseCases from "./HomeUseCases";
+import ArchitectureIllustration from "./ArchitectureIllustration";
 import { publicPage } from "./publicPages";
 import "./Landing.css";
 import "./Marketing.css";
@@ -92,16 +94,16 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
     <main id="landing-main" key={page?.path ?? pathname}>
       {home ? <section id="top" className="landing-hero landing-container" aria-labelledby="landing-title">
         <div className="landing-hero-copy">
-          <div className="landing-kicker"><span aria-hidden="true" /> Business first. Evidence throughout.</div>
-          <h1 ref={title} tabIndex={-1} id="landing-title">Choose the right<br />AI opportunities.<br /><span>Before you build anything.</span></h1>
-          <p>Discover opportunities with your team. Prioritize with evidence. Assess before you build.</p>
+          <div className="landing-kicker"><span aria-hidden="true" /> AI opportunity discovery &amp; assessment platform</div>
+          <h1 ref={title} tabIndex={-1} id="landing-title">Decide what to automate.<br /><span>Know where AI belongs.</span></h1>
+          <p>AgentSpark helps business and technology teams capture how work happens, compare AI opportunities, and produce reviewed assessments and implementation blueprints before investing in a pilot.</p>
           <div className="landing-actions">
             <button className="landing-button landing-button-primary" disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">↗</span></button>
             <Link className="landing-button landing-button-secondary" to="/resources/example-assessment">Explore an example <span aria-hidden="true">↗</span></Link>
           </div>
           <p className="landing-fine">Already have a workflow in mind? <button className="marketing-inline-action" disabled={disabled} onClick={onStart}>{startLabel}</button></p>
           {message && <p role="status" className="landing-feedback">{message}</p>}
-          <div className="landing-hero-proof"><span>Evidence, not guesswork</span><span>Human oversight built in</span></div>
+          <div className="landing-hero-proof"><span>Source-linked recommendations</span><span>Human-reviewed decisions</span></div>
         </div>
         <HomeSlides />
       </section> : <section id="top" className="marketing-page-hero landing-container" aria-labelledby="landing-title">
@@ -118,17 +120,11 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
         {message && <p role="status" className="landing-feedback">{message}</p>}
       </section>}
 
-      {home && <section data-reveal className="marketing-home-outcomes landing-container" aria-labelledby="outcomes-title">
-        <p className="landing-eyebrow">Three decisions. One connected journey.</p><h2 id="outcomes-title">Know where to start.<br />Know what to question.</h2>
-        <div className="marketing-capabilities">{[
-          ["Discover together", "Hear the people who know the work.", "/platform/discovery"],
-          ["Prioritize transparently", "Connect the shortlist to its sources.", "/platform/prioritization"],
-          ["Assess responsibly", "Make the facts and gaps visible.", "/platform/assessment"],
-        ].map(([heading, text, path], index) => <article key={path}><span>0{index + 1}</span><h3>{heading}</h3><p>{text}</p>
-          <Link to={path}>Explore this stage <span aria-hidden="true">↗</span></Link></article>)}</div>
-        <p className="marketing-home-boundary">Advisory decisions, not autonomous execution. <Link to="/resources/trust">Understand the boundaries ↗</Link></p>
-      </section>}
+      {home && <HomeUseCases />}
 
+      {page?.path === "/platform/architecture" && <section data-reveal className="landing-section landing-container" aria-labelledby="architecture-example-title">
+        <ArchitectureIllustration />
+      </section>}
       {!!page?.details.length && <section data-reveal className="landing-section landing-container marketing-page-details" aria-label={`${page.name} capabilities`}>
         <div className="marketing-capabilities">{page.details.map(([heading, text], index) =>
           <article key={heading}><span>0{index + 1}</span><h2>{heading}</h2><p>{text}</p></article>)}</div>

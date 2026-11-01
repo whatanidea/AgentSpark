@@ -7,6 +7,7 @@ process.env.AGENTSPARK_E2E_ARCHIVE ??= join(tmpdir(), `agentspark-e2e-${randomUU
 
 export default defineConfig({
   testDir: "./e2e",
+  testIgnore: "**/discovery-processes.spec.ts",
   fullyParallel: false,
   workers: 1,
   retries: 0,

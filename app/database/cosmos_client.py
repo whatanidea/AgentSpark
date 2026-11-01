@@ -1,4 +1,5 @@
 import logging
+import json
 import os
 from copy import deepcopy
 from threading import RLock
@@ -28,6 +29,7 @@ PRIVATE_FIELDS = (
     "interview_diagnosis", "interview_answers",
     "discovery", "executive_brief", "runtime_requirement_sources", "runtime_decision",
     "discovery_participants", "discovery_synthesis", "discovery_handoffs", "discovery_origin",
+    "discovery_tasks", "discovery_source_reviews",
 )
 
 
@@ -153,6 +155,10 @@ class DatabaseClient:
         document["home_visible"] = not (archive or state.decision_recorded_at)
         document["id"] = state.session_id
         document["ttl"] = max(1, int((state.expires_at - datetime.now(timezone.utc)).total_seconds()))
+        if (state.record_kind == "discovery" or (state.discovery_origin and state.discovery_origin.processes)):
+            if len(json.dumps(document, ensure_ascii=False).encode("utf-8")) > 1_000_000:
+                from fastapi import HTTPException
+                raise HTTPException(422, "Discovery exceeds the 1 MB document budget. Narrow scope before saving.")
         if self.use_mock:
             with self._lock:
                 current = self.mock_db.get(state.session_id)

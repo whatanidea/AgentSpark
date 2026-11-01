@@ -70,6 +70,9 @@ def redact_pii(text: str) -> str:
     # Canonical opaque UUIDs are identifiers, not phone numbers; preserve review IDs.
     if re.fullmatch(r"[0-9a-fA-F]{8}(?:-[0-9a-fA-F]{4}){3}-[0-9a-fA-F]{12}", text):
         return text
+    # Opaque identity/digest values and server-generated discovery reference IDs are not phone numbers.
+    if re.fullmatch(r"[0-9a-f]{64}|(?:note|participant|process|task|opportunity)\.[A-Za-z0-9_.-]+", text):
+        return text
     for label, pat in _PII_PATTERNS.items():
         text = re.sub(pat, f"[REDACTED-{label}]", text)
     return text

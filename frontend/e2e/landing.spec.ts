@@ -10,7 +10,7 @@ test("public examples explain workflow boundaries without authentication, writes
     mode: "oidc", retention_hours: 24, archive_retention_days: 30,
   } }));
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Choose the right AI opportunities. Before you build anything.", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Decide what to automate. Know where AI belongs.", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeEnabled();
   await expect(page.getByRole("group", { name: "Example workflow", exact: true })).toHaveCount(0);
   await page.goto("/platform/discovery");
@@ -104,7 +104,7 @@ test("workspace entry and returning to overview preserve the active assessment",
   const pointer = JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!);
   try {
     await page.getByRole("button", { name: "Product overview", exact: false }).click();
-    await expect(page.getByRole("heading", { name: "Choose the right AI opportunities. Before you build anything.", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Decide what to automate. Know where AI belongs.", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Start discovery", exact: false }).first().click();
     await expect(page.getByRole("heading", { name: "Discovery engagements", exact: true })).toBeVisible();
     expect(JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!).session).toBe(pointer.session);
@@ -140,7 +140,7 @@ test("public workspace sign-in retains the destination and displays access error
   await expect(page.getByRole("status").filter({ hasText: "Fictional access denied." })).toBeVisible();
   expect(await page.evaluate(() => Object.values(sessionStorage).some(value => String(value).includes("fictional-invalid-token")))).toBe(false);
   await page.getByRole("button", { name: "Product overview", exact: false }).click();
-  await expect(page.getByRole("heading", { name: "Choose the right AI opportunities. Before you build anything.", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Decide what to automate. Know where AI belongs.", exact: true })).toBeVisible();
 });
 
 test("signing in from the assessment action opens intake without creating a workflow", async ({ page }) => {
@@ -157,7 +157,7 @@ test("signing in from the assessment action opens intake without creating a work
   await expect(page.getByRole("heading", { name: "Enterprise Context", exact: true })).toBeVisible();
   expect(await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1"))).toBeNull();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Choose the right AI opportunities. Before you build anything.", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Decide what to automate. Know where AI belongs.", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
 });
 
