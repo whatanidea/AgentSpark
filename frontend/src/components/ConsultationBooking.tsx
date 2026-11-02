@@ -62,9 +62,13 @@ function CalendarEmbed() {
   return <div className="consultation-calendar">
     <h3 ref={heading} tabIndex={-1}>Choose a consultation time</h3>
     {status === "loading" && <p role="status">Loading the Cal.com calendar...</p>}
-    {status === "slow" && <p role="alert">The calendar is taking longer than expected. You can use the direct booking link above.</p>}
-    {status === "failed" && <p role="alert">Cal.com could not load the calendar. Use the direct booking link above to continue.</p>}
-    <div ref={container} className="consultation-embed" role="region" aria-label="Cal.com consultation calendar" />
+    {(status === "slow" || status === "failed") && <div className="consultation-calendar-fallback" role="region" aria-label="Alternative consultation booking">
+      <p role="alert">{status === "slow" ? "The embedded calendar is taking longer than expected." : "Cal.com could not load the embedded calendar."} Your browser or network may be preventing it from opening. You can book on the secure Cal.com page instead.</p>
+      <a className="landing-button landing-button-primary" href={BOOKING_URL} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
+        Open booking page <span className="consulting-sr-only">(opens a new tab)</span><span aria-hidden="true">&#8599;</span>
+      </a>
+    </div>}
+    <div ref={container} className="consultation-embed" role="region" aria-label="Cal.com consultation calendar" hidden={status === "slow" || status === "failed"} />
   </div>;
 }
 

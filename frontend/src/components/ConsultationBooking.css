@@ -22,6 +22,9 @@
 .consultation-dialog [role="alert"] { color: #8c2828; border-left: 3px solid #b64343; padding-left: 12px; }
 .consultation-calendar { margin-top: 24px; }
 .consultation-calendar h3 { font-size: 24px; letter-spacing: -.03em; scroll-margin-top: 150px; }
+.consultation-calendar-fallback { padding: 24px; border: 1px solid #d5dfe6; border-radius: 12px; background: #fff; }
+.consultation-calendar-fallback p { margin: 0 0 20px; }
+.consultation-calendar-fallback .landing-button { min-height: 44px; }
 .consultation-embed { min-height: 650px; width: 100%; overflow: auto; border-radius: 12px; background: #fff; }
 .consultation-dialog .consultation-boundary { font-size: 12px; margin-bottom: 0; }
 .consultation-dialog :is(button, a, textarea):focus-visible { outline: 3px solid #7851bf; outline-offset: 3px; }

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test, type Page, type Route } from "@playwright/test";
 
 const event = "vienna-now-rdnzte/agentspark-consulting";
 const prompt = `If not added, add mcp.cal.com/mcp, then book ${event}`;
@@ -126,12 +126,14 @@ for (const mode of ["denied", "unavailable"] as const) {
   });
 }
 
-test("calendar failures and blocked scripts retain direct booking and explicit error feedback", async ({ page }) => {
+test("calendar failures and blocked scripts replace the stalled embed with actionable direct booking", async ({ page, context }) => {
   await stubCalendar(page, true);
   let dialog = await openBooking(page);
   await dialog.getByRole("button", { name: "Open calendar", exact: true }).click();
   await expect(dialog.getByRole("alert")).toContainText("Cal.com could not load");
-  await expect(dialog.getByRole("link", { name: "Book directly on Cal.com", exact: false })).toHaveAttribute("href", directUrl);
+  let fallback = dialog.getByRole("region", { name: "Alternative consultation booking" });
+  await expect(fallback.getByRole("link", { name: "Open booking page", exact: false })).toBeVisible();
+  await expect(dialog.locator(".consultation-embed")).toBeHidden();
 
   await page.unrouteAll();
   await page.route("https://app.cal.com/**", route => route.abort());
@@ -142,9 +144,42 @@ test("calendar failures and blocked scripts retain direct booking and explicit e
   await request;
   await page.clock.fastForward(20001);
   await expect(dialog.getByRole("alert")).toContainText("taking longer than expected");
-  await expect(dialog.getByRole("link", { name: "Book directly on Cal.com", exact: false })).toHaveAttribute("href", directUrl);
+  await expect(dialog.locator(".consultation-embed")).toBeHidden();
+  await expect(dialog.getByRole("status").filter({ hasText: "Loading the Cal.com" })).toHaveCount(0);
+  fallback = dialog.getByRole("region", { name: "Alternative consultation booking" });
+  const direct = fallback.getByRole("link", { name: "Open booking page", exact: false });
+  await expect(direct).toHaveAttribute("href", directUrl);
+  await expect(direct).toHaveAttribute("rel", "noopener noreferrer");
+  await expect(direct).toHaveAttribute("referrerpolicy", "no-referrer");
+  await context.route("https://cal.com/**", route => route.fulfill({
+    contentType: "text/html", body: "<!doctype html><html><body><h1>Direct booking test page</h1></body></html>",
+  }));
+  const [popup] = await Promise.all([page.waitForEvent("popup"), direct.click()]);
+  await expect(popup).toHaveURL(directUrl);
+  await expect(popup.getByRole("heading", { name: "Direct booking test page" })).toBeVisible();
+  expect(await popup.evaluate(() => document.referrer)).toBe("");
+  await popup.close();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
+});
+
+test("a calendar that becomes ready after the timeout replaces the fallback without a stale warning", async ({ page }) => {
+  await stubCalendar(page);
+  let pending: Route | undefined;
+  await page.route(`https://app.cal.com/${event}/embed?**`, route => { pending = route; });
+  await page.clock.install();
+  const dialog = await openBooking(page);
+  await dialog.getByRole("button", { name: "Open calendar", exact: true }).click();
+  await expect.poll(() => pending !== undefined).toBe(true);
+  await page.clock.fastForward(20001);
+  await expect(dialog.getByRole("region", { name: "Alternative consultation booking" })).toBeVisible();
+  await expect(dialog.locator(".consultation-embed")).toBeHidden();
+  if (!pending) throw new Error("The delayed calendar request was not intercepted.");
+  await pending.fulfill({ contentType: "text/html", body: "<!doctype html><html><body><h1>Delayed test calendar</h1></body></html>" });
+  await expect(dialog.locator(".consultation-embed")).toBeVisible();
+  await expect(dialog.getByRole("region", { name: "Alternative consultation booking" })).toHaveCount(0);
+  await expect(dialog.getByRole("alert")).toHaveCount(0);
+  await expect(page.locator("iframe")).toHaveCount(1);
 });
 
 test("dialog traps keyboard focus, fits mobile/reduced motion and closes on history navigation", async ({ page }) => {

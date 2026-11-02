@@ -80,6 +80,12 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   “Book a consultation” opens an accessible first-party dialog. The official
   Cal.com embed library and third-party calendar load only after “Open calendar”;
   a direct booking link remains available when the embed is blocked or slow.
+  Loading failures or the 20-second readiness timeout hide the stalled embed and
+  show an adjacent “Open booking page” action, rather than an endless spinner or
+  a reference to an offscreen link. A late successful load restores the calendar.
+  VS Code's integrated browser may stall cross-origin frames even when the
+  calendar works in a standalone browser; the direct booking page is independent
+  of embedding and remains a supported path.
   The dialog discloses Cal.com's scheduling-data processing and privacy policy.
   Query forwarding is explicitly disabled, links suppress the referrer, and no
   assessment data or secrets are prefilled. Assistant booking is a separate
