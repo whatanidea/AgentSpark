@@ -1,7 +1,12 @@
 import { expect, test } from "@playwright/test";
 
 const pages = [
-  ["/", "Home", "Decide what to automate. Know where AI belongs."],
+  ["/", "Home", "Your business. AI-native by design."],
+  ["/consulting", "Consulting overview", "Build an AI-native business. One deliberate step at a time."],
+  ["/consulting/readiness", "AI Opportunity & Readiness", "Find the right starting point. Not just another AI tool."],
+  ["/consulting/workspace-launch", "Secure AI Workspace Launch", "Give your team a considered start with AI."],
+  ["/consulting/workflow-pilot", "Workflow Pilot & Implementation", "Prove the workflow before scaling the investment."],
+  ["/consulting/adoption", "AI Adoption & Optimization", "Make adoption a capability. Not a launch event."],
   ["/about", "About", "Better decisions before bigger commitments."],
   ["/platform/discovery", "Discovery & stakeholder input", "Hear the people who know the work."],
   ["/platform/prioritization", "Synthesis & prioritization", "Build a shortlist you can explain."],
@@ -77,7 +82,7 @@ test("homepage explains exactly two use cases with original examples, outputs an
       calls.push(`${request.method()} ${new URL(request.url()).pathname}`);
   });
   await page.goto("/");
-  await expect(page.getByText("AI opportunity discovery & assessment platform", { exact: true })).toBeVisible();
+  await expect(page.getByText("AI consulting & an evidence-led assessment platform", { exact: true })).toBeVisible();
   const useCases = page.getByRole("region", { name: "Understand the work. Prepare the next step.", exact: true });
   await expect(useCases.getByRole("article")).toHaveCount(2);
   const readiness = useCases.getByRole("article", { name: "AI readiness", exact: true });
@@ -142,7 +147,7 @@ test("architecture illustration separates AI suggestions, human authority and cu
   expect(writes).toEqual([]);
 });
 
-test("all 12 public URLs render focused content, metadata and refresh safely", async ({ page }) => {
+test("all 17 public URLs render focused content, metadata and refresh safely", async ({ page }) => {
   for (const [path, name, heading] of pages) {
     const response = await page.goto(path);
     expect(response!.status()).toBe(200);
@@ -218,10 +223,13 @@ test("public deep links remain public with a restored assessment and preserve it
   await expect(page.getByRole("heading", { name: "Diagnostic Interview", exact: true })).toBeVisible();
   const pointer = JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!);
   try {
+    await page.goto("/consulting/workflow-pilot");
+    await expect(page.getByRole("heading", { level: 1, name: "Prove the workflow before scaling the investment.", exact: true })).toBeVisible();
+    expect(JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!).session).toBe(pointer.session);
     await page.goto("/solutions/operations");
-    await expect(page.getByRole("heading", { level: 1, name: pages[7][2], exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Start with the friction people recognize.", exact: true })).toBeVisible();
     await page.reload();
-    await expect(page.getByRole("heading", { level: 1, name: pages[7][2], exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Start with the friction people recognize.", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Open your workspace", exact: true }).click();
     await expect(page).toHaveURL(/\/workspace$/);
     await page.getByRole("button", { name: "2 · Diagnostic Interview", exact: true }).click();

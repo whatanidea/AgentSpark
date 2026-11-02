@@ -8,12 +8,15 @@ import ProductShowcase from "./ProductShowcase";
 import HomeUseCases from "./HomeUseCases";
 import ArchitectureIllustration from "./ArchitectureIllustration";
 import DiscoveryInvitation from "./DiscoveryInvitation";
-import BuyerConfidence, { TechnologyBoundaries } from "./BuyerConfidence";
+import { TechnologyBoundaries } from "./BuyerConfidence";
+import ConsultingContent, { HomeConsulting } from "./Consulting";
+import ConsultationBooking from "./ConsultationBooking";
 import { MarketingIcon, PageVisual, SignatureJourney } from "./MarketingVisuals";
 import { publicPage } from "./publicPages";
 import "./Landing.css";
 import "./Marketing.css";
 import "./Premium.css";
+import "./Consulting.css";
 
 type Step = { title: string; kind: "assist" | "rules" | "human"; detail: string; gap: string; azure: string; aws: string };
 type Example = { name: string; icon: IconName; team: string; steps: Step[] };
@@ -55,11 +58,15 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
   const step = example.steps[stepIndex];
   const startLabel = hasSession ? "Open your workspace" : "Assess my workflow";
   const { pathname } = useLocation();
+  const [bookingPath, setBookingPath] = useState<string | null>(null);
+  const bookConsultation = () => setBookingPath(pathname);
+  useEffect(() => { setBookingPath(null); }, [pathname]);
   const page = publicPage(pathname);
   const home = page?.path === "/";
   const examplePage = page?.path === "/resources/example-assessment";
   const howPage = page?.path === "/resources/how-it-works";
   const trustPage = page?.path === "/resources/trust";
+  const consultingPage = page?.section === "Consulting";
   const title = useRef<HTMLHeadingElement>(null);
   const site = useRef<HTMLDivElement>(null);
   const previousPath = useRef(pathname);
@@ -98,12 +105,12 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
     <main id="landing-main" key={page?.path ?? pathname}>
       {home ? <section id="top" className="landing-hero landing-container" aria-labelledby="landing-title">
         <div className="landing-hero-copy">
-          <div className="landing-kicker"><span aria-hidden="true" /> AI opportunity discovery &amp; assessment platform</div>
-          <h1 ref={title} tabIndex={-1} id="landing-title">Decide what to automate.<br /><span>Know where AI belongs.</span></h1>
-          <p>Turn process knowledge into source-linked opportunities, readiness gaps and a reviewable investment decision. Before you commit to a pilot.</p>
+          <div className="landing-kicker"><span aria-hidden="true" /> AI consulting &amp; an evidence-led assessment platform</div>
+          <h1 ref={title} tabIndex={-1} id="landing-title">Your business.<br /><span>AI-native by design.</span></h1>
+          <p>We help SMEs choose where AI belongs, equip their people and improve how work gets done. Consulting for the journey. A platform for the decisions.</p>
           <div className="landing-actions">
-            <a className="landing-button landing-button-primary" href="#product-showcase">Explore the product <span aria-hidden="true">↗</span></a>
-            <button className="landing-button landing-button-secondary" disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">↗</span></button>
+            <Link className="landing-button landing-button-primary" to="/consulting">Explore consulting <span aria-hidden="true">↗</span></Link>
+            <a className="landing-button landing-button-secondary" href="#product-showcase">Explore the product <span aria-hidden="true">↗</span></a>
           </div>
           <p className="landing-fine">Already have a workflow in mind? <button className="marketing-inline-action" disabled={disabled} onClick={onStart}>{startLabel}</button></p>
           {message && <p role="status" className="landing-feedback">{message}</p>}
@@ -112,14 +119,17 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
       </section> : <section id="top" className="marketing-page-hero landing-container" aria-labelledby="landing-title">
         <div className="premium-page-copy">
         <nav className="marketing-breadcrumb" aria-label="Breadcrumb"><Link to="/">Home</Link><span aria-hidden="true">/</span>
-          {page && <span>{page.section}</span>}</nav>
+          {page && (consultingPage && page.path !== "/consulting" ? <Link to="/consulting">Consulting</Link> : <span>{page.section}</span>)}</nav>
         <p className="landing-eyebrow">{page?.name ?? "That destination is unavailable"}</p>
         <h1 ref={title} tabIndex={-1} id="landing-title">{page?.title ?? "Page not found."}</h1>
         <p>{page?.summary ?? "This link does not point to an AgentSpark page. Return to the overview or use the navigation to explore the platform."}</p>
         {page && <div className="landing-actions">
-          <button className="landing-button landing-button-primary" disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">↗</span></button>
-          <button className="landing-button landing-button-secondary" disabled={disabled} onClick={onStart}>{startLabel}</button>
+          {consultingPage ? <button className="landing-button landing-button-primary" onClick={bookConsultation}>Book a consultation <span aria-hidden="true">↗</span></button>
+            : <button className="landing-button landing-button-primary" disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">↗</span></button>}
+          {consultingPage ? <Link className="landing-button landing-button-secondary" to="/resources/example-assessment">Explore an example <span aria-hidden="true">↗</span></Link>
+            : <button className="landing-button landing-button-secondary" disabled={disabled} onClick={onStart}>{startLabel}</button>}
         </div>}
+        {consultingPage && <p className="consulting-note">Book through Cal.com or copy instructions for your AI assistant. The calendar loads only when you choose to open it. Consulting scope and authorization are agreed separately.</p>}
         {!page && <Link className="landing-button landing-button-primary" to="/">Return to overview</Link>}
         {message && <p role="status" className="landing-feedback">{message}</p>}
         </div>
@@ -131,10 +141,11 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
         <div><MarketingIcon name="evidence" /><span>Evidence behind the opportunity</span></div>
         <div><MarketingIcon name="decision" /><span>Human-reviewed next steps</span></div>
       </aside>}
+      {home && <HomeConsulting disabled={disabled} onDiscover={onDiscover} onBook={bookConsultation} />}
       {home && <ProductShowcase />}
       {home && <HomeUseCases />}
       {home && <TechnologyBoundaries />}
-      {home && <BuyerConfidence disabled={disabled} onDiscover={onDiscover} />}
+      {consultingPage && <ConsultingContent path={page.path} disabled={disabled} onDiscover={onDiscover} onBook={bookConsultation} />}
 
       {page?.path === "/platform/architecture" && <section data-reveal className="landing-section landing-container" aria-labelledby="architecture-example-title">
         <ArchitectureIllustration />
@@ -266,6 +277,9 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
           ["Assumptions stay explicit", "Priority ratings are assessor judgments, not suitability scores, guaranteed savings or verified confidence."],
           ["People stay accountable", "A reviewed handoff does not confirm diagnostic facts, grant permissions or authorize autonomous execution."],
           ["Retention stays bounded", "New engagements expire after 30 days unless explicitly renewed. Ordinary edits do not extend expiry; assessment and archive copies follow their own retention."],
+          ["Consulting is separately scoped", "The assessment platform does not automatically onboard providers or implement workflows. Customer administrators own accounts, contracts and access; delivery responsibilities are agreed in the engagement."],
+          ["Scheduling is a separate choice", "Cal.com processes scheduling data when you open its calendar or direct booking link. No scheduler is loaded before that choice; page query parameters and assessment data are not forwarded. Copying instructions does not connect an assistant or book a meeting: review permissions and confirm details yourself. Do not send secrets or confidential customer data."],
+          ["European projects need specific diligence", "Data roles, transfers, retention, accessibility and applicable AI Act obligations depend on the actual service and use case. No blanket GDPR compliance, AI Act certification, EU endorsement or grant eligibility is claimed."],
         ].map(([title, detail]) => <details key={title}><summary>{title}<span aria-hidden="true">+</span></summary><p>{detail}</p></details>)}</div>
       </section>}
 
@@ -273,12 +287,15 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
     </main>
     <footer className="landing-footer landing-container premium-footer">
       <div><span className="landing-brand"><span className="landing-brand-mark" aria-hidden="true">✦</span>AgentSpark</span>
-        <p>The work comes first.<br />The technology follows.</p><small>Advisory assessment, not autonomous execution.</small></div>
+        <p>AI consulting. Evidence-led software.<br />One connected approach.</p><small>Human accountability. Customer-owned decisions.</small></div>
+      <div><strong>Consulting</strong><Link to="/consulting">Consulting overview</Link><Link to="/consulting/readiness">Opportunity & readiness</Link>
+        <Link to="/consulting/workspace-launch">Workspace launch</Link><Link to="/consulting/workflow-pilot">Workflow pilot</Link><Link to="/consulting/adoption">Adoption & optimization</Link></div>
       <div><strong>Platform</strong><Link to="/platform/discovery">Discovery</Link><Link to="/platform/prioritization">Prioritization</Link>
         <Link to="/platform/assessment">Assessment</Link><Link to="/platform/architecture">Architecture & review</Link></div>
       <div><strong>Explore</strong><Link to="/about">About</Link><Link to="/resources/how-it-works">How it works</Link>
         <Link to="/resources/example-assessment">Example assessment</Link><Link to="/resources/trust">Trust & limitations</Link></div>
       <a className="premium-back-top" href="#top">Back to top ↑</a>
     </footer>
+    {bookingPath === pathname && <ConsultationBooking onClose={() => setBookingPath(null)} />}
   </div>;
 }

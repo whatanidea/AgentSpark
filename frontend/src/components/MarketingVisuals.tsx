@@ -1,4 +1,5 @@
 import type { PublicPage } from "./publicPages";
+import { CONSULTING_OFFERINGS, CONSULTING_OVERVIEW } from "./consultingContent";
 
 export type MarketingIconName = "process" | "people" | "evidence" | "readiness" | "blueprint" | "decision" | "cloud" | "lock";
 const paths: Record<MarketingIconName, string> = {
@@ -46,6 +47,12 @@ const visuals: Record<string, Visual> = {
 };
 
 export function publicVisual(page: PublicPage): Visual {
+  const offering = CONSULTING_OFFERINGS.find(item => item.path === page.path);
+  if (offering) return { icon: offering.icon, title: offering.outcome, label: "Illustrative consulting delivery plan", items: offering.steps };
+  if (page.path === CONSULTING_OVERVIEW.path) return {
+    icon: "process", title: "People. Processes. Platforms. Progress.", label: "The AI-native transformation journey",
+    items: [["Discover", "Business priorities and evidence"], ["Enable", "Customer-owned tools and skills"], ["Deliver", "A bounded workflow pilot"], ["Improve", "Measured learning and ownership"]],
+  };
   const visual = visuals[page.path];
   if (!visual) throw new Error(`No public illustration configured for ${page.path}`);
   return visual;
@@ -59,7 +66,8 @@ export function PageVisual({ page }: { page: PublicPage }) {
     <ol className="premium-visual-nodes">{visual.items.map(([title, detail], index) =>
       <li key={title}><span className="premium-node-number">0{index + 1}</span>
         <div><strong>{title}</strong><small>{detail}</small></div><span aria-hidden="true">↗</span></li>)}</ol>
-    <figcaption>{page.section === "About" || page.path === "/resources/trust" || page.path === "/resources/how-it-works"
+    <figcaption>{page.section === "Consulting" ? "Illustrative service method. Scope, access and acceptance are agreed with the customer."
+      : page.section === "About" || page.path === "/resources/trust" || page.path === "/resources/how-it-works"
       ? "Explore the product below. No connected systems or saved records."
       : "Illustrative only. Not measured customer data, verified evidence or a deployed workflow."}</figcaption>
   </figure>;

@@ -95,7 +95,7 @@ test("workflow review opens the protected existing discovery flow without a fake
     mode: "oidc", retention_hours: 24, archive_retention_days: 30,
   } }));
   await page.goto("/");
-  const buyer = page.getByRole("region", { name: "A clearer investment decision. Not another AI promise.", exact: true });
+  const buyer = page.getByRole("region", { name: "The platform brings clarity. Consulting moves the work forward.", exact: true });
   await expect(buyer).toContainText("not a booked consultation or a promise of follow-up");
   await buyer.getByRole("button", { name: "Start a workflow review", exact: false }).click();
   await expect(page.getByRole("heading", { name: "Organization access", exact: true })).toBeVisible();

@@ -1,18 +1,26 @@
+import { CONSULTING_OFFERINGS, CONSULTING_OVERVIEW } from "./consultingContent";
+
 export type PublicPage = {
-  path: string; name: string; section: "Overview" | "About" | "Platform" | "Solutions" | "Resources";
+  path: string; name: string; section: "Overview" | "About" | "Consulting" | "Platform" | "Solutions" | "Resources";
   title: string; summary: string; details: readonly (readonly [string, string])[];
   stage?: "Discover" | "Synthesize" | "Prioritize" | "Assess";
 };
 
 export const PUBLIC_PAGES: readonly PublicPage[] = [
-  { path: "/", name: "Home", section: "Overview", title: "Decide what to automate. Know where AI belongs.",
-    summary: "AgentSpark is an AI opportunity discovery and assessment platform. Understand your processes, assess AI readiness and prepare reviewed implementation blueprints before investing in a pilot.", details: [] },
+  { path: "/", name: "Home", section: "Overview", title: "Your business. AI-native by design.",
+    summary: "AgentSpark brings SME AI consulting and an evidence-led assessment platform together. Explore strategy, secure platform adoption, workflow pilots and workforce enablement.", details: [] },
+  { ...CONSULTING_OVERVIEW, section: "Consulting", details: [] },
+  ...CONSULTING_OFFERINGS.map(offering => ({
+    path: offering.path, name: offering.name, title: offering.title, summary: offering.summary,
+    section: "Consulting" as const, details: [],
+  })),
   { path: "/about", name: "About", section: "About", title: "Better decisions before bigger commitments.",
-    summary: "AgentSpark helps teams decide where AI belongs in their business. Start with the work, question the assumptions, and keep people accountable.",
+    summary: "AgentSpark combines SME AI consulting with an evidence-led discovery and assessment platform. Start with the work, question the assumptions, and keep people accountable.",
     details: [
       ["Business first", "A business objective and the people doing the work come before a model or an architecture."],
       ["Evidence throughout", "Sources, disagreements and missing information remain visible. Generated recommendations are hypotheses to review, not independently verified facts."],
       ["People accountable", "Predictable rules stay deterministic. Human judgment, permissions and approval boundaries remain explicit."],
+      ["Two complementary roles", "The platform structures discovery and assessment. Consulting can support adoption and delivery through a separately agreed engagement; it does not add automatic provisioning to the software."],
     ] },
   { path: "/platform/discovery", name: "Discovery & stakeholder input", section: "Platform", stage: "Discover",
     title: "Hear the people who know the work.", summary: "Map a process and invite the people who know its steps. Collect role-specific contributions, evidence and clarifications in one team-scoped engagement.",

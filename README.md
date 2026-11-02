@@ -40,8 +40,8 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
 - **Make an executive decision:** inspect a source-linked executive brief with
   an advisory decision, illustrative capacity value, gaps and next action.
   Export Markdown or a one-page PDF without confusing suitability with pilot readiness.
-- **Explore before signing in:** the concise public homepage links to 11 focused
-  About, Platform, Solutions and Resources pages. Each submenu has a dedicated URL,
+- **Explore before signing in:** the concise public homepage links to 16 focused
+  Consulting, About, Platform, Solutions and Resources pages. Each submenu has a dedicated URL,
   page title and active-navigation state; direct links, refresh and browser history
   work without discarding a restored assessment. The public experience uses an
   original process-to-opportunity hero, a visitor-controlled four-stage product
@@ -62,9 +62,38 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   ownership and pilot gaps alongside process steps and improvement alternatives.
   Both remain visible without autoplay and use clearly fictional previews, not
   measured customer results, organizational monitoring or process-mining claims.
-  The homepage identifies AgentSpark as an AI opportunity discovery and assessment
-  platform and names the shortlist, readiness gaps, architecture and executive brief
-  customers can review before investing in a pilot.
+  The homepage presents AgentSpark Consulting alongside the existing evidence-led
+  assessment platform. Consulting is separately scoped human delivery, not a new
+  automated provider integration or a change to the signed-in product.
+  `/consulting` explains the AI-native approach and four offerings:
+  `/consulting/readiness`, `/consulting/workspace-launch`,
+  `/consulting/workflow-pilot` and `/consulting/adoption`. Each has its own outputs,
+  delivery method, customer responsibilities and explicit exclusions.
+  OpenAI, Anthropic and Google are independent advisory options, not partner claims;
+  workplace subscriptions and developer workloads are separate. Google consulting
+  does not add Google Cloud blueprint generation to the platform's Azure/AWS support.
+  Leadership/investment/programme-review content emphasizes baseline evidence,
+  repeatable delivery and customer capability without promising funding, grant
+  eligibility, EU endorsement or blanket GDPR/AI Act certification.
+  Consulting calls use the supplied
+  [Cal.com event](https://cal.com/vienna-now-rdnzte/agentspark-consulting).
+  “Book a consultation” opens an accessible first-party dialog. The official
+  Cal.com embed library and third-party calendar load only after “Open calendar”;
+  a direct booking link remains available when the embed is blocked or slow.
+  Loading failures or the 20-second readiness timeout hide the stalled embed and
+  show an adjacent “Open booking page” action, rather than an endless spinner or
+  a reference to an offscreen link. A late successful load restores the calendar.
+  VS Code's integrated browser may stall cross-origin frames even when the
+  calendar works in a standalone browser; the direct booking page is independent
+  of embedding and remains a supported path.
+  The dialog discloses Cal.com's scheduling-data processing and privacy policy.
+  Query forwarding is explicitly disabled, links suppress the referrer, and no
+  assessment data or secrets are prefilled. Assistant booking is a separate
+  clipboard action with visible success/error feedback and manual-copy fallback.
+  Visitors paste the supplied MCP/event instructions into their own compatible
+  assistant, review permissions and confirm details. Copying never books or
+  connects anything. Signed-in platform discovery remains a distinct action;
+  no booking records or contact details are stored in the AgentSpark workspace.
   Technology panels separate available platform capabilities, Azure/AWS blueprint
   candidates and customer implementation responsibilities. User-supplied, approved
   Azure/AWS SVG assets accompany the cloud labels with their original colors and

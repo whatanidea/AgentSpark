@@ -10,7 +10,7 @@ test("public examples explain workflow boundaries without authentication, writes
     mode: "oidc", retention_hours: 24, archive_retention_days: 30,
   } }));
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Decide what to automate. Know where AI belongs.", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your business. AI-native by design.", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeEnabled();
   await expect(page.getByRole("group", { name: "Example workflow", exact: true })).toHaveCount(0);
   await page.goto("/platform/discovery");
@@ -104,7 +104,7 @@ test("workspace entry and returning to overview preserve the active assessment",
   const pointer = JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!);
   try {
     await page.getByRole("button", { name: "Product overview", exact: false }).click();
-    await expect(page.getByRole("heading", { name: "Decide what to automate. Know where AI belongs.", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { name: "Your business. AI-native by design.", exact: true })).toBeVisible();
     await page.getByRole("button", { name: "Start discovery", exact: false }).first().click();
     await expect(page.getByRole("heading", { name: "Discovery engagements", exact: true })).toBeVisible();
     expect(JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!).session).toBe(pointer.session);
@@ -140,7 +140,7 @@ test("public workspace sign-in retains the destination and displays access error
   await expect(page.getByRole("status").filter({ hasText: "Fictional access denied." })).toBeVisible();
   expect(await page.evaluate(() => Object.values(sessionStorage).some(value => String(value).includes("fictional-invalid-token")))).toBe(false);
   await page.getByRole("button", { name: "Product overview", exact: false }).click();
-  await expect(page.getByRole("heading", { name: "Decide what to automate. Know where AI belongs.", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your business. AI-native by design.", exact: true })).toBeVisible();
 });
 
 test("signing in from the assessment action opens intake without creating a workflow", async ({ page }) => {
@@ -157,7 +157,7 @@ test("signing in from the assessment action opens intake without creating a work
   await expect(page.getByRole("heading", { name: "Enterprise Context", exact: true })).toBeVisible();
   expect(await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1"))).toBeNull();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Decide what to automate. Know where AI belongs.", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Your business. AI-native by design.", exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
 });
 
@@ -178,12 +178,12 @@ test("desktop dropdowns support keyboard dismissal, outside close and substantiv
   await expect(platform).toHaveAttribute("aria-expanded", "false");
   await page.locator("main").click({ position: { x: 8, y: 8 } });
   await expect(nav.getByRole("button", { name: "Solutions", exact: true })).toHaveAttribute("aria-expanded", "false");
-  for (const name of ["Platform", "Solutions", "Resources"]) {
+  for (const name of ["Consulting", "Platform", "Solutions", "Resources"]) {
     await nav.getByRole("button", { name, exact: true }).click();
     const links = nav.locator(".marketing-dropdown:visible a");
     for (const link of await links.all()) {
       const href = (await link.getAttribute("href"))!;
-      expect(href).toMatch(/^\/(platform|solutions|resources)\/[a-z-]+$/);
+      expect(href).toMatch(/^\/(consulting(\/[a-z-]+)?|(platform|solutions|resources)\/[a-z-]+)$/);
       const response = await page.request.get(href);
       expect(response.status()).toBe(200);
     }
