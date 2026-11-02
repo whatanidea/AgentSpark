@@ -7,7 +7,7 @@ const offers = [
   ["/consulting/adoption", "AI Adoption & Optimization", "Retainers have defined capacity"],
 ] as const;
 
-test("consulting is integrated with the platform without vendor, funding or booking claims", async ({ page }) => {
+test("consulting is integrated without vendor or funding claims and scheduling remains opt-in", async ({ page }) => {
   const apiCalls: string[] = [];
   const schedulerRequests: string[] = [];
   page.on("request", request => {
@@ -36,7 +36,7 @@ test("consulting is integrated with the platform without vendor, funding or book
   const diligence = page.getByRole("region", { name: "Ambition, with an evidence trail.", exact: true });
   await expect(diligence).toContainText("No blanket GDPR or AI Act certification is claimed");
   await expect(diligence).toContainText("Estimates remain estimates");
-  await expect(page.getByRole("link", { name: /book.*call|schedule.*call/i })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Book a consultation", exact: false }).first()).toBeVisible();
   await expect(page.locator("iframe")).toHaveCount(0);
   expect(schedulerRequests).toEqual([]);
   expect(apiCalls.filter(call => !["GET /api/v1/auth/config", "GET /api/v1/auth/me"].includes(call))).toEqual([]);

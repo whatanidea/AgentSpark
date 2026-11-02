@@ -3,7 +3,7 @@ import { CONSULTING_OFFERINGS, type ConsultingOffering } from "./consultingConte
 import { MarketingIcon } from "./MarketingVisuals";
 import BuyerConfidence from "./BuyerConfidence";
 
-type DiscoveryAction = { disabled: boolean; onDiscover: () => void };
+type DiscoveryAction = { disabled: boolean; onDiscover: () => void; onBook: () => void };
 
 function OfferingCards({ compact = false }: { compact?: boolean }) {
   return <div className={`consulting-offers${compact ? " consulting-offers-compact" : ""}`}>
@@ -17,7 +17,7 @@ function OfferingCards({ compact = false }: { compact?: boolean }) {
   </div>;
 }
 
-export function HomeConsulting({ disabled, onDiscover }: DiscoveryAction) {
+export function HomeConsulting({ disabled, onDiscover, onBook }: DiscoveryAction) {
   return <section className="consulting-home landing-container" aria-labelledby="consulting-home-title">
     <div className="premium-section-heading"><div><p className="landing-eyebrow">AgentSpark Consulting</p>
       <h2 id="consulting-home-title">The platform brings clarity.<br /><span>Consulting moves the work forward.</span></h2></div>
@@ -25,7 +25,8 @@ export function HomeConsulting({ disabled, onDiscover }: DiscoveryAction) {
         <Link className="consulting-text-link" to="/consulting">Meet your transformation journey <span aria-hidden="true">↗</span></Link></div></div>
     <OfferingCards compact />
     <div className="consulting-home-bottom"><p>Consulting delivery is separately scoped. Platform discovery is not a booked consultation or a promise of follow-up.</p>
-      <button className="landing-button landing-button-secondary" disabled={disabled} onClick={onDiscover}>Start a workflow review <span aria-hidden="true">↗</span></button></div>
+      <div className="consulting-booking-actions"><button className="landing-button landing-button-primary" onClick={onBook}>Book a consultation <span aria-hidden="true">↗</span></button>
+        <button className="consulting-text-link" disabled={disabled} onClick={onDiscover}>Start a workflow review <span aria-hidden="true">↗</span></button></div></div>
   </section>;
 }
 
@@ -60,7 +61,7 @@ function DeliveryPrinciples() {
   </section>;
 }
 
-export default function ConsultingContent({ path, disabled, onDiscover }: DiscoveryAction & { path: string }) {
+export default function ConsultingContent({ path, disabled, onDiscover, onBook }: DiscoveryAction & { path: string }) {
   const offering = CONSULTING_OFFERINGS.find(item => item.path === path);
   if (path !== "/consulting" && !offering) throw new Error(`Unknown consulting offering: ${path}`);
   return <>
@@ -87,9 +88,9 @@ export default function ConsultingContent({ path, disabled, onDiscover }: Discov
     {path === "/consulting" && <><DeliveryPrinciples /><BuyerConfidence disabled={disabled} onDiscover={onDiscover} /></>}
     <section className="consulting-section consulting-next landing-container" aria-labelledby="consulting-next-title">
       <div><p className="landing-eyebrow">Your next decision</p><h2 id="consulting-next-title">Bring one business question.</h2>
-        <p>Explore the public example, or use signed-in discovery to structure your workflow. Neither action books a call or commits you to a consulting engagement.</p></div>
-      <div className="landing-actions"><Link className="landing-button landing-button-secondary" to="/resources/example-assessment">Explore an example <span aria-hidden="true">↗</span></Link>
-        <button className="landing-button landing-button-primary" disabled={disabled} onClick={onDiscover}>Start in the platform <span aria-hidden="true">↗</span></button></div>
+        <p>Book a consultation through Cal.com, or ask your AI assistant to help coordinate. Prefer to explore first? Platform discovery remains a separate, signed-in action. Consulting scope is agreed before delivery.</p></div>
+      <div className="landing-actions"><button className="landing-button landing-button-primary" onClick={onBook}>Book a consultation <span aria-hidden="true">↗</span></button>
+        <button className="landing-button landing-button-secondary" disabled={disabled} onClick={onDiscover}>Start in the platform <span aria-hidden="true">↗</span></button></div>
     </section>
   </>;
 }

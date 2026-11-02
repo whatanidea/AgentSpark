@@ -21,6 +21,8 @@
 .consulting-home-bottom { display: flex; align-items: center; gap: 28px; justify-content: space-between; margin-top: 20px; }
 .consulting-home-bottom p { font-size: 12px; line-height: 1.7; color: var(--muted); max-width: 650px; margin: 0; }
 .consulting-home-bottom button { flex-shrink: 0; }
+.consulting-booking-actions { display: flex; flex-direction: column; align-items: center; gap: 4px; flex-shrink: 0; }
+.consulting-booking-actions .consulting-text-link { background: none; border: none; padding: 0 12px; }
 .consulting-section { padding-bottom: 72px; }
 .consulting-section h2 { font-size: clamp(28px, 3vw, 42px); line-height: 1.14; letter-spacing: -.04em; }
 .consulting-section p { color: var(--muted); line-height: 1.8; }

@@ -75,11 +75,19 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   Leadership/investment/programme-review content emphasizes baseline evidence,
   repeatable delivery and customer capability without promising funding, grant
   eligibility, EU endorsement or blanket GDPR/AI Act certification.
-  Cal.com hosted Free scheduling was selected for a future real booking link.
-  **No booking URL has been supplied or wired yet.** No scheduler script, embed,
-  fake booking CTA or contact-data collection is added. Until a real URL and its
-  privacy wording are approved, consulting actions use labelled signed-in platform
-  discovery or public examples, explicitly not a booked consultation.
+  Consulting calls use the supplied
+  [Cal.com event](https://cal.com/vienna-now-rdnzte/agentspark-consulting).
+  “Book a consultation” opens an accessible first-party dialog. The official
+  Cal.com embed library and third-party calendar load only after “Open calendar”;
+  a direct booking link remains available when the embed is blocked or slow.
+  The dialog discloses Cal.com's scheduling-data processing and privacy policy.
+  Query forwarding is explicitly disabled, links suppress the referrer, and no
+  assessment data or secrets are prefilled. Assistant booking is a separate
+  clipboard action with visible success/error feedback and manual-copy fallback.
+  Visitors paste the supplied MCP/event instructions into their own compatible
+  assistant, review permissions and confirm details. Copying never books or
+  connects anything. Signed-in platform discovery remains a distinct action;
+  no booking records or contact details are stored in the AgentSpark workspace.
   Technology panels separate available platform capabilities, Azure/AWS blueprint
   candidates and customer implementation responsibilities. User-supplied, approved
   Azure/AWS SVG assets accompany the cloud labels with their original colors and

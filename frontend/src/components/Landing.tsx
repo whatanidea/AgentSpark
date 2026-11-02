@@ -10,6 +10,7 @@ import ArchitectureIllustration from "./ArchitectureIllustration";
 import DiscoveryInvitation from "./DiscoveryInvitation";
 import { TechnologyBoundaries } from "./BuyerConfidence";
 import ConsultingContent, { HomeConsulting } from "./Consulting";
+import ConsultationBooking from "./ConsultationBooking";
 import { MarketingIcon, PageVisual, SignatureJourney } from "./MarketingVisuals";
 import { publicPage } from "./publicPages";
 import "./Landing.css";
@@ -57,6 +58,9 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
   const step = example.steps[stepIndex];
   const startLabel = hasSession ? "Open your workspace" : "Assess my workflow";
   const { pathname } = useLocation();
+  const [bookingPath, setBookingPath] = useState<string | null>(null);
+  const bookConsultation = () => setBookingPath(pathname);
+  useEffect(() => { setBookingPath(null); }, [pathname]);
   const page = publicPage(pathname);
   const home = page?.path === "/";
   const examplePage = page?.path === "/resources/example-assessment";
@@ -120,11 +124,12 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
         <h1 ref={title} tabIndex={-1} id="landing-title">{page?.title ?? "Page not found."}</h1>
         <p>{page?.summary ?? "This link does not point to an AgentSpark page. Return to the overview or use the navigation to explore the platform."}</p>
         {page && <div className="landing-actions">
-          <button className="landing-button landing-button-primary" disabled={disabled} onClick={onDiscover}>{consultingPage ? "Start in the platform" : "Start discovery"} <span aria-hidden="true">↗</span></button>
+          {consultingPage ? <button className="landing-button landing-button-primary" onClick={bookConsultation}>Book a consultation <span aria-hidden="true">↗</span></button>
+            : <button className="landing-button landing-button-primary" disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">↗</span></button>}
           {consultingPage ? <Link className="landing-button landing-button-secondary" to="/resources/example-assessment">Explore an example <span aria-hidden="true">↗</span></Link>
             : <button className="landing-button landing-button-secondary" disabled={disabled} onClick={onStart}>{startLabel}</button>}
         </div>}
-        {consultingPage && <p className="consulting-note">Platform discovery is not a call booking. Consulting scope and customer authorization are agreed separately.</p>}
+        {consultingPage && <p className="consulting-note">Book through Cal.com or copy instructions for your AI assistant. The calendar loads only when you choose to open it. Consulting scope and authorization are agreed separately.</p>}
         {!page && <Link className="landing-button landing-button-primary" to="/">Return to overview</Link>}
         {message && <p role="status" className="landing-feedback">{message}</p>}
         </div>
@@ -136,11 +141,11 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
         <div><MarketingIcon name="evidence" /><span>Evidence behind the opportunity</span></div>
         <div><MarketingIcon name="decision" /><span>Human-reviewed next steps</span></div>
       </aside>}
-      {home && <HomeConsulting disabled={disabled} onDiscover={onDiscover} />}
+      {home && <HomeConsulting disabled={disabled} onDiscover={onDiscover} onBook={bookConsultation} />}
       {home && <ProductShowcase />}
       {home && <HomeUseCases />}
       {home && <TechnologyBoundaries />}
-      {consultingPage && <ConsultingContent path={page.path} disabled={disabled} onDiscover={onDiscover} />}
+      {consultingPage && <ConsultingContent path={page.path} disabled={disabled} onDiscover={onDiscover} onBook={bookConsultation} />}
 
       {page?.path === "/platform/architecture" && <section data-reveal className="landing-section landing-container" aria-labelledby="architecture-example-title">
         <ArchitectureIllustration />
@@ -273,6 +278,7 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
           ["People stay accountable", "A reviewed handoff does not confirm diagnostic facts, grant permissions or authorize autonomous execution."],
           ["Retention stays bounded", "New engagements expire after 30 days unless explicitly renewed. Ordinary edits do not extend expiry; assessment and archive copies follow their own retention."],
           ["Consulting is separately scoped", "The assessment platform does not automatically onboard providers or implement workflows. Customer administrators own accounts, contracts and access; delivery responsibilities are agreed in the engagement."],
+          ["Scheduling is a separate choice", "Cal.com processes scheduling data when you open its calendar or direct booking link. No scheduler is loaded before that choice; page query parameters and assessment data are not forwarded. Copying instructions does not connect an assistant or book a meeting: review permissions and confirm details yourself. Do not send secrets or confidential customer data."],
           ["European projects need specific diligence", "Data roles, transfers, retention, accessibility and applicable AI Act obligations depend on the actual service and use case. No blanket GDPR compliance, AI Act certification, EU endorsement or grant eligibility is claimed."],
         ].map(([title, detail]) => <details key={title}><summary>{title}<span aria-hidden="true">+</span></summary><p>{detail}</p></details>)}</div>
       </section>}
@@ -290,5 +296,6 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
         <Link to="/resources/example-assessment">Example assessment</Link><Link to="/resources/trust">Trust & limitations</Link></div>
       <a className="premium-back-top" href="#top">Back to top ↑</a>
     </footer>
+    {bookingPath === pathname && <ConsultationBooking onClose={() => setBookingPath(null)} />}
   </div>;
 }
