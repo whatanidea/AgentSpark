@@ -7,7 +7,7 @@ export function TechnologyBoundaries() {
   return <section className="premium-technology landing-container" aria-labelledby="technology-title">
     <div className="premium-section-heading"><div><p className="landing-eyebrow">Technology with context</p>
       <h2 id="technology-title">Your decisions first.<br /><span>The stack follows.</span></h2></div>
-      <p>AgentSpark is an assessment platform, not a model marketplace or an integration gateway. Keep product capabilities separate from a proposed customer solution.</p></div>
+      <p>AgentSpark's software is an assessment platform, not a model marketplace or an integration gateway. Consulting delivery and proposed customer solutions are separate from product capabilities.</p></div>
     <div className="premium-technology-grid">
       <article><MarketingIcon name="lock" /><span className="premium-category-label">IN THE PLATFORM</span><h3>Scoped collaboration</h3>
         <p>Microsoft sign-in, team-scoped discovery, source provenance and reviewed assessment outputs.</p><span className="premium-tech-badge">AgentSpark capability</span></article>

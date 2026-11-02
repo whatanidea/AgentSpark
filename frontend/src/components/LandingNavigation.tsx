@@ -4,6 +4,7 @@ import { PUBLIC_PAGES } from "./publicPages";
 import { MarketingIcon, publicVisual } from "./MarketingVisuals";
 
 const menus = {
+  Consulting: PUBLIC_PAGES.filter(page => page.section === "Consulting"),
   Platform: PUBLIC_PAGES.filter(page => page.section === "Platform"),
   Solutions: PUBLIC_PAGES.filter(page => page.section === "Solutions"),
   Resources: PUBLIC_PAGES.filter(page => page.section === "Resources"),
@@ -45,18 +46,18 @@ export default function LandingNavigation({ disabled, signedIn, onWorkspace, onD
       <nav id="marketing-navigation" className="marketing-navigation" data-mobile-open={mobile} aria-label="Product navigation">
         <NavLink to="/about" onClick={close}>About</NavLink>
         {(Object.keys(menus) as Menu[]).map(name => <div className="marketing-menu" key={name}>
-          <button ref={element => { triggers.current[name] = element; }} aria-expanded={open === name} data-active={pathname.startsWith(`/${name.toLowerCase()}/`)}
+          <button ref={element => { triggers.current[name] = element; }} aria-expanded={open === name} data-active={pathname === `/${name.toLowerCase()}` || pathname.startsWith(`/${name.toLowerCase()}/`)}
             aria-controls={`marketing-${name.toLowerCase()}`} onClick={() => setOpen(current => current === name ? null : name)}>
             {name}<svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="m3 4 3 3 3-3" fill="none" stroke="currentColor" /></svg>
           </button>
           <div id={`marketing-${name.toLowerCase()}`} className="marketing-dropdown" hidden={open !== name}>
             <div className="premium-menu-feature" aria-hidden="true">
-              <span className="premium-category-label">{name === "Platform" ? "FROM DISCOVERY TO DECISION" : name === "Solutions" ? "BUILT AROUND YOUR WORK" : "EXPLORE WITH CLARITY"}</span>
-              <strong>{name === "Platform" ? "The work comes first." : name === "Solutions" ? "One process. A clearer next step." : "See what a decision needs."}</strong>
+              <span className="premium-category-label">{name === "Consulting" ? "STRATEGY THROUGH ADOPTION" : name === "Platform" ? "FROM DISCOVERY TO DECISION" : name === "Solutions" ? "BUILT AROUND YOUR WORK" : "EXPLORE WITH CLARITY"}</span>
+              <strong>{name === "Consulting" ? "Build the capability. Not just the pilot." : name === "Platform" ? "The work comes first." : name === "Solutions" ? "One process. A clearer next step." : "See what a decision needs."}</strong>
               <div className="premium-menu-map"><MarketingIcon name="process" /><span /><MarketingIcon name="evidence" /><span /><MarketingIcon name="decision" /></div>
               <small>Evidence-led. Human-reviewed.</small>
             </div>
-            <div className="premium-menu-links"><p className="landing-eyebrow">{name === "Platform" ? "Discover / prepare / decide" : name === "Solutions" ? "Choose your perspective" : "Product examples & boundaries"}</p>
+            <div className="premium-menu-links"><p className="landing-eyebrow">{name === "Consulting" ? "Four offers / one connected journey" : name === "Platform" ? "Discover / prepare / decide" : name === "Solutions" ? "Choose your perspective" : "Product examples & boundaries"}</p>
             <ul>{menus[name].map(page => <li key={page.path}>
               <NavLink to={page.path} onClick={close}><span className="premium-menu-icon"><MarketingIcon name={publicVisual(page).icon} /></span>
                 <div><strong>{page.name}<span aria-hidden="true">↗</span></strong><small>{page.summary}</small></div></NavLink>

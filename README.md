@@ -40,8 +40,8 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
 - **Make an executive decision:** inspect a source-linked executive brief with
   an advisory decision, illustrative capacity value, gaps and next action.
   Export Markdown or a one-page PDF without confusing suitability with pilot readiness.
-- **Explore before signing in:** the concise public homepage links to 11 focused
-  About, Platform, Solutions and Resources pages. Each submenu has a dedicated URL,
+- **Explore before signing in:** the concise public homepage links to 16 focused
+  Consulting, About, Platform, Solutions and Resources pages. Each submenu has a dedicated URL,
   page title and active-navigation state; direct links, refresh and browser history
   work without discarding a restored assessment. The public experience uses an
   original process-to-opportunity hero, a visitor-controlled four-stage product
@@ -62,9 +62,24 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   ownership and pilot gaps alongside process steps and improvement alternatives.
   Both remain visible without autoplay and use clearly fictional previews, not
   measured customer results, organizational monitoring or process-mining claims.
-  The homepage identifies AgentSpark as an AI opportunity discovery and assessment
-  platform and names the shortlist, readiness gaps, architecture and executive brief
-  customers can review before investing in a pilot.
+  The homepage presents AgentSpark Consulting alongside the existing evidence-led
+  assessment platform. Consulting is separately scoped human delivery, not a new
+  automated provider integration or a change to the signed-in product.
+  `/consulting` explains the AI-native approach and four offerings:
+  `/consulting/readiness`, `/consulting/workspace-launch`,
+  `/consulting/workflow-pilot` and `/consulting/adoption`. Each has its own outputs,
+  delivery method, customer responsibilities and explicit exclusions.
+  OpenAI, Anthropic and Google are independent advisory options, not partner claims;
+  workplace subscriptions and developer workloads are separate. Google consulting
+  does not add Google Cloud blueprint generation to the platform's Azure/AWS support.
+  Leadership/investment/programme-review content emphasizes baseline evidence,
+  repeatable delivery and customer capability without promising funding, grant
+  eligibility, EU endorsement or blanket GDPR/AI Act certification.
+  Cal.com hosted Free scheduling was selected for a future real booking link.
+  **No booking URL has been supplied or wired yet.** No scheduler script, embed,
+  fake booking CTA or contact-data collection is added. Until a real URL and its
+  privacy wording are approved, consulting actions use labelled signed-in platform
+  discovery or public examples, explicitly not a booked consultation.
   Technology panels separate available platform capabilities, Azure/AWS blueprint
   candidates and customer implementation responsibilities. User-supplied, approved
   Azure/AWS SVG assets accompany the cloud labels with their original colors and
