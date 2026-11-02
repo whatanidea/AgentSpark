@@ -164,6 +164,8 @@ test("dialog traps keyboard focus, fits mobile/reduced motion and closes on hist
     expect(bounds.x).toBeGreaterThanOrEqual(0);
     expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
     expect(bounds.height).toBeLessThanOrEqual(900);
+    expect(Math.abs(bounds.x - (width - bounds.width) / 2)).toBeLessThanOrEqual(1);
+    expect(Math.abs(bounds.y - (900 - bounds.height) / 2)).toBeLessThanOrEqual(1);
     expect(await dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true);
     for (const button of await dialog.getByRole("button").all())
       expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);

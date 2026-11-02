@@ -1,4 +1,4 @@
-.consultation-dialog { color: var(--ink); background: #f7f8fb; border: 1px solid #d5dfe6; border-radius: 22px; width: min(1120px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 32px); padding: 0; box-shadow: 0 32px 100px #0f172b55; }
+.consultation-dialog { color: var(--ink); background: #f7f8fb; border: 1px solid #d5dfe6; border-radius: 22px; width: min(1120px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 32px); margin: auto; padding: 0; box-shadow: 0 32px 100px #0f172b55; }
 .consultation-dialog::backdrop { background: #0e1838b8; }
 .consultation-dialog-header { position: sticky; top: 0; display: flex; justify-content: space-between; align-items: start; gap: 20px; padding: 24px 28px; background: #fff; border-bottom: 1px solid #d5dfe6; z-index: 1; }
 .consultation-dialog-header .landing-eyebrow { margin: 0 0 10px; }
