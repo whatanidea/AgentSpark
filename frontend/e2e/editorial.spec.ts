@@ -18,7 +18,7 @@ test("editorial hero leads with consulting and offers controllable motion withou
   const pause = field.getByRole("button", { name: "Pause illustration", exact: true });
   await pause.focus(); await page.keyboard.press("Enter");
   await expect(field.getByRole("button", { name: "Resume illustration", exact: true })).toBeFocused();
-  await expect.poll(() => field.evaluate(node => node.getAnimations({ subtree: true }).every(animation => animation.playState === "paused"))).toBe(true);
+  await expect.poll(() => field.evaluate(node => node.getAnimations({ subtree: true }).every(animation => animation.playState === "paused" && !animation.pending))).toBe(true);
   await page.keyboard.press("Enter");
   await expect.poll(() => field.evaluate(node => node.getAnimations({ subtree: true }).some(animation => animation.playState === "running"))).toBe(true);
   await page.emulateMedia({ reducedMotion: "reduce" });
