@@ -1,18 +1,17 @@
 import { expect, test } from "@playwright/test";
 
-test("signature, product stages and technology boundaries explain real capabilities without marketing API writes", async ({ page }) => {
+test("editorial journey, product stages and technology boundaries explain capabilities without marketing API writes", async ({ page }) => {
   const calls: string[] = [];
   page.on("request", request => {
     if (request.url().includes("/api/") || request.url().endsWith("/ready"))
       calls.push(`${request.method()} ${new URL(request.url()).pathname}`);
   });
   await page.goto("/");
-  const hero = page.getByRole("figure", { name: "Fictional invoice opportunity, from process friction to a reviewed next step" });
-  await expect(hero).toContainText("Reported friction");
-  await expect(hero).toContainText("Source S1");
-  await expect(hero).toContainText("Human review required");
-  await expect(hero.locator(".signature-opportunity")).toHaveCSS("background-color", "rgb(20, 36, 58)");
-  await expect(hero.locator(".signature-avatar").first()).toHaveCSS("color", "rgb(15, 118, 110)");
+  const hero = page.getByRole("figure", { name: "Illustrative journey from business friction to human-reviewed progress" });
+  await expect(hero).toContainText("Customer-owned tools");
+  await expect(hero).toContainText("Human-reviewed progress");
+  await expect(hero).toContainText("Not a connected system or an autonomous workflow");
+  await expect(hero).toHaveCSS("background-color", "rgb(31, 32, 39)");
   await page.getByRole("link", { name: "Explore the product", exact: false }).click();
   const showcase = page.getByRole("region", { name: "See the work. Then decide what changes.", exact: true });
   await expect(showcase.getByRole("tabpanel", { name: /Discover/ })).toContainText("Clarification needed");
@@ -22,7 +21,7 @@ test("signature, product stages and technology boundaries explain real capabilit
     await expect(showcase).toContainText("fictional and unverified");
   }
   await expect(showcase).toContainText("Customer implementation and authorization remain separate");
-  await expect(showcase.locator(".premium-product-screen")).toHaveCSS("background-color", "rgb(20, 36, 58)");
+  await expect(showcase.locator(".premium-product-screen")).toHaveCSS("background-color", "rgb(31, 32, 39)");
   const technology = page.getByRole("region", { name: "Your decisions first. The stack follows.", exact: true });
   await expect(technology.getByRole("article")).toHaveCount(3);
   await expect(technology).toContainText("Not connected integrations");
@@ -95,7 +94,7 @@ test("workflow review opens the protected existing discovery flow without a fake
     mode: "oidc", retention_hours: 24, archive_retention_days: 30,
   } }));
   await page.goto("/");
-  const buyer = page.getByRole("region", { name: "The platform brings clarity. Consulting moves the work forward.", exact: true });
+  const buyer = page.getByRole("region", { name: "A deliberate journey. Not another AI experiment.", exact: true });
   await expect(buyer).toContainText("not a booked consultation or a promise of follow-up");
   await buyer.getByRole("button", { name: "Start a workflow review", exact: false }).click();
   await expect(page.getByRole("heading", { name: "Organization access", exact: true })).toBeVisible();

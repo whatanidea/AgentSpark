@@ -11,8 +11,8 @@ const menus = {
 } as const;
 type Menu = keyof typeof menus;
 
-export default function LandingNavigation({ disabled, signedIn, onWorkspace, onDiscover }: {
-  disabled: boolean; signedIn: boolean; onWorkspace: () => void; onDiscover: () => void;
+export default function LandingNavigation({ disabled, signedIn, onWorkspace, onBook }: {
+  disabled: boolean; signedIn: boolean; onWorkspace: () => void; onBook: () => void;
 }) {
   const [open, setOpen] = useState<Menu | null>(null);
   const [mobile, setMobile] = useState(false);
@@ -44,7 +44,6 @@ export default function LandingNavigation({ disabled, signedIn, onWorkspace, onD
         <span className="landing-brand-mark" aria-hidden="true">✦</span> AgentSpark
       </Link>
       <nav id="marketing-navigation" className="marketing-navigation" data-mobile-open={mobile} aria-label="Product navigation">
-        <NavLink to="/about" onClick={close}>About</NavLink>
         {(Object.keys(menus) as Menu[]).map(name => <div className="marketing-menu" key={name}>
           <button ref={element => { triggers.current[name] = element; }} aria-expanded={open === name} data-active={pathname === `/${name.toLowerCase()}` || pathname.startsWith(`/${name.toLowerCase()}/`)}
             aria-controls={`marketing-${name.toLowerCase()}`} onClick={() => setOpen(current => current === name ? null : name)}>
@@ -65,11 +64,12 @@ export default function LandingNavigation({ disabled, signedIn, onWorkspace, onD
             </div>
           </div>
         </div>)}
+        <NavLink to="/about" onClick={close}>About</NavLink>
       </nav>
       <div className="marketing-header-actions">
         <button className="marketing-workspace" disabled={disabled} onClick={() => { close(); onWorkspace(); }}>{signedIn ? "Workspace" : "Sign in"}</button>
-        <button className="landing-button landing-button-primary marketing-header-cta" disabled={disabled}
-          onClick={() => { close(); onDiscover(); }}>Start discovery <span aria-hidden="true">↗</span></button>
+        <button className="landing-button landing-button-primary marketing-header-cta"
+          onClick={() => { close(); onBook(); }}>Book a consultation <span aria-hidden="true">↗</span></button>
         <button ref={toggle} className="marketing-mobile-toggle" aria-label={mobile ? "Close navigation" : "Open navigation"}
           aria-expanded={mobile} aria-controls="marketing-navigation" onClick={() => { setMobile(current => !current); setOpen(null); }}>
           <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24"><path d={mobile ? "m6 6 12 12M6 18 18 6" : "M4 7h16M4 12h16M4 17h16"}

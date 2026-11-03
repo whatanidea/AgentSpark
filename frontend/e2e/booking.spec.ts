@@ -105,7 +105,7 @@ test("assistant instructions copy locally with truthful confirmation and no sche
   expect(requests).toEqual([]);
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
-  await expect(page.getByRole("region", { name: "The platform brings clarity. Consulting moves the work forward.", exact: true })
+  await expect(page.getByRole("banner")
     .getByRole("button", { name: "Book a consultation", exact: false })).toBeFocused();
 });
 

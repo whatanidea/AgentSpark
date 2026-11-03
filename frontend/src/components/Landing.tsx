@@ -11,12 +11,14 @@ import DiscoveryInvitation from "./DiscoveryInvitation";
 import { TechnologyBoundaries } from "./BuyerConfidence";
 import ConsultingContent, { HomeConsulting } from "./Consulting";
 import ConsultationBooking from "./ConsultationBooking";
-import { MarketingIcon, PageVisual, SignatureJourney } from "./MarketingVisuals";
+import { MarketingIcon, PageVisual } from "./MarketingVisuals";
+import { SignalField } from "./EditorialExperience";
 import { publicPage } from "./publicPages";
 import "./Landing.css";
 import "./Marketing.css";
 import "./Premium.css";
 import "./Consulting.css";
+import "./Editorial.css";
 
 type Step = { title: string; kind: "assist" | "rules" | "human"; detail: string; gap: string; azure: string; aws: string };
 type Example = { name: string; icon: IconName; team: string; steps: Step[] };
@@ -98,24 +100,28 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
     return () => { document.title = oldTitle; if (existing) description.content = oldDescription; else description.remove(); };
   }, [page, pathname]);
 
-  return <div ref={site} className="landing multipage-site" data-page={page?.path ?? "not-found"}>
+  return <div ref={site} className="landing multipage-site editorial-site" data-page={page?.path ?? "not-found"}>
     <a className="landing-skip" href="#landing-main">Skip to content</a>
-    <LandingNavigation disabled={disabled} signedIn={signedIn} onWorkspace={onWorkspace} onDiscover={onDiscover} />
+    <LandingNavigation disabled={disabled} signedIn={signedIn} onWorkspace={onWorkspace} onBook={bookConsultation} />
 
     <main id="landing-main" key={page?.path ?? pathname}>
       {home ? <section id="top" className="landing-hero landing-container" aria-labelledby="landing-title">
         <div className="landing-hero-copy">
-          <div className="landing-kicker"><span aria-hidden="true" /> AI consulting &amp; an evidence-led assessment platform</div>
+          <div className="editorial-hero-meta"><div className="landing-kicker"><span aria-hidden="true" /> AI consulting &amp; an evidence-led assessment platform</div>
+            <span>INDEPENDENT THINKING / PRACTICAL DELIVERY</span></div>
           <h1 ref={title} tabIndex={-1} id="landing-title">Your business.<br /><span>AI-native by design.</span></h1>
-          <p>We help SMEs choose where AI belongs, equip their people and improve how work gets done. Consulting for the journey. A platform for the decisions.</p>
-          <div className="landing-actions">
-            <Link className="landing-button landing-button-primary" to="/consulting">Explore consulting <span aria-hidden="true">↗</span></Link>
-            <a className="landing-button landing-button-secondary" href="#product-showcase">Explore the product <span aria-hidden="true">↗</span></a>
+          <div className="editorial-hero-bottom">
+            <p>We help SMEs turn AI ambition into better ways of working. Find the opportunity. Equip your people. Prove a workflow. Build the capability to keep improving.</p>
+            <div><div className="landing-actions">
+              <button className="landing-button landing-button-primary" onClick={bookConsultation}>Book a consultation <span aria-hidden="true">↗</span></button>
+              <Link className="landing-button landing-button-secondary" to="/consulting">Explore consulting <span aria-hidden="true">↗</span></Link>
+            </div>
+            <a className="editorial-product-link" href="#product-showcase">Explore the product <span aria-hidden="true">↗</span></a></div>
           </div>
           <p className="landing-fine">Already have a workflow in mind? <button className="marketing-inline-action" disabled={disabled} onClick={onStart}>{startLabel}</button></p>
           {message && <p role="status" className="landing-feedback">{message}</p>}
         </div>
-        <SignatureJourney />
+        <SignalField />
       </section> : <section id="top" className="marketing-page-hero landing-container" aria-labelledby="landing-title">
         <div className="premium-page-copy">
         <nav className="marketing-breadcrumb" aria-label="Breadcrumb"><Link to="/">Home</Link><span aria-hidden="true">/</span>
