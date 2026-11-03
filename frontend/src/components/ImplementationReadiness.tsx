@@ -26,11 +26,11 @@ export function ReadinessSummary({ report }: { report?: ImplementationReadinessR
     <p className="text-sm">No implementation-readiness snapshot in this assessment. Complete Implementation readiness and rerun analysis.</p>
   </Card>;
   return <Card title="Implementation Readiness Report">
-    <Pill tone={report.decision === "ready" ? "green" : report.decision === "blocked" ? "red" : "amber"}>
+    <Pill tone={report.decision === "ready" ? "positive" : report.decision === "blocked" ? "red" : "amber"}>
       {DECISIONS[report.decision]}
     </Pill>
     <p className="text-sm mt-3">{report.rationale}</p>
-    <p className="text-xs text-slate-500 mt-2">{report.limitations}</p>
+    <p className="text-xs text-zinc-500 mt-2">{report.limitations}</p>
     <p className="text-xs mt-3">Readiness version {report.revision} / evidence version {report.evidence_revision}
       {" / "}{report.target_cloud === "aws" ? "AWS" : "Azure"} / {report.preferred_region || "Region unspecified"}
       {" / "}{new Date(report.assessed_at).toLocaleString()}</p>
@@ -39,7 +39,7 @@ export function ReadinessSummary({ report }: { report?: ImplementationReadinessR
     <p className="text-sm break-words">Residency: {report.workflow_context.data_residency_requirements || "Not specified"}</p>
     <p className="text-sm break-words">Deployment constraints: {report.workflow_context.deployment_constraints || "Not specified"}</p>
     <div className="mt-4 space-y-3">{report.checks.map(check =>
-      <section key={check.id} className="rounded-lg border p-3 text-sm break-words">
+      <section key={check.id} className="rounded border p-3 text-sm break-words">
         <h3 className="font-semibold">{check.title}: {check.status.replace(/_/g, " ")}</h3>
         {check.reported_status !== check.status && <p className="text-amber-800">Reported ready; validation is still required.</p>}
         <p className="whitespace-pre-wrap mt-2">{check.finding || "No finding supplied."}</p>

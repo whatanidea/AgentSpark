@@ -86,7 +86,7 @@ export default function Workspaces({ identity, demo, onSelect, onBusyChange, inv
       <label className="block text-sm">Signed-in identity ID
         <input readOnly className="form-control block mt-2 font-mono text-xs" value={identity} />
       </label>
-      <p className="text-xs text-slate-500 mt-2">The easiest way to join an organization is an invite link from its administrator. Administrators can also add this ID directly.</p>
+      <p className="text-xs text-zinc-500 mt-2">The easiest way to join an organization is an invite link from its administrator. Administrators can also add this ID directly.</p>
       <div className="flex flex-wrap gap-3 mt-4">
         <Button variant="ghost" disabled={busy} onClick={() => onSelect(null)}>Use personal workspace</Button>
         <Button variant="ghost" disabled={busy} onClick={() => void run(refresh)}>Refresh organizations</Button>
@@ -133,7 +133,7 @@ export default function Workspaces({ identity, demo, onSelect, onBusyChange, inv
       </form>
     </Card>
     <Card title="Your organizations">
-      {!organizations.items.length && <p className="text-sm text-slate-500">No organizations yet. Create one or ask an administrator to add your identity.</p>}
+      {!organizations.items.length && <p className="text-sm text-zinc-500">No organizations yet. Create one or ask an administrator to add your identity.</p>}
       {organizations.items.length > 0 && <label className="block text-sm">Organization
         <select className="form-control block mt-2" disabled={busy} value={organization}
           onChange={event => void run(() => scope(event.target.value))}>
@@ -148,8 +148,8 @@ export default function Workspaces({ identity, demo, onSelect, onBusyChange, inv
     {selected && <>
       <Card title="Teams" description="Team access is checked by the server on every workflow request.">
         <div className="space-y-3">
-          {teams.items.map(team => <div key={team.team_id} className="flex flex-wrap items-center justify-between gap-3 border border-slate-200 rounded-xl p-4">
-            <div><p className="font-semibold text-sm">{team.name}</p><p className="text-xs text-slate-500 mt-1">{team.permissions.join(" / ")}</p></div>
+          {teams.items.map(team => <div key={team.team_id} className="flex flex-wrap items-center justify-between gap-3 border border-zinc-200 rounded p-4">
+            <div><p className="font-semibold text-sm">{team.name}</p><p className="text-xs text-zinc-500 mt-1">{team.permissions.join(" / ")}</p></div>
             <div className="flex gap-2 flex-wrap">
               <Button variant="ghost" disabled={busy} onClick={() => onSelect({
                 organization_id: organization, team_id: team.team_id, organization_name: selected.name, team_name: team.name,
@@ -162,7 +162,7 @@ export default function Workspaces({ identity, demo, onSelect, onBusyChange, inv
               })}>Manage {team.name} roles</Button>}
             </div>
           </div>)}
-          {!teams.items.length && <p className="text-sm text-slate-500">No accessible teams. Administrators can create one or grant you team access.</p>}
+          {!teams.items.length && <p className="text-sm text-zinc-500">No accessible teams. Administrators can create one or grant you team access.</p>}
         </div>
         {teams.next_cursor && <Button variant="ghost" disabled={busy} className="mt-3" onClick={() => void run(async () => {
           const next = await api.teams(organization, teams.next_cursor!);
@@ -233,11 +233,11 @@ export default function Workspaces({ identity, demo, onSelect, onBusyChange, inv
             .then(() => setMessage("Invite link copied."), () => setMessage("Copy failed; select the link and copy it manually."))}>Copy invite link</Button>
         </div>}
         <div className="space-y-2 mt-5">
-          {invites.items.map(invite => <div key={invite.invite_id} className="border border-slate-200 rounded-lg p-3 flex flex-wrap gap-3 items-center justify-between">
+          {invites.items.map(invite => <div key={invite.invite_id} className="border border-zinc-200 rounded p-3 flex flex-wrap gap-3 items-center justify-between">
             <div className="min-w-0 text-xs">
-              <p><Pill tone={invite.status === "active" ? "green" : "slate"}>{invite.status}</Pill>{" "}
+              <p><Pill tone={invite.status === "active" ? "positive" : "slate"}>{invite.status}</Pill>{" "}
                 {invite.role}{invite.team_id ? ` + ${teams.items.find(team => team.team_id === invite.team_id)?.name || "team"} (${invite.team_roles.join(", ")})` : ""}</p>
-              <p className="text-slate-500 mt-1">Used {invite.uses}/{invite.max_uses} · expires {new Date(invite.expires_at).toLocaleString()}</p>
+              <p className="text-zinc-500 mt-1">Used {invite.uses}/{invite.max_uses} · expires {new Date(invite.expires_at).toLocaleString()}</p>
             </div>
             {invite.status === "active" && (selected.role === "owner" || invite.role !== "admin") &&
               <Button variant="ghost" disabled={busy} onClick={() => void run(async () => {
@@ -245,7 +245,7 @@ export default function Workspaces({ identity, demo, onSelect, onBusyChange, inv
                 setInvites(await api.invites(organization)); setMessage("Invite link revoked.");
               })}>Revoke invite {invite.invite_id.slice(0, 8)}</Button>}
           </div>)}
-          {!invites.items.length && <p className="text-sm text-slate-500">No invite links yet.</p>}
+          {!invites.items.length && <p className="text-sm text-zinc-500">No invite links yet.</p>}
         </div>
         {invites.next_cursor && <Button variant="ghost" disabled={busy} className="mt-3" onClick={() => void run(async () => {
           const next = await api.invites(organization, invites.next_cursor!);
@@ -254,9 +254,9 @@ export default function Workspaces({ identity, demo, onSelect, onBusyChange, inv
       </Card>}
       {admin && <Card title="Organization members" description="Owners manage administrators. Administrators manage ordinary membership. The founding owner cannot be removed.">
         <div className="space-y-2">
-          {members.items.map(member => <div key={member.identity_id} className="border border-slate-200 rounded-lg p-3 flex flex-wrap gap-3 items-center justify-between">
+          {members.items.map(member => <div key={member.identity_id} className="border border-zinc-200 rounded p-3 flex flex-wrap gap-3 items-center justify-between">
             <div className="min-w-0"><p className="font-mono text-xs break-all">{member.identity_id}</p>
-              <p className="text-xs text-slate-500 mt-1">{member.role} / {member.active ? "active" : "revoked"}</p></div>
+              <p className="text-xs text-zinc-500 mt-1">{member.role} / {member.active ? "active" : "revoked"}</p></div>
             {member.role !== "owner" && <Button variant="ghost" disabled={busy} onClick={() => {
               setMemberId(member.identity_id); setMemberRole(member.role === "admin" ? "admin" : "member"); setMemberActive(member.active);
             }}>Edit member {member.identity_id.slice(0, 8)}</Button>}
@@ -291,9 +291,9 @@ export default function Workspaces({ identity, demo, onSelect, onBusyChange, inv
       </Card>}
       {admin && grantTeam && <Card title={`Team roles: ${teams.items.find(team => team.team_id === grantTeam)?.name || grantTeam}`}
         description="Contributors edit; reviewers decide; viewers read. Owners/admins can edit and delete, but need an explicit reviewer grant to review someone else's workflow.">
-        <div className="space-y-2">{grants.items.map(grant => <div key={grant.identity_id} className="border border-slate-200 rounded-lg p-3">
+        <div className="space-y-2">{grants.items.map(grant => <div key={grant.identity_id} className="border border-zinc-200 rounded p-3">
           <p className="font-mono text-xs break-all">{grant.identity_id}</p>
-          <div className="flex items-center gap-2 flex-wrap mt-2"><Pill tone={grant.effective_active ? "green" : "slate"}>{grant.effective_active ? "Active" : "Inactive / stale"}</Pill>
+          <div className="flex items-center gap-2 flex-wrap mt-2"><Pill tone={grant.effective_active ? "positive" : "slate"}>{grant.effective_active ? "Active" : "Inactive / stale"}</Pill>
             <span className="text-xs">{grant.roles.join(", ")}</span>
             <Button variant="ghost" disabled={busy} onClick={() => { setGrantId(grant.identity_id); setGrantRoles(grant.roles); setGrantActive(grant.active); }}>Edit team grant {grant.identity_id.slice(0, 8)}</Button>
           </div>

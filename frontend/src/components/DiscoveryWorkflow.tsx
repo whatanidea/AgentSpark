@@ -161,10 +161,10 @@ export default function DiscoveryWorkflow({ record, blocked, onChange, onBusyCha
       {models?.items.filter(item => !item.available).map(item => item.id === "foundry-claude-haiku" ?
         <div key={item.id} role="group" aria-label={`${item.label} - Coming soon`} aria-disabled="true"
           aria-describedby="discovery-claude-coming-soon" tabIndex={0}
-          className="group relative mt-3 inline-flex cursor-not-allowed rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 outline-none focus-visible:ring-2 focus-visible:ring-teal-600">
+          className="group relative mt-3 inline-flex cursor-not-allowed rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-500 outline-none focus-visible:ring-2 focus-visible:ring-brand-600">
           <span>{item.label} - Coming soon</span>
           <span id="discovery-claude-coming-soon" role="tooltip"
-            className="invisible absolute bottom-full left-0 z-10 mb-2 w-64 rounded-lg bg-slate-800 px-3 py-2 text-xs text-white shadow-lg group-hover:visible group-focus:visible">
+            className="invisible absolute bottom-full left-0 z-10 mb-2 w-64 rounded bg-zinc-800 px-3 py-2 text-xs text-white shadow-lg group-hover:visible group-focus:visible">
             Coming soon. Continue with Azure OpenAI.
           </span>
         </div> : <p key={item.id} className="text-xs mt-2">{item.label}: {item.reason}</p>)}

@@ -21,7 +21,7 @@ const humanize = (value: string) => value.replace(/_/g, " ");
 function Layer({ title, layer }: { title: string; layer: RuntimeDecisionLayer }) {
   return <section className="space-y-2 break-words">
     <h3 className="font-semibold">{title}: {layer.label}</h3>
-    <p className="text-xs text-slate-500">Selected ID: {layer.selected ?? "None selected"}</p>
+    <p className="text-xs text-zinc-500">Selected ID: {layer.selected ?? "None selected"}</p>
     <ul className="list-disc pl-5 text-sm">{layer.rationale.map((reason, index) => <li key={index}>{reason}</li>)}</ul>
     <details>
       <summary className="cursor-pointer text-sm font-medium">{title} alternatives</summary>
@@ -38,13 +38,13 @@ function Layer({ title, layer }: { title: string; layer: RuntimeDecisionLayer })
 export default function RuntimeDecisionSummary({ decision }: { decision?: RuntimeDecision | null }) {
   if (!decision) return <Card title="Architecture Runtime Decision">
     <p className="text-sm">Runtime selection not assessed</p>
-    <p className="text-xs text-slate-500 mt-2">No runtime decision was recorded in this snapshot. No selection is inferred from historical architecture text.</p>
+    <p className="text-xs text-zinc-500 mt-2">No runtime decision was recorded in this snapshot. No selection is inferred from historical architecture text.</p>
   </Card>;
   return <Card title="Architecture Runtime Decision">
     <div className="space-y-4">
-      <Pill tone={decision.status === "recommended" ? "green" : "amber"}>{STATUSES[decision.status]}</Pill>
+      <Pill tone={decision.status === "recommended" ? "positive" : "amber"}>{STATUSES[decision.status]}</Pill>
       <p className="text-sm">{ADVISORY}</p>
-      <p className="text-xs text-slate-500 break-words">Target: {decision.target_cloud === "aws" ? "AWS" : "Azure"}
+      <p className="text-xs text-zinc-500 break-words">Target: {decision.target_cloud === "aws" ? "AWS" : "Azure"}
         {" · "}Rules version: {decision.rules_version} · Catalog version: {decision.catalog_version}</p>
       <Layer title="Reasoning layer" layer={decision.reasoning} />
       <Layer title="Durable execution layer" layer={decision.durable_execution} />
@@ -64,7 +64,7 @@ export default function RuntimeDecisionSummary({ decision }: { decision?: Runtim
           <div key={key} className="break-words">
             <dt className="font-semibold">{label}</dt>
             <dd className="whitespace-pre-wrap">{value}</dd>
-            <dd className="text-xs text-slate-500">{provenance
+            <dd className="text-xs text-zinc-500">{provenance
               ? `${humanize(provenance.status)} · ${humanize(provenance.source)}` : "Provenance not recorded"}</dd>
             {provenance?.quote && <dd className="text-xs whitespace-pre-wrap">Source quote: {provenance.quote}</dd>}
           </div>)}</dl>

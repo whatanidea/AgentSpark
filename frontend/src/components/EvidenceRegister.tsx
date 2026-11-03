@@ -25,11 +25,11 @@ function EntryDetails({ entry }: { entry: EvidenceEntry }) {
     <p>Source reference: {entry.source_reference || "Not supplied"}</p>
     <p>Reporting period: {entry.reporting_period || "Not supplied"}</p>
     <p>User-linked diagnostic inputs: {entry.related_facts.join(", ") || "None"}</p>
-    {entry.confirmation ? <div className="rounded-lg bg-emerald-50 p-3">
+    {entry.confirmation ? <div className="rounded bg-brand-50 p-3">
       <p>Reviewer-confirmed by <span className="font-mono break-all">{entry.confirmation.confirmed_by}</span> at {date(entry.confirmation.confirmed_at)}</p>
       <p className="whitespace-pre-wrap">Confirmation method: {entry.confirmation.method}</p>
     </div> : <p className="text-amber-800">Not independently confirmed. A source reference does not verify this claim.</p>}
-    <details className="text-xs text-slate-500">
+    <details className="text-xs text-zinc-500">
       <summary className="cursor-pointer">Entry provenance</summary>
       <p className="break-all">Created by {entry.created_by} at {date(entry.created_at)}</p>
       <p className="break-all">Updated by {entry.updated_by} at {date(entry.updated_at)}</p>
@@ -42,11 +42,11 @@ export function EvidenceSummary({ report }: { report?: EvidenceReport | null }) 
     <p className="text-sm">This historical assessment has no evidence-register snapshot. Rerun the assessment to include one.</p>
   </Card>;
   return <Card title="Evidence-backed assessment">
-    <p className="text-sm text-slate-600">{report.limitations}</p>
+    <p className="text-sm text-zinc-600">{report.limitations}</p>
     <p className="text-sm mt-3">Register version: {report.revision} / {report.entries.length} entries.</p>
     {!report.entries.length && <p className="notice mt-3">No supporting entries supplied. Diagnostic statements and calculated outputs are not independently verified.</p>}
     <div className="space-y-4 mt-4">{report.entries.map(entry =>
-      <section id={`evidence-${entry.id}`} key={entry.id} className="border rounded-xl p-4"><EntryDetails entry={entry} /></section>)}</div>
+      <section id={`evidence-${entry.id}`} key={entry.id} className="border rounded p-4"><EntryDetails entry={entry} /></section>)}</div>
     <h3 className="font-semibold mt-5">Recommendation basis</h3>
     <p className="text-sm mt-2">{report.recommendation_basis.basis}</p>
     {report.recommendation_basis.classification && <p className="text-sm mt-2">
@@ -54,19 +54,19 @@ export function EvidenceSummary({ report }: { report?: EvidenceReport | null }) 
       {" "}Design: {report.recommendation_basis.recommended_pattern}.
     </p>}
     <details className="mt-4">
-      <summary className="cursor-pointer text-sm text-teal-700">Inspect findings and user-linked evidence</summary>
+      <summary className="cursor-pointer text-sm text-brand-700">Inspect findings and user-linked evidence</summary>
       <ul className="space-y-3 mt-3 text-sm">{report.findings.map(finding => <li key={finding.fact}>
         <strong>{finding.fact}</strong>: {JSON.stringify(finding.value)} / {finding.provenance.status} / {finding.provenance.source}
         <p>Linked entries: {finding.evidence_ids.length ? finding.evidence_ids.map(id =>
-          <a key={id} className="text-teal-700 underline mr-2" href={`#evidence-${id}`}>[{id}]</a>) : "None"}</p>
+          <a key={id} className="text-brand-700 underline mr-2" href={`#evidence-${id}`}>[{id}]</a>) : "None"}</p>
         {finding.provenance.quote && <blockquote className="border-l-2 pl-3 mt-1">{finding.provenance.quote}</blockquote>}
       </li>)}</ul>
     </details>
     <h3 className="font-semibold mt-5">Outstanding validation checklist</h3>
     {report.validation_checklist.length ? <ul className="list-disc pl-5 text-sm space-y-3 mt-3">
       {report.validation_checklist.map(item => <li key={item.evidence_id}>
-        <a className="text-teal-700 underline" href={`#evidence-${item.evidence_id}`}>[{item.evidence_id}]</a>
-        {" "}{item.statement}<p className="text-slate-600">{item.action}</p>
+        <a className="text-brand-700 underline" href={`#evidence-${item.evidence_id}`}>[{item.evidence_id}]</a>
+        {" "}{item.statement}<p className="text-zinc-600">{item.action}</p>
       </li>)}
     </ul> : <p className="text-sm mt-2">No entry-specific checks outstanding. This is not a readiness or compliance certification.</p>}
   </Card>;
@@ -135,7 +135,7 @@ export default function EvidenceRegister({ sessionId, hasAnalysis, onRefresh, on
       {message && <p role="status" className="notice">{message}</p>}
       {register && <Card title={`Evidence register (${register.entries.length}/50)`}>
         {!register.entries.length && <p className="text-sm">No entries yet. Existing assessments remain usable without a register.</p>}
-        <div className="space-y-5">{register.entries.map(entry => <section key={entry.id} className="border rounded-xl p-4">
+        <div className="space-y-5">{register.entries.map(entry => <section key={entry.id} className="border rounded p-4">
           <EntryDetails entry={entry} />
           <div className="flex gap-2 flex-wrap mt-3">
             {register.permissions.write && <>
@@ -184,7 +184,7 @@ export default function EvidenceRegister({ sessionId, hasAnalysis, onRefresh, on
                 onChange={e => setDraft({ ...draft, related_facts: Array.from(e.target.selectedOptions, option => option.value) })}>
                 {FACTS.map(fact => <option key={fact} value={fact}>{fact}</option>)}
               </select></label>
-            <p className="text-xs text-slate-600">Editing content removes any previous confirmation. Changes clear current analysis and approval, not archived decisions.</p>
+            <p className="text-xs text-zinc-600">Editing content removes any previous confirmation. Changes clear current analysis and approval, not archived decisions.</p>
             <Button type="submit" disabled={!draft.statement.trim() || (!editing && register.entries.length >= 50)}>Save evidence entry</Button>
             {editing && <Button variant="ghost" onClick={() => { setDraft(empty()); setEditing(false); }}>Cancel edit</Button>}
           </fieldset>

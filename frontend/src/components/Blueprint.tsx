@@ -196,10 +196,10 @@ ${bp.code_scaffold || ""}
         <p className="font-semibold">{bp.enterprise_context?.target_cloud === "aws" ? "AWS" : "Azure"} / {bp.enterprise_context?.preferred_region || "Region not specified"} (unverified)</p>
         <p className="text-sm mt-2">Data residency: {bp.enterprise_context?.data_residency_requirements || "Not specified"}</p>
         <p className="text-sm mt-2">Constraints: {bp.enterprise_context?.deployment_constraints || "Not specified"}</p>
-        <p className="text-xs text-slate-500 mt-2">{bp.assessment_limitations || "Assessment only. AgentSpark remains Azure-hosted; availability, residency and pricing require validation."}</p>
+        <p className="text-xs text-zinc-500 mt-2">{bp.assessment_limitations || "Assessment only. AgentSpark remains Azure-hosted; availability, residency and pricing require validation."}</p>
         {bp.cloud_mapping && <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
           {["compute", "database", "ai", "search", "orchestration", "identity", "secrets", "monitoring"].map(key =>
-            <div key={key}><dt className="text-xs uppercase text-slate-500">{key}</dt>
+            <div key={key}><dt className="text-xs uppercase text-zinc-500">{key}</dt>
               <dd className="text-sm">{Array.isArray(bp.cloud_mapping[key]) ? bp.cloud_mapping[key].join(", ") : bp.cloud_mapping[key]}</dd></div>)}
         </dl>}
       </Card>}
@@ -215,7 +215,7 @@ ${bp.code_scaffold || ""}
               : bp.human_review ? "Recommendation approved by a human reviewer"
               : "Recommendation auto-approved by policy"}
           </p>
-          <p className="text-xs text-slate-500 mt-2 leading-relaxed">Approval applies to this advisory recommendation only. It does not execute or deploy a workflow.</p>
+          <p className="text-xs text-zinc-500 mt-2 leading-relaxed">Approval applies to this advisory recommendation only. It does not execute or deploy a workflow.</p>
           {bp.human_review && <p className="text-sm mt-2">{bp.human_review.reviewer}: {bp.human_review.note}</p>}
           {bp.status === "rejected" && (
             <div className="mt-3">
@@ -249,14 +249,14 @@ ${bp.code_scaffold || ""}
         <>
           {bp.token_usage && (
             <div className="flex gap-4">
-              <div className="flex-1 bg-teal-50 border border-teal-200 rounded-xl p-5 flex items-center justify-between flex-wrap gap-4">
+              <div className="flex-1 bg-brand-50 border border-brand-200 rounded p-5 flex items-center justify-between flex-wrap gap-4">
                 <div>
-                  <h3 className="text-sm font-semibold text-teal-900">Total Tokens Consumed</h3>
-                  <p className="text-xs text-teal-700 mt-1">Across all 7 LangGraph agents</p>
+                  <h3 className="text-sm font-semibold text-brand-900">Total Tokens Consumed</h3>
+                  <p className="text-xs text-brand-700 mt-1">Across all 7 LangGraph agents</p>
                 </div>
                 <div className="text-right">
-                  <span className="text-3xl font-semibold text-teal-900">{bp.token_usage.total_tokens.toLocaleString()}</span>
-                  <div className="text-xs text-teal-800 mt-1 space-x-2">
+                  <span className="text-3xl font-semibold text-brand-900">{bp.token_usage.total_tokens.toLocaleString()}</span>
+                  <div className="text-xs text-brand-800 mt-1 space-x-2">
                     <span>Prompt: {bp.token_usage.prompt_tokens.toLocaleString()}</span>
                     <span className="opacity-50">|</span>
                     <span>Completion: {bp.token_usage.completion_tokens.toLocaleString()}</span>
@@ -270,14 +270,14 @@ ${bp.code_scaffold || ""}
           
           {bp.governance && (
             <Card title="Enterprise Governance Decision">
-              <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-4">
+              <div className="bg-zinc-50 p-4 rounded border border-zinc-200 mb-4">
                 <div className="flex gap-2 items-center flex-wrap mb-2">
-                  <span className="font-semibold text-lg text-slate-800">
+                  <span className="font-semibold text-lg text-zinc-800">
                     {bp.human_review?.decision === "approve" ? "HUMAN APPROVED" : bp.governance.decision === "HUMAN_REVIEW_REQUIRED" ? "🟡 HUMAN REVIEW REQUIRED" : "🟢 AUTO APPROVED"}
                   </span>
-                  <span className="text-xs text-slate-600 uppercase px-2 py-1 bg-white border border-slate-200 rounded">Risk: {bp.governance.overall_risk}</span>
+                  <span className="text-xs text-zinc-600 uppercase px-2 py-1 bg-white border border-zinc-200 rounded">Risk: {bp.governance.overall_risk}</span>
                 </div>
-                <p className="text-sm text-slate-600 leading-relaxed">{bp.governance.reason}</p>
+                <p className="text-sm text-zinc-600 leading-relaxed">{bp.governance.reason}</p>
                 {bp.governance.decision === "REJECT" && bp.governance.rejection_package && (
                    <p className="text-sm text-rose-700 mt-2"><b>Alternative:</b> {bp.governance.rejection_package.alternative}</p>
                 )}
@@ -290,12 +290,12 @@ ${bp.code_scaffold || ""}
             <Card title="Roadmap"><Markdown>{bp.roadmap || ""}</Markdown></Card>
           </div>
           <Card title="Illustrative, untested scaffold — not deployment-ready">
-            <pre className="text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-4 overflow-x-auto leading-relaxed">{bp.code_scaffold}</pre>
+            <pre className="text-xs text-zinc-700 bg-zinc-50 border border-zinc-200 rounded p-4 overflow-x-auto leading-relaxed">{bp.code_scaffold}</pre>
           </Card>
           {bp.mermaid_diagram && (
-            <details className="rounded-xl border border-slate-200 bg-white p-5">
-              <summary className="cursor-pointer text-sm font-semibold text-teal-700">Show raw Mermaid source</summary>
-              <pre className="text-xs text-teal-900 bg-slate-50 border border-slate-200 rounded-xl p-4 overflow-x-auto mt-4">{bp.mermaid_diagram}</pre>
+            <details className="rounded border border-zinc-200 bg-white p-5">
+              <summary className="cursor-pointer text-sm font-semibold text-brand-700">Show raw Mermaid source</summary>
+              <pre className="text-xs text-brand-900 bg-zinc-50 border border-zinc-200 rounded p-4 overflow-x-auto mt-4">{bp.mermaid_diagram}</pre>
             </details>
           )}
         </>

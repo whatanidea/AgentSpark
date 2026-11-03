@@ -1,8 +1,8 @@
 .landing.editorial-site {
-  --ink: #202127;
-  --muted: #5c5b65;
-  --accent: #6537df;
-  --line: #dcdadf;
+  --ink: var(--color-ink);
+  --muted: var(--color-muted);
+  --accent: var(--color-brand-600);
+  --line: var(--color-line);
   --premium-navy: #1f2027;
   --landing-ink: var(--ink);
   --landing-muted: var(--muted);

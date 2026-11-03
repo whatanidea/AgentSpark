@@ -56,7 +56,7 @@ export default function ExecutiveBriefSummary({ brief, sessionId }: { brief?: Ex
       <dl className="grid gap-3 md:grid-cols-2 mt-4">
         {brief.claims.filter(claim => claim.label !== "Recommended decision").map(claim => <div key={claim.label}>
           <dt className="font-semibold">{claim.label}</dt><dd>{claim.statement}</dd>
-          <dd className="text-xs text-slate-500">Basis: {claim.source_ids.join(", ")}</dd>
+          <dd className="text-xs text-zinc-500">Basis: {claim.source_ids.join(", ")}</dd>
         </div>)}
       </dl>
       <p className="font-semibold mt-4">Next action</p><p>{brief.next_action}</p>
@@ -67,7 +67,7 @@ export default function ExecutiveBriefSummary({ brief, sessionId }: { brief?: Ex
           <p className="whitespace-pre-wrap break-words">{source.basis}</p>
         </div>)}
       </details>
-      <p className="text-xs text-slate-500 mt-4">{brief.limitations}</p>
+      <p className="text-xs text-zinc-500 mt-4">{brief.limitations}</p>
       <div className="flex gap-3 mt-4">
         <Button variant="ghost" onClick={() => download(new Blob([executiveBriefMarkdown(brief)], { type: "text/markdown" }),
           "AgentSpark_Executive_Brief.md")}>Export brief Markdown</Button>
