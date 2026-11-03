@@ -65,6 +65,16 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   The homepage presents AgentSpark Consulting alongside the existing evidence-led
   assessment platform. Consulting is separately scoped human delivery, not a new
   automated provider integration or a change to the signed-in product.
+  The public site uses an original consultancy-first editorial identity: large
+  typography, a graphite/white palette with violet accents, numbered delivery
+  chapters and a decorative SVG journey. Its continuous desktop motion has a
+  pause/resume control; small screens and reduced-motion preferences show the
+  complete static illustration. No scroll hijacking or third-party motion assets.
+  The homepage product walkthrough lets visitors select fictional reported
+  friction and inspect source statements and an advisory next step. It makes no
+  model calls, writes, measured-outcome claims or changes to customer systems.
+  The global booking action is independent of workspace authentication; protected
+  discovery remains available through explicit platform actions.
   `/consulting` explains the AI-native approach and four offerings:
   `/consulting/readiness`, `/consulting/workspace-launch`,
   `/consulting/workflow-pilot` and `/consulting/adoption`. Each has its own outputs,

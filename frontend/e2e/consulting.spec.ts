@@ -17,7 +17,7 @@ test("consulting is integrated without vendor or funding claims and scheduling r
       schedulerRequests.push(request.url());
   });
   await page.goto("/");
-  const home = page.getByRole("region", { name: "The platform brings clarity. Consulting moves the work forward.", exact: true });
+  const home = page.getByRole("region", { name: "A deliberate journey. Not another AI experiment.", exact: true });
   await expect(home.getByRole("article")).toHaveCount(4);
   for (const [path] of offers) await expect(home.locator(`a[href="${path}"]`)).toBeVisible();
   await page.getByRole("link", { name: "Explore consulting", exact: false }).click();

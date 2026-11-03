@@ -6,13 +6,14 @@ import BuyerConfidence from "./BuyerConfidence";
 type DiscoveryAction = { disabled: boolean; onDiscover: () => void; onBook: () => void };
 
 function OfferingCards({ compact = false }: { compact?: boolean }) {
-  return <div className={`consulting-offers${compact ? " consulting-offers-compact" : ""}`}>
-    {CONSULTING_OFFERINGS.map((offer, index) => <article key={offer.path}>
-      <div className="consulting-offer-top"><MarketingIcon name={offer.icon} /><span>0{index + 1}</span></div>
-      <p className="consulting-question">{offer.question}</p><h3>{offer.name}</h3>
-      {!compact && <p>{offer.summary}</p>}
-      <span className="consulting-format">{offer.format}</span>
-      <Link to={offer.path}>Explore the offering <span aria-hidden="true">↗</span></Link>
+  const chapters = ["Find the opportunity.", "Equip your people.", "Prove a workflow.", "Build lasting adoption."];
+  return <div className={`editorial-chapters${compact ? " editorial-chapters-compact" : ""}`}>
+    {CONSULTING_OFFERINGS.map((offer, index) => <article data-reveal key={offer.path} aria-label={offer.name}>
+      <span className="editorial-chapter-number" aria-hidden="true">0{index + 1}</span>
+      <div className="editorial-chapter-copy"><p className="consulting-question">{offer.name}</p><h3>{chapters[index]}</h3>
+        {!compact && <p>{offer.summary}</p>}<span className="consulting-format">{offer.format}</span></div>
+      <div className="editorial-chapter-mark" aria-hidden="true"><MarketingIcon name={offer.icon} /><span /></div>
+      <Link to={offer.path} aria-label={`Explore ${offer.name}`}>Explore the offering <span aria-hidden="true">↗</span></Link>
     </article>)}
   </div>;
 }
@@ -20,7 +21,7 @@ function OfferingCards({ compact = false }: { compact?: boolean }) {
 export function HomeConsulting({ disabled, onDiscover, onBook }: DiscoveryAction) {
   return <section className="consulting-home landing-container" aria-labelledby="consulting-home-title">
     <div className="premium-section-heading"><div><p className="landing-eyebrow">AgentSpark Consulting</p>
-      <h2 id="consulting-home-title">The platform brings clarity.<br /><span>Consulting moves the work forward.</span></h2></div>
+      <h2 id="consulting-home-title">A deliberate journey.<br /><span>Not another AI experiment.</span></h2></div>
       <div><p>Become AI-native through practical strategy, customer-owned platforms, workforce skills and measured workflow improvement. Start with one business priority, not every AI tool.</p>
         <Link className="consulting-text-link" to="/consulting">Meet your transformation journey <span aria-hidden="true">↗</span></Link></div></div>
     <OfferingCards compact />

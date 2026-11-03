@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { MarketingIcon, type MarketingIconName } from "./MarketingVisuals";
+import { EvidenceLens } from "./EditorialExperience";
 
 const stages: { name: string; icon: MarketingIconName; heading: string; text: string; path: string }[] = [
   { name: "Discover", icon: "people", heading: "Map the work. Invite the people who know it.", text: "Connect a process to operator, process-owner and technical-owner contributions. Keep disagreements visible.", path: "/platform/discovery" },
@@ -17,7 +18,7 @@ export default function ProductShowcase() {
   return <section id="product-showcase" className="premium-product-section landing-container" aria-labelledby="product-showcase-title">
     <div className="premium-section-heading"><div><p className="landing-eyebrow">Inside AgentSpark</p>
       <h2 id="product-showcase-title">See the work.<br /><span>Then decide what changes.</span></h2></div>
-      <p>One connected evaluation path. Explore a fictional reconstruction of the product's capabilities, without signing in or creating records.</p></div>
+      <p>Our assessment platform makes the reasoning visible. Select a reported friction, inspect its sources and explore what a reviewed next step needs. Fictional examples; no sign-in or saved records.</p></div>
     <div className="premium-product-tabs" role="tablist" aria-label="Product walkthrough stages" onKeyDown={event => {
       const target = event.target;
       if (!(target instanceof HTMLButtonElement) || target.getAttribute("role") !== "tab") return;
@@ -45,10 +46,7 @@ export default function ProductShowcase() {
         <div className="premium-screen-body">
           {index === 0 && <>
             <div className="premium-screen-heading"><span>PROCESS / 01</span><strong>Invoice exception handling</strong><small>Process knowledge, not system monitoring</small></div>
-            <div className="premium-screen-flow"><span>Receive</span><span>Check details</span><span>Review exception</span></div>
-            <div className="premium-screen-source"><span>S1</span><div><strong>Business operator</strong><p>We repeat invoice checks. Finance owns exception decisions.</p></div><small>Submitted</small></div>
-            <div className="premium-screen-source"><span>S2</span><div><strong>Process owner</strong><p>Procurement owns exception decisions. Volumes are unconfirmed.</p></div><small>Submitted</small></div>
-            <div className="premium-screen-callout"><MarketingIcon name="people" /><span>Clarification needed: who owns exception decisions?</span></div>
+            <EvidenceLens />
           </>}
           {index === 1 && <>
             <div className="premium-screen-heading"><span>OPPORTUNITY SHORTLIST</span><strong>Keep the reasoning beside the recommendation.</strong></div>
