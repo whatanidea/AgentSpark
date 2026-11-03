@@ -1,6 +1,51 @@
 import { useState } from "react";
 import { MarketingIcon } from "./MarketingVisuals";
 
+function SignalDiagram({ compact = false }: { compact?: boolean }) {
+  const width = compact ? 320 : 1200;
+  const height = compact ? 400 : 260;
+  const cx = compact ? 160 : 545;
+  const cy = compact ? 200 : 130;
+  const rx = compact ? 72 : 112;
+  const ry = compact ? 58 : 92;
+  const routes = compact ? [
+    "M50 30V75C50 120 160 115 160 140",
+    "M160 30V140",
+    "M270 30V75C270 120 160 115 160 140",
+    "M160 260V285C160 315 80 310 80 340V370",
+    "M160 260V285C160 315 240 310 240 340V370",
+  ] : [
+    "M50 45H230C325 45 330 130 440 130",
+    "M50 130H440",
+    "M50 215H230C325 215 330 130 440 130",
+    "M650 130H760C860 130 855 65 960 65H1150",
+    "M650 130H760C860 130 855 195 960 195H1150",
+  ];
+  const points = compact ? [[50, 30], [160, 30], [270, 30], [80, 370], [240, 370]]
+    : [[50, 45], [50, 130], [50, 215], [1150, 65], [1150, 195]];
+  return <svg className={compact ? "editorial-signal-mobile" : "editorial-signal-desktop"}
+    viewBox={`0 0 ${width} ${height}`} aria-hidden="true" focusable="false">
+    <g className="editorial-signal-grid">
+      {(compact ? [30, 115, 200, 285, 370] : [40, 100, 160, 220]).map(y => <path key={y} d={`M0 ${y}H${width}`} />)}
+      {(compact ? [50, 160, 270] : [120, 300, 480, 660, 840, 1020]).map(x => <path key={x} d={`M${x} 0V${height}`} />)}
+    </g>
+    <g className="editorial-signal-routes">{routes.map(d => <path key={d} d={d} />)}</g>
+    <g className="editorial-signal-flow">
+      {[routes[0], routes[2], routes[3]].map(d => <path key={d} pathLength="100" d={d} />)}
+    </g>
+    <g className="editorial-signal-orbit">
+      <ellipse cx={cx} cy={cy} rx={rx} ry={ry} />
+      <ellipse cx={cx} cy={cy} rx={rx} ry={compact ? 24 : 38} />
+      <ellipse cx={cx} cy={cy} rx={compact ? 24 : 38} ry={ry} />
+      <ellipse cx={cx} cy={cy} rx={compact ? 45 : 70} ry={ry} transform={`rotate(38 ${cx} ${cy})`} />
+      <ellipse cx={cx} cy={cy} rx={compact ? 45 : 70} ry={ry} transform={`rotate(-38 ${cx} ${cy})`} />
+    </g>
+    <g className="editorial-signal-points">
+      {points.map(([x, y]) => <circle key={`${x}-${y}`} cx={x} cy={y} r="4" />)}
+    </g>
+  </svg>;
+}
+
 export function SignalField() {
   const [paused, setPaused] = useState(false);
   return <figure className="editorial-signal" data-paused={paused}
@@ -12,36 +57,7 @@ export function SignalField() {
       </button>
     </div>
     <div className="editorial-signal-stage">
-      <svg viewBox="0 0 1200 260" aria-hidden="true" focusable="false">
-        <g className="editorial-signal-grid">
-          {[40, 100, 160, 220].map(y => <path key={y} d={`M0 ${y}H1200`} />)}
-          {[120, 300, 480, 660, 840, 1020].map(x => <path key={x} d={`M${x} 0V260`} />)}
-        </g>
-        <g className="editorial-signal-routes">
-          <path d="M50 45H230C325 45 330 130 440 130" />
-          <path d="M50 130H440" />
-          <path d="M50 215H230C325 215 330 130 440 130" />
-          <path d="M650 130H760C860 130 855 65 960 65H1150" />
-          <path d="M650 130H760C860 130 855 195 960 195H1150" />
-        </g>
-        <g className="editorial-signal-flow">
-          <path pathLength="100" d="M50 45H230C325 45 330 130 440 130" />
-          <path pathLength="100" d="M50 215H230C325 215 330 130 440 130" />
-          <path pathLength="100" d="M650 130H760C860 130 855 65 960 65H1150" />
-        </g>
-        <g className="editorial-signal-orbit">
-          <ellipse cx="545" cy="130" rx="112" ry="92" />
-          <ellipse cx="545" cy="130" rx="112" ry="38" />
-          <ellipse cx="545" cy="130" rx="38" ry="92" />
-          <ellipse cx="545" cy="130" rx="70" ry="92" transform="rotate(38 545 130)" />
-          <ellipse cx="545" cy="130" rx="70" ry="92" transform="rotate(-38 545 130)" />
-        </g>
-        <g className="editorial-signal-points">
-          <circle cx="50" cy="45" r="4" /><circle cx="50" cy="130" r="4" />
-          <circle cx="50" cy="215" r="4" /><circle cx="1150" cy="65" r="4" />
-          <circle cx="1150" cy="195" r="4" />
-        </g>
-      </svg>
+      <SignalDiagram /><SignalDiagram compact />
       <div className="editorial-signal-inputs"><span>Fragmented work</span><span>Team knowledge</span><span>Business priorities</span></div>
       <div className="editorial-signal-core"><span>PEOPLE + PROCESS + AI</span><strong>A connected<br />way of working.</strong></div>
       <div className="editorial-signal-outputs"><span><MarketingIcon name="cloud" />Customer-owned tools</span>

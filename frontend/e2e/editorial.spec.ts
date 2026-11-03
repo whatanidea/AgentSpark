@@ -81,7 +81,7 @@ test("editorial identity and authentication-independent booking are shared acros
   expect(scheduler).toEqual([]);
 });
 
-test("editorial chapters and complete static journey fit mobile and reduced motion", async ({ page }) => {
+test("editorial chapters and animated journey fit mobile and respect reduced motion", async ({ page }) => {
   await page.goto("/");
   const chapters = page.getByRole("region", { name: "A deliberate journey. Not another AI experiment.", exact: true });
   await expect(chapters.getByRole("article")).toHaveCount(4);
@@ -95,11 +95,62 @@ test("editorial chapters and complete static journey fit mobile and reduced moti
       expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     if (width <= 700) {
       const field = page.locator(".editorial-signal");
-      expect(await field.evaluate(node => node.getAnimations({ subtree: true }).length)).toBe(0);
+      await expect(field.getByRole("button", { name: "Pause illustration", exact: true })).toBeVisible();
+      expect(await field.evaluate(node => node.getAnimations({ subtree: true }).some(animation => animation.playState === "running"))).toBe(true);
       await expect(field.getByText("Customer-owned tools", { exact: true })).toBeVisible();
       await expect(field.getByText("Human-reviewed progress", { exact: true })).toBeVisible();
     }
   }
   await page.emulateMedia({ reducedMotion: "reduce" });
   expect(await page.evaluate(() => document.getAnimations().filter(animation => animation.playState === "running").length)).toBe(0);
+});
+
+test("mobile journey fits completely and advances, pauses and resumes in Safari and Chromium", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto("/");
+  const field = page.locator(".editorial-signal");
+  for (const width of [320, 390, 440, 700]) {
+    await page.setViewportSize({ width, height: 956 });
+    await field.scrollIntoViewIfNeeded();
+    const diagram = field.locator(".editorial-signal-mobile");
+    await expect(diagram).toBeVisible();
+    await expect(field.locator(".editorial-signal-desktop")).toBeHidden();
+    const bounds = await field.boundingBox();
+    if (!bounds) throw new Error("Journey illustration has no layout bounds");
+    const parts = field.locator(".editorial-signal-mobile, .editorial-signal-mobile circle, .editorial-signal-inputs > span, .editorial-signal-core, .editorial-signal-outputs > span");
+    for (const part of await parts.all()) {
+      const box = await part.boundingBox();
+      if (!box) throw new Error("Journey component has no layout bounds");
+      expect(box.x, `${width}px left edge`).toBeGreaterThanOrEqual(bounds.x);
+      expect(box.y, `${width}px top edge`).toBeGreaterThanOrEqual(bounds.y);
+      expect(box.x + box.width, `${width}px right edge`).toBeLessThanOrEqual(bounds.x + bounds.width);
+      expect(box.y + box.height, `${width}px bottom edge`).toBeLessThanOrEqual(bounds.y + bounds.height);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const flow = diagram.locator(".editorial-signal-flow path").first();
+    const orbit = diagram.locator(".editorial-signal-orbit");
+    const dash = await flow.evaluate(node => getComputedStyle(node).strokeDashoffset);
+    const transform = await orbit.evaluate(node => getComputedStyle(node).transform);
+    await expect.poll(() => flow.evaluate(node => getComputedStyle(node).strokeDashoffset)).not.toBe(dash);
+    await expect.poll(() => orbit.evaluate(node => getComputedStyle(node).transform)).not.toBe(transform);
+    const pause = field.getByRole("button", { name: "Pause illustration", exact: true });
+    expect((await pause.boundingBox())!.height).toBeGreaterThanOrEqual(44);
+    await pause.click();
+    await expect.poll(() => field.evaluate(node => node.getAnimations({ subtree: true }).every(animation => animation.playState === "paused"))).toBe(true);
+    const frozen = await flow.evaluate(node => getComputedStyle(node).strokeDashoffset);
+    await page.waitForTimeout(100);
+    expect(await flow.evaluate(node => getComputedStyle(node).strokeDashoffset)).toBe(frozen);
+    await field.getByRole("button", { name: "Resume illustration", exact: true }).click();
+    await expect.poll(() => flow.evaluate(node => getComputedStyle(node).strokeDashoffset)).not.toBe(frozen);
+  }
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(field.getByRole("button")).toBeHidden();
+  expect(await field.evaluate(node => node.getAnimations({ subtree: true }).length)).toBe(0);
+  await expect(field.getByText("Customer-owned tools", { exact: true })).toBeVisible();
+  await expect(field.getByText("Human-reviewed progress", { exact: true })).toBeVisible();
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.setViewportSize({ width: 956, height: 440 });
+  await expect(field.locator(".editorial-signal-mobile")).toBeHidden();
+  await expect(field.locator(".editorial-signal-desktop")).toBeVisible();
+  await expect.poll(() => field.evaluate(node => node.getAnimations({ subtree: true }).some(animation => animation.playState === "running"))).toBe(true);
 });

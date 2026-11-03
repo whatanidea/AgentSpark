@@ -14,7 +14,11 @@ export default defineConfig({
   reporter: [["list"]],
   globalTeardown: "./e2e/cleanup.ts",
   use: { baseURL: "http://127.0.0.1:8767", trace: "off", screenshot: "off" },
-  projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } }],
+  projects: [
+    { name: "chromium", use: { ...devices["Desktop Chrome"] } },
+    { name: "mobile-safari", testMatch: "**/editorial.spec.ts", grep: /mobile journey fits completely/,
+      use: { browserName: "webkit", viewport: { width: 440, height: 956 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 } },
+  ],
   webServer: {
     command: "python -m uvicorn app.main:app --host 127.0.0.1 --port 8767 --no-access-log",
     cwd: "..",
