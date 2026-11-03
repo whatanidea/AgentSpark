@@ -249,7 +249,7 @@ npm --prefix frontend ci
 python scripts\check_lock.py
 python scripts\check.py
 npm --prefix frontend audit --audit-level=high
-npm --prefix frontend exec -- playwright install chromium
+npm --prefix frontend exec -- playwright install chromium webkit
 npm --prefix frontend run test:e2e
 ```
 

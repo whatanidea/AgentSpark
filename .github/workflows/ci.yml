@@ -48,7 +48,7 @@ jobs:
         run: python scripts/check.py
       - name: Browser workflow regressions
         run: |
-          npm --prefix frontend exec -- playwright install --with-deps chromium
+          npm --prefix frontend exec -- playwright install --with-deps chromium webkit
           npm --prefix frontend run test:e2e
           npm --prefix frontend run test:e2e -- --config playwright.discovery.config.ts
 

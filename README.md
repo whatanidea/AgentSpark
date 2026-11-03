@@ -67,9 +67,10 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   automated provider integration or a change to the signed-in product.
   The public site uses an original consultancy-first editorial identity: large
   typography, a graphite/white palette with violet accents, numbered delivery
-  chapters and a decorative SVG journey. Its continuous desktop motion has a
-  pause/resume control; small screens and reduced-motion preferences show the
-  complete static illustration. No scroll hijacking or third-party motion assets.
+  chapters and a decorative SVG journey. Desktop and mobile both offer continuous
+  motion with a pause/resume control; small screens use a complete vertical
+  diagram rather than a cropped desktop canvas. Reduced-motion preferences keep
+  the illustration static. No scroll hijacking or third-party motion assets.
   The homepage product walkthrough lets visitors select fictional reported
   friction and inspect source statements and an advisory next step. It makes no
   model calls, writes, measured-outcome claims or changes to customer systems.
@@ -205,7 +206,7 @@ npm --prefix frontend run test:e2e
 
 The checks cover backend regressions, the offline workflow scenario, scoring
 evaluations, dependency consistency, frontend types/build, and browser workflows.
-Browser checks require Playwright Chromium; see the
+Browser checks require Playwright Chromium and WebKit (the mobile Safari journey regression); see the
 [toolchain and setup instructions](docs/operations.md#supported-toolchain-and-repeatable-checks).
 [GitHub CI](.github/workflows/ci.yml) also builds and smoke-tests a non-root container.
 CI does **not** deploy automatically.
