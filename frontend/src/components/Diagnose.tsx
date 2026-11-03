@@ -119,7 +119,7 @@ export default function Diagnose({ sessionId, context, initialHistory = [], demo
         </label>
         <p className="text-sm mt-2">{progress.role_missing_fields.length} questions outstanding for this role.
           {" "}{progress.deferred_fields.length} unresolved questions are assigned to other roles.</p>
-        <p className="text-xs text-slate-500">Roles route questions, not access permissions. Mark facts Unconfirmed in the checklist
+        <p className="text-xs text-zinc-500">Roles route questions, not access permissions. Mark facts Unconfirmed in the checklist
           when you cannot establish them; this never confirms readiness or invents a score.</p>
       </Card>
       <Card title={`Interview rounds: ${progress.rounds_used} / ${progress.max_rounds}`}>
@@ -141,13 +141,13 @@ export default function Diagnose({ sessionId, context, initialHistory = [], demo
       </Card>
       <Card title="Your conversation" description="Answer the grouped questions together. Every message is screened before extraction.">
         <div role="log" aria-live="polite" aria-label="Diagnostic conversation" className="space-y-5 max-h-[46vh] overflow-y-auto pr-1">
-          {!history.some(item => item.role === "user") && <button className="text-teal-700 underline"
+          {!history.some(item => item.role === "user") && <button className="text-brand-700 underline"
             onClick={() => void send(SUGGESTION, demoMode ? "invoice" : undefined)}
             disabled={busy || dirty || !progress.can_chat}>
             Use invoice sample (selects fictional fixture in demo) →
           </button>}
-          {history.map((item, index) => <div key={index} className={`rounded-xl p-4 text-sm whitespace-pre-wrap break-words ${
-            item.blocked ? "bg-rose-50 text-rose-800" : item.role === "user" ? "bg-teal-50" : "bg-slate-50"}`}>
+          {history.map((item, index) => <div key={index} className={`rounded p-4 text-sm whitespace-pre-wrap break-words ${
+            item.blocked ? "bg-rose-50 text-rose-800" : item.role === "user" ? "bg-brand-50" : "bg-zinc-50"}`}>
             <p className="font-semibold">{item.role === "user" ? "You" : item.blocked ? "Security guardrail" : "AgentSpark"}</p>
             {item.content}
           </div>)}
@@ -179,7 +179,7 @@ export default function Diagnose({ sessionId, context, initialHistory = [], demo
               <div className="grid gap-4 md:grid-cols-2 mt-3">
                 {visibleFields.filter(field => field.group === group).map(field => <div key={field.id} className="text-sm"><label>
                   <span className="font-semibold">{field.label}</span>
-                  <span className="block text-slate-500">{field.question}</span>
+                  <span className="block text-zinc-500">{field.question}</span>
                   {field.kind === "select" ? <select className="form-control mt-1" value={answers[field.id] || ""}
                     onChange={event => { setAnswers(current => ({ ...current, [field.id]: event.target.value })); setDirty(true); }}>
                     <option value="">Not supplied</option>
@@ -197,7 +197,7 @@ export default function Diagnose({ sessionId, context, initialHistory = [], demo
                       onChange={event => { setAnswers(current => ({ ...current, [field.id]: event.target.checked ? "unconfirmed" : "" })); setDirty(true); }} />
                     Unconfirmed - ask the assigned owner to validate
                   </label>}
-                  <p className="text-xs text-slate-500 mt-1">Assigned to {progress.roles[field.assigned_role]}</p>
+                  <p className="text-xs text-zinc-500 mt-1">Assigned to {progress.roles[field.assigned_role]}</p>
                 </div>)}
               </div>
             </details>)}

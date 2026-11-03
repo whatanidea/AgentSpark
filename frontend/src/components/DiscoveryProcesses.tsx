@@ -80,7 +80,7 @@ export default function DiscoveryProcesses({ record, blocked, onChange, onBusyCh
         Saved cards cannot be deleted; referenced steps cannot be removed. Requests cannot be reassigned.</p>
       {error && <p role="alert" className="notice text-rose-700">{error} Your draft remains available.</p>}
       {message && <p role="status" className="notice">{message}</p>}
-      {processes.map(process => <article key={process.id} className="mt-3 border rounded-lg p-3">
+      {processes.map(process => <article key={process.id} className="mt-3 border rounded p-3">
         <h3 className="font-semibold">{process.title}</h3>
         <p>Owner: {process.process_owner}. Goal: {process.goal}</p><p>Scope: {process.scope}</p>
         <p>Systems: {process.systems}. Volume: {process.volume}</p><p>Baseline: {process.baseline_pain}</p>
@@ -124,7 +124,7 @@ export default function DiscoveryProcesses({ record, blocked, onChange, onBusyCh
       <ul className="space-y-3 mt-3">{tasks.map(task => {
         const process = processes.find(item => item.id === task.process_id);
         const step = process?.steps.find(item => item.id === task.step_id);
-        return <li key={task.id} className="border rounded-lg p-3">
+        return <li key={task.id} className="border rounded p-3">
           <h3>{process?.title || "Unavailable process"} / {step?.title || "Unavailable step"}</h3>
           <p>{roles[task.role]} / {task.assignee} / Due {task.due_on} / {task.status.replace(/_/g, "-")}</p>
           <p>Requested information/evidence: {task.requested_information}</p>

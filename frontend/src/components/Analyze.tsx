@@ -80,7 +80,7 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
               : data.human_review?.decision === "approve" ? "Recommendation approved by a human reviewer."
               : "Recommendation auto-approved by policy."}
           </p>
-          <p className="text-xs text-slate-500 mt-1">Approval is advisory; it does not execute or deploy a business workflow.</p>
+          <p className="text-xs text-zinc-500 mt-1">Approval is advisory; it does not execute or deploy a business workflow.</p>
         </Card>
       )}
       {data && !score && data.status !== "needs_clarification" && !busy && !err && (
@@ -97,15 +97,15 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
             <Card className="lg:col-span-1">
               <div className="flex items-baseline gap-2">
                 <span className="text-6xl font-extrabold" style={{ color: classColor(score.classification) }}>{score.agent_score}</span>
-                <span className="text-slate-500 text-lg">/100</span>
+                <span className="text-zinc-500 text-lg">/100</span>
               </div>
               <div className="mt-2 flex flex-wrap gap-2">
-                <Pill tone={score.classification === "High" ? "green" : score.classification === "Medium" ? "amber" : "red"}>{score.classification}</Pill>
+                <Pill tone={score.classification === "High" ? "positive" : score.classification === "Medium" ? "amber" : "red"}>{score.classification}</Pill>
                 <Pill tone="slate">{score.autonomy_level}</Pill>
-                <Pill tone={score.requires_hitl ? "amber" : "green"}>{score.requires_hitl ? "HITL required" : "HITL optional"}</Pill>
+                <Pill tone={score.requires_hitl ? "amber" : "positive"}>{score.requires_hitl ? "HITL required" : "HITL optional"}</Pill>
               </div>
-              <p className="text-sm text-slate-700 mt-3 font-semibold">{score.recommended_pattern}</p>
-              <p className="text-xs text-slate-500 mt-1">{score.explanation}</p>
+              <p className="text-sm text-zinc-700 mt-3 font-semibold">{score.recommended_pattern}</p>
+              <p className="text-xs text-zinc-500 mt-1">{score.explanation}</p>
             </Card>
 
             <Card title="Estimated ROI" className="lg:col-span-2">
@@ -113,7 +113,7 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
                 <>
                   <ROIReport roi={roi} />
                 </>
-              ) : <p className="text-slate-500 text-sm">—</p>}
+              ) : <p className="text-zinc-500 text-sm">—</p>}
             </Card>
           </div>
 
@@ -123,11 +123,11 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
               {score.criteria?.map((c: any) => (
                 <div key={c.name}>
                   <div className="flex justify-between text-xs mb-1">
-                    <span className="font-semibold text-slate-700">{c.name}</span>
-                    <span className="text-slate-500">+{c.contribution}/{c.weight}</span>
+                    <span className="font-semibold text-zinc-700">{c.name}</span>
+                    <span className="text-zinc-500">+{c.contribution}/{c.weight}</span>
                   </div>
-                  <Bar pct={c.raw * 100} color={c.raw >= 0.66 ? "#10b981" : c.raw >= 0.33 ? "#f59e0b" : "#ef4444"} />
-                  <p className="text-[11px] text-slate-500 mt-1">{c.rationale}</p>
+                  <Bar pct={c.raw * 100} color={c.raw >= 0.66 ? "var(--color-brand-600)" : c.raw >= 0.33 ? "#f59e0b" : "#ef4444"} />
+                  <p className="text-[11px] text-zinc-500 mt-1">{c.rationale}</p>
                 </div>
               ))}
             </div>
@@ -136,15 +136,15 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
           {/* Recommendation + Validation */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
             <Card title="Architecture Recommendation">
-              <p className="text-sm text-slate-700 leading-relaxed">{strategy.automation_strategy}</p>
+              <p className="text-sm text-zinc-700 leading-relaxed">{strategy.automation_strategy}</p>
               <div className="mt-2 flex flex-wrap gap-1.5">
                 {(strategy.recommended_patterns || []).map((p: string) => <Pill key={p}>{p}</Pill>)}
               </div>
-              {strategy.data_completeness != null && <p className="text-xs text-slate-500 mt-2">Data completeness: {Math.round(strategy.data_completeness * 100)}% — not model confidence.</p>}
-              <div className="text-xs text-slate-600 mt-3 space-y-2 leading-relaxed">
-                <p><b className="text-slate-700">Memory:</b> {strategy.memory_strategy}</p>
-                <p><b className="text-slate-700">Governance:</b> {strategy.governance}</p>
-                <p><b className="text-slate-700">Why:</b> {strategy.justification}</p>
+              {strategy.data_completeness != null && <p className="text-xs text-zinc-500 mt-2">Data completeness: {Math.round(strategy.data_completeness * 100)}% — not model confidence.</p>}
+              <div className="text-xs text-zinc-600 mt-3 space-y-2 leading-relaxed">
+                <p><b className="text-zinc-700">Memory:</b> {strategy.memory_strategy}</p>
+                <p><b className="text-zinc-700">Governance:</b> {strategy.governance}</p>
+                <p><b className="text-zinc-700">Why:</b> {strategy.justification}</p>
                 {strategy.critique && <p className="text-amber-800"><b>⚠ Self-critique:</b> {strategy.critique}</p>}
               </div>
             </Card>
@@ -153,24 +153,24 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
               {governance && (
                 <>
                   <div className="flex items-center flex-wrap gap-2 mb-3">
-                    <Pill tone={governance.overall_risk === "Critical" || governance.overall_risk === "High" ? "red" : governance.overall_risk === "Medium" ? "amber" : "green"}>Overall Risk: {governance.overall_risk}</Pill>
-                    <Pill tone={governance.decision === "REJECT" ? "red" : governance.decision === "HUMAN_REVIEW_REQUIRED" ? "amber" : "green"}>
+                    <Pill tone={governance.overall_risk === "Critical" || governance.overall_risk === "High" ? "red" : governance.overall_risk === "Medium" ? "amber" : "positive"}>Overall Risk: {governance.overall_risk}</Pill>
+                    <Pill tone={governance.decision === "REJECT" ? "red" : governance.decision === "HUMAN_REVIEW_REQUIRED" ? "amber" : "positive"}>
                       {governance.decision === "REJECT" ? "🔴 Rejected" : governance.decision === "HUMAN_REVIEW_REQUIRED" ? "🟡 Human review required" : "🟢 Auto-approved"}
                     </Pill>
                   </div>
                   
                   {governance.reason && (
-                    <p className="text-xs text-slate-600 mb-4 bg-slate-50 p-3 rounded-lg leading-relaxed">
+                    <p className="text-xs text-zinc-600 mb-4 bg-zinc-50 p-3 rounded leading-relaxed">
                       <b>Rationale:</b> {governance.reason}
                     </p>
                   )}
 
                   {governance.triggered_rules && governance.triggered_rules.length > 0 && (
                     <div className="mb-4">
-                      <p className="text-xs font-semibold text-slate-600 mb-2">Triggered Policies:</p>
+                      <p className="text-xs font-semibold text-zinc-600 mb-2">Triggered Policies:</p>
                       <div className="flex flex-wrap gap-1.5">
                         {governance.triggered_rules.map((rule: string) => (
-                          <span key={rule} className="text-[11px] bg-teal-50 text-teal-800 px-2 py-1 rounded border border-teal-200 font-mono">
+                          <span key={rule} className="text-[11px] bg-brand-50 text-brand-800 px-2 py-1 rounded border border-brand-200 font-mono">
                             {rule}
                           </span>
                         ))}
@@ -179,18 +179,18 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
                   )}
 
                   <details className="cursor-pointer group">
-                    <summary className="text-sm font-semibold text-teal-700 mb-2">Show 8-Module Assessment Detail</summary>
-                    <div className="space-y-3 mt-3 pt-3 border-t border-slate-200">
+                    <summary className="text-sm font-semibold text-brand-700 mb-2">Show 8-Module Assessment Detail</summary>
+                    <div className="space-y-3 mt-3 pt-3 border-t border-zinc-200">
                       {Object.entries(governance.assessments || {}).map(([name, a]: [string, any]) => (
-                        <div key={name} className="text-xs bg-slate-50 p-3 rounded-lg">
+                        <div key={name} className="text-xs bg-zinc-50 p-3 rounded">
                           <div className="flex justify-between items-start mb-1">
-                            <span className="font-semibold text-slate-700">
+                            <span className="font-semibold text-zinc-700">
                               {a.status === "pass" ? "✅" : a.status === "warn" ? "⚠️" : "❌"} {name === "Confidence" ? "Data Completeness (legacy policy key: Confidence)" : name}
                             </span>
-                            <span className="text-[10px] text-slate-500 uppercase">{a.risk_level} Risk</span>
+                            <span className="text-[10px] text-zinc-500 uppercase">{a.risk_level} Risk</span>
                           </div>
-                          <p className="text-slate-600 mt-1 leading-relaxed">{a.reason}</p>
-                          <p className="text-[11px] text-teal-700 mt-2">↳ {a.recommendation}</p>
+                          <p className="text-zinc-600 mt-1 leading-relaxed">{a.reason}</p>
+                          <p className="text-[11px] text-brand-700 mt-2">↳ {a.recommendation}</p>
                         </div>
                       ))}
                     </div>
@@ -204,12 +204,12 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
           <Card title="Grounded Design Patterns · Keyword retrieval + required design IDs">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {patterns.map((p: any) => (
-                <div key={p.id || p.name} className="rounded-xl border border-slate-200 bg-slate-50/50 p-4">
-                  <div className="text-sm font-semibold text-teal-800">{p.name} <span className="text-[11px] text-slate-500">· {p.category}</span></div>
-                  <p className="text-xs text-slate-600 mt-2 leading-relaxed">{p.description}</p>
-                  <p className="text-[11px] text-slate-500 mt-1"><i>When:</i> {p.when_to_use}</p>
-                  <a className="text-xs text-teal-700 underline break-words" href={p.source_url} target="_blank" rel="noreferrer">{p.id} · {p.source_ref}</a>
-                  <p className="text-[10px] text-slate-500 break-all">Snapshot SHA256: {p.content_sha256}</p>
+                <div key={p.id || p.name} className="rounded border border-zinc-200 bg-zinc-50/50 p-4">
+                  <div className="text-sm font-semibold text-brand-800">{p.name} <span className="text-[11px] text-zinc-500">· {p.category}</span></div>
+                  <p className="text-xs text-zinc-600 mt-2 leading-relaxed">{p.description}</p>
+                  <p className="text-[11px] text-zinc-500 mt-1"><i>When:</i> {p.when_to_use}</p>
+                  <a className="text-xs text-brand-700 underline break-words" href={p.source_url} target="_blank" rel="noreferrer">{p.id} · {p.source_ref}</a>
+                  <p className="text-[10px] text-zinc-500 break-all">Snapshot SHA256: {p.content_sha256}</p>
                 </div>
               ))}
             </div>
@@ -218,12 +218,12 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
           <Card title="Agent Trace · Observability">
             <div className="space-y-1">
               {trace.map((s: any) => (
-                <div key={s.step} className="flex items-start flex-wrap sm:flex-nowrap gap-3 text-xs border-b border-slate-100 py-3">
-                  <span className="text-slate-600 w-5">{s.step}</span>
+                <div key={s.step} className="flex items-start flex-wrap sm:flex-nowrap gap-3 text-xs border-b border-zinc-100 py-3">
+                  <span className="text-zinc-600 w-5">{s.step}</span>
                   <span>{s.status === "ok" ? "✅" : s.status === "warn" ? "⚠️" : "❌"}</span>
-                  <span className="font-semibold text-teal-800 sm:w-36">{s.agent}</span>
-                  <span className="flex-1 min-w-0 break-words text-slate-600">{s.detail}</span>
-                  <span className="text-slate-500 whitespace-nowrap">{s.duration_ms} ms</span>
+                  <span className="font-semibold text-brand-800 sm:w-36">{s.agent}</span>
+                  <span className="flex-1 min-w-0 break-words text-zinc-600">{s.detail}</span>
+                  <span className="text-zinc-500 whitespace-nowrap">{s.duration_ms} ms</span>
                 </div>
               ))}
             </div>
@@ -237,9 +237,9 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
 
 function Metric({ label, value, color }: any) {
   return (
-    <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-center">
+    <div className="rounded border border-zinc-200 bg-zinc-50 p-3 text-center">
       <div className="text-2xl font-extrabold" style={{ color }}>{value}</div>
-      <div className="text-[10px] uppercase tracking-wide text-slate-500 mt-1">{label}</div>
+      <div className="text-[10px] uppercase tracking-wide text-zinc-500 mt-1">{label}</div>
     </div>
   );
 }

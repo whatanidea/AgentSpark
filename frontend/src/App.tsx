@@ -252,31 +252,31 @@ export default function App() {
     disabled={busy || starting} hasSession={!!sessionId} signedIn={!!identity} message={message} /></Suspense>;
 
   return (
-    <div className="min-h-screen flex flex-col md:flex-row">
+    <div className="portal min-h-screen flex flex-col md:flex-row">
       <a className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50 focus:bg-white focus:p-3" href="#main-content">Skip to workflow</a>
-      <aside className="md:w-64 lg:w-72 shrink-0 border-b md:border-b-0 md:border-r border-slate-200 bg-slate-50/70 flex flex-col md:sticky md:top-0 md:h-screen md:overflow-y-auto">
+      <aside className="portal-sidebar md:w-64 lg:w-72 shrink-0 border-b md:border-b-0 md:border-r border-white/10 bg-graphite flex flex-col md:sticky md:top-0 md:h-screen md:overflow-y-auto">
         <div className="px-5 py-5 md:px-6 md:pt-7 md:pb-6">
           <div className="flex items-center gap-3">
-            <span className="grid place-items-center h-10 w-10 rounded-xl bg-teal-700 text-white shadow-sm" aria-hidden="true">
+            <span className="grid place-items-center h-10 w-10 rounded-sm bg-white text-graphite" aria-hidden="true">
               <svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="m12 2 2.7 7.3L22 12l-7.3 2.7L12 22l-2.7-7.3L2 12l7.3-2.7L12 2Z" fill="currentColor" /></svg>
             </span>
             <div>
-              <div className="text-xl font-semibold tracking-tight text-slate-900">AgentSpark</div>
-              <p className="text-[11px] text-slate-500 mt-0.5">Enterprise transformation advisor</p>
+              <div className="text-xl font-medium tracking-tight text-white">AgentSpark</div>
+              <p className="text-[11px] text-white/70 mt-0.5">Enterprise transformation advisor</p>
             </div>
           </div>
-          <p className="hidden md:block text-xs leading-relaxed text-slate-500 mt-5">The agent that tells you where agents belong.</p>
-          <button className="text-xs text-teal-800 mt-4 hover:underline" disabled={busy}
+          <p className="hidden md:block text-xs leading-relaxed text-white/70 mt-5">The agent that tells you where agents belong.</p>
+          <button className="text-xs text-brand-300 min-h-11 mt-2 hover:underline" disabled={busy}
             onClick={() => {
               if (view === "discovery" && discoveryUnsaved && !window.confirm("Discard unsaved discovery changes?")) return;
               void navigate("/"); setShowLanding(true);
             }}>Product overview <span aria-hidden="true">↗</span></button>
         </div>
         <nav aria-label="Workflow steps" className="flex md:block md:flex-1 overflow-x-auto px-4 pb-4 md:pb-5 gap-2 md:space-y-1.5">
-          <p className="hidden md:block px-3 pb-2 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Workspace</p>
+          <p className="hidden md:block px-3 pb-2 text-[10px] font-medium uppercase tracking-[0.14em] text-white/70">Workspace</p>
           {NAV.map((n, index) => (
-            <div key={n.id} className={`shrink-0 ${n.id === "portfolio" ? "md:mt-6 md:pt-5 md:border-t border-slate-200" : ""}`}>
-              {n.id === "portfolio" && <p className="hidden md:block px-3 pb-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">Explore</p>}
+            <div key={n.id} className={`shrink-0 ${n.id === "portfolio" ? "md:mt-6 md:pt-5 md:border-t border-white/15" : ""}`}>
+              {n.id === "portfolio" && <p className="hidden md:block px-3 pb-3 text-[10px] font-medium uppercase tracking-[0.14em] text-white/70">Explore</p>}
               <button disabled={busy || !identity || starting || (!sessionId && !["home", "intake", "portfolio", "workspaces", "discovery"].includes(n.id))
                 || (n.id === "intake" && !sessionId && !canWrite)}
                 aria-label={n.label} aria-current={view === n.id ? "step" : undefined} onClick={() => void changeView(n.id)}
@@ -284,23 +284,23 @@ export default function App() {
                 <span className="nav-number" aria-hidden="true">{n.id === "home" || n.id === "portfolio" || n.id === "workspaces" || n.id === "discovery"
                   ? <Icon name={n.id === "workspaces" || n.id === "discovery" ? "portfolio" : n.id} className="h-4 w-4" /> : String(index - 1).padStart(2, "0")}</span>
                 <span>{n.label.replace(/^\d · /, "")}</span>
-                {view === n.id && <span aria-hidden="true" className="ml-auto text-teal-700">›</span>}
+                {view === n.id && <span aria-hidden="true" className="ml-auto text-brand-700">›</span>}
               </button>
             </div>
           ))}
         </nav>
-        <div className="mx-5 mb-4 md:mb-5 md:rounded-xl md:border border-slate-200 md:bg-white md:p-4">
-          <p className="hidden md:block text-[10px] font-semibold uppercase tracking-wider text-slate-500 mb-2">Connection status</p>
-          <p role="status" className="text-xs leading-relaxed text-slate-700">
-            <span aria-hidden="true" className={`inline-block h-1.5 w-1.5 rounded-full mr-2 ${runtimeError || (runtime && !runtime.ready) ? "bg-amber-500" : runtime ? "bg-teal-600" : "bg-slate-400"}`} />
+        <div className="mx-5 mb-4 md:mb-5 md:rounded md:border border-white/15 md:bg-white/5 md:p-4">
+          <p className="hidden md:block text-[10px] font-medium uppercase tracking-wider text-white/70 mb-2">Connection status</p>
+          <p role="status" className="text-xs leading-relaxed text-white/85">
+            <span aria-hidden="true" className={`inline-block h-1.5 w-1.5 rounded-full mr-2 ${runtimeError || (runtime && !runtime.ready) ? "bg-amber-500" : runtime ? "bg-brand-300" : "bg-zinc-400"}`} />
             {runtimeError ? "Backend unavailable — retrying every 30 seconds"
               : !runtime ? "Checking backend…"
               : runtime.mode === "demo" ? runtime.ready ? "Demo · shared local sessions · retained decision snapshots" : "Demo · decision archive unavailable"
               : runtime.ready ? "Azure live · dependencies ready" : "Live · dependencies unavailable"}
           </p>
-          <p className="hidden md:block text-[11px] text-slate-500 mt-2">Status refreshed every 30 seconds.</p>
+          <p className="hidden md:block text-[11px] text-white/70 mt-2">Status refreshed every 30 seconds.</p>
         </div>
-        <div className="px-5 pb-5 space-y-3 text-xs text-slate-500">
+        <div className="px-5 pb-5 space-y-3 text-xs text-white/70">
           {sessionId && <>
             <p>Workflow: {sessionId.slice(0, 8)} · {snapshot?.status.replace(/_/g, " ")}</p>
             <p>Expires: {new Date(snapshot!.expires_at).toLocaleString()}</p>
@@ -315,18 +315,18 @@ export default function App() {
           }}>Sign out</Button>}
         </div>
       </aside>
-      <main id="main-content" className="flex-1 min-w-0 bg-white" aria-busy={busy}>
-        <div className="min-h-16 border-b border-slate-200 flex items-center justify-between flex-wrap gap-3 px-5 md:px-10 py-4">
-          <p className="text-xs text-slate-500">Workspace <span className="mx-2 text-slate-300">/</span> <span className="font-medium text-slate-700">{NAV.find((n) => n.id === view)?.label.replace(/^\d · /, "")}</span></p>
-          <span className="text-[11px] font-medium text-teal-800 bg-teal-50 border border-teal-100 rounded-full px-3 py-1">{workspace ? `${workspace.organization_name} / ${workspace.team_name}` : "Personal workspace"}</span>
+      <main id="main-content" className="flex-1 min-w-0 bg-canvas" aria-busy={busy}>
+        <div className="min-h-16 border-b border-line bg-white flex items-center justify-between flex-wrap gap-3 px-5 md:px-10 py-4">
+          <p className="text-xs text-zinc-500">Workspace <span className="mx-2 text-zinc-300">/</span> <span className="font-medium text-zinc-700">{NAV.find((n) => n.id === view)?.label.replace(/^\d · /, "")}</span></p>
+          <span className="max-w-full break-words text-[11px] font-medium text-brand-800 bg-brand-50 border border-brand-100 rounded-sm px-3 py-1">{workspace ? `${workspace.organization_name} / ${workspace.team_name}` : "Personal workspace"}</span>
         </div>
         <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-10 py-7 md:py-9 space-y-6">
           <div className="notice">
-            <svg aria-hidden="true" className="shrink-0 mt-0.5 text-slate-500" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z" /><path d="m9 12 2 2 4-4" /></svg>
+            <svg aria-hidden="true" className="shrink-0 mt-0.5 text-zinc-500" width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><path d="m12 3 8 3v6c0 5-8 9-8 9s-8-4-8-9V6l8-3Z" /><path d="m9 12 2 2 4-4" /></svg>
             <div>
               <p className="font-medium">Do not submit confidential data or credentials.</p>
               <details className="mt-0.5">
-                <summary className="text-slate-500">Privacy, access & retention details</summary>
+                <summary className="text-zinc-500">Privacy, access & retention details</summary>
                 <p className="mt-2">Pattern-based redaction is best-effort, not anonymization.
                   {" "}{auth?.mode === "local-demo" ? "Local demo is unauthenticated and shared; do not expose it publicly." : "Personal workflows are owner-private. Team workflows require active membership and scoped permissions. Team reviewers cannot review their own workflows; personal review requires the configured token role."}
                   {" "}Session retention: {auth?.retention_hours ?? "…"} hours; decision snapshots: {auth?.archive_retention_days ?? "…"} days.
@@ -336,9 +336,9 @@ export default function App() {
             </div>
           </div>
           {message && <p role="status" className="notice">{message}</p>}
-          {snapshot && <p className="text-xs text-slate-600">Assessment target: <strong>{snapshot.enterprise_context.target_cloud === "aws" ? "AWS" : "Azure"}</strong>
+          {snapshot && <p className="text-xs text-zinc-600">Assessment target: <strong>{snapshot.enterprise_context.target_cloud === "aws" ? "AWS" : "Azure"}</strong>
             {" "} / Region: {snapshot.enterprise_context.preferred_region || "not specified"} (unverified). AgentSpark hosting is unchanged.</p>}
-          {snapshot && <p className="text-xs text-slate-600">Assessment model: <strong>{snapshot.inference_model
+          {snapshot && <p className="text-xs text-zinc-600">Assessment model: <strong>{snapshot.inference_model
             ? `${snapshot.inference_model.provider} / ${snapshot.inference_model.model}` : "Legacy Azure OpenAI default (historical provenance not recorded)"}</strong>.
             {" "}No automatic provider fallback.</p>}
           {snapshot?.discovery_origin && <details className="notice">
@@ -354,7 +354,7 @@ export default function App() {
             finally { setBusy(false); }
           }}>Retry workflow restoration</Button>}
           {!auth && !starting && <Button onClick={() => window.location.reload()}>Retry connection</Button>}
-          {confirmDelete && <section role="alertdialog" aria-label="Confirm workflow deletion" aria-describedby="delete-explanation" className="rounded-xl border border-rose-200 bg-rose-50 p-5 text-rose-900">
+          {confirmDelete && <section role="alertdialog" aria-label="Confirm workflow deletion" aria-describedby="delete-explanation" className="rounded border border-rose-200 bg-rose-50 p-5 text-rose-900">
             <h2 className="font-semibold mb-2">Delete this workflow?</h2>
             <p id="delete-explanation">Permanently delete this workflow and all its decision snapshots, including reviewer comments? This cannot be undone.</p>
             <div className="flex flex-wrap gap-3 mt-4">
@@ -367,13 +367,13 @@ export default function App() {
               <h1 className="text-2xl font-bold">Organization access</h1>
               {pendingInvite && <p role="status" className="notice">You opened an invite link. Sign in first; you can then accept the invite on the Organizations & teams page.</p>}
               {auth?.sign_in ? <>
-                <p className="text-sm text-slate-600 leading-relaxed">Sign in with your organization's Microsoft account. Your session stays in this tab only.</p>
+                <p className="text-sm text-zinc-600 leading-relaxed">Sign in with your organization's Microsoft account. Your session stays in this tab only.</p>
                 <Button disabled={busy} onClick={signInWithMicrosoft}>Sign in with Microsoft</Button>
               </> : null}
               <details className="text-sm" open={!auth?.sign_in}>
-                <summary className="cursor-pointer text-slate-600">{auth?.sign_in ? "Use an access token instead" : "Access token"}</summary>
+                <summary className="cursor-pointer text-zinc-600">{auth?.sign_in ? "Use an access token instead" : "Access token"}</summary>
                 <div className="space-y-4 mt-3">
-                  <p className="text-sm text-slate-600 leading-relaxed">Supply an API access token from your organization's configured OIDC provider. It stays in memory and must be supplied again after reload.</p>
+                  <p className="text-sm text-zinc-600 leading-relaxed">Supply an API access token from your organization's configured OIDC provider. It stays in memory and must be supplied again after reload.</p>
                   <label className="block">Access token
                     <input type="password" autoComplete="off" spellCheck={false} value={token} onChange={(e) => setToken(e.target.value)}
                       className="form-control block mt-2" />

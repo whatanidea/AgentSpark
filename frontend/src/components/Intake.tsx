@@ -106,8 +106,8 @@ export default function Intake({ sessionId, initialContext, initialModel, modelL
                 })}>
                 <span className="sample-icon"><Icon name={sample.icon} /></span>
                 <span className="min-w-0">
-                  <span className="block text-xs font-semibold text-slate-800">{sample.name}</span>
-                  <span className="block text-[11px] text-slate-500 mt-1 leading-relaxed">{sample.detail}</span>
+                  <span className="block text-xs font-semibold text-zinc-800">{sample.name}</span>
+                  <span className="block text-[11px] text-zinc-500 mt-1 leading-relaxed">{sample.detail}</span>
                 </span>
               </button>
             );
@@ -117,7 +117,7 @@ export default function Intake({ sessionId, initialContext, initialModel, modelL
           Selected fictional demo: {form.demo_scenario}. Fixed fixture facts drive analysis, not your edits or interview text.
           {" "}<button className="underline underline-offset-2 font-semibold" disabled={busy} onClick={() => setForm({ ...form, demo_scenario: null })}>Clear sample selection</button>
         </p>}
-        {mode === "live" && <p className="text-xs text-slate-500 mt-3">Samples load intake templates only in live mode; missing facts require clarification.</p>}
+        {mode === "live" && <p className="text-xs text-zinc-500 mt-3">Samples load intake templates only in live mode; missing facts require clarification.</p>}
       </Card>
 
       <Card title="Assessment model" description="Choose the AI used for the interview and generated assessment, independently of the blueprint's target cloud.">
@@ -133,23 +133,23 @@ export default function Intake({ sessionId, initialContext, initialModel, modelL
           </select>
         </Field>
         {initialModel && !catalog?.items.some(item => item.id === initialModel.id && item.available) &&
-          <p className="text-xs text-slate-600 mt-3">Saved selection: {initialModel.provider} / {initialModel.model}. Its connection is not currently available.</p>}
-        <p className="text-xs text-slate-500 mt-3">{catalog?.mode === "demo"
+          <p className="text-xs text-zinc-600 mt-3">Saved selection: {initialModel.provider} / {initialModel.model}. Its connection is not currently available.</p>}
+        <p className="text-xs text-zinc-500 mt-3">{catalog?.mode === "demo"
           ? "Deterministic demo fixtures only; no AI provider is called."
           : "The model is fixed after generation starts. Start a new assessment to compare models. No automatic provider fallback is used. Scoring and ROI formulas remain deterministic."}</p>
         {catalog?.items.filter(item => !item.available).map(item =>
           item.id === "foundry-claude-haiku" ?
             <div key={item.id} role="group" aria-label={`${item.label} — Coming soon`} aria-disabled="true"
               aria-describedby="claude-coming-soon" tabIndex={0}
-              className="group relative mt-3 inline-flex cursor-not-allowed items-center gap-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-500 outline-none focus-visible:ring-2 focus-visible:ring-teal-600">
+              className="group relative mt-3 inline-flex cursor-not-allowed items-center gap-3 rounded border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-500 outline-none focus-visible:ring-2 focus-visible:ring-brand-600">
               <span>{item.label}</span>
-              <span className="rounded-full bg-slate-200 px-2 py-1 font-medium">Coming soon</span>
+              <span className="rounded-full bg-zinc-200 px-2 py-1 font-medium">Coming soon</span>
               <span id="claude-coming-soon" role="tooltip"
-                className="invisible absolute bottom-full left-0 z-10 mb-2 w-64 rounded-lg bg-slate-800 px-3 py-2 text-xs text-white shadow-lg group-hover:visible group-focus:visible">
+                className="invisible absolute bottom-full left-0 z-10 mb-2 w-64 rounded bg-zinc-800 px-3 py-2 text-xs text-white shadow-lg group-hover:visible group-focus:visible">
                 Coming soon. Continue with Azure OpenAI.
               </span>
             </div> :
-            <p key={item.id} className="text-xs text-slate-500 mt-2">{item.label}: {item.reason}</p>)}
+            <p key={item.id} className="text-xs text-zinc-500 mt-2">{item.label}: {item.reason}</p>)}
       </Card>
 
       <Card title="Deployment preferences" description="Choose the cloud for the customer's proposed solution, not AgentSpark's hosting.">
@@ -174,7 +174,7 @@ export default function Intake({ sessionId, initialContext, initialModel, modelL
               onChange={set("deployment_constraints")} />
           </Field>
         </div>
-        <p className="text-xs text-slate-500 mt-3">Assessment only. No cloud account connection or deployment. Region availability, model access, residency and pricing require separate validation. AgentSpark remains hosted on Azure and processes assessment data using its configured Azure services.</p>
+        <p className="text-xs text-zinc-500 mt-3">Assessment only. No cloud account connection or deployment. Region availability, model access, residency and pricing require separate validation. AgentSpark remains hosted on Azure and processes assessment data using its configured Azure services.</p>
       </Card>
       {confirmChange && <section role="alertdialog" aria-label="Confirm deployment preference change" className="notice block">
         <p>Saving changed cloud preferences clears the current analysis, blueprint and approval. Existing archived decisions are retained unchanged.</p>
@@ -198,13 +198,13 @@ export default function Intake({ sessionId, initialContext, initialModel, modelL
             </select>
           </Field>
         </fieldset>
-        <div className="flex items-center justify-between flex-wrap gap-4 mt-6 pt-5 border-t border-slate-100">
-          <p className="text-xs text-slate-500">Next: a focused diagnostic interview</p>
+        <div className="flex items-center justify-between flex-wrap gap-4 mt-6 pt-5 border-t border-zinc-100">
+          <p className="text-xs text-zinc-500">Next: a focused diagnostic interview</p>
           <Button onClick={submit} disabled={busy || !catalog || (!modelId && !modelLocked) || !form.business_domain || !form.target_cloud || confirmChange}>{busy ? "Saving…" : "Submit Intake"}<span aria-hidden="true">→</span></Button>
         </div>
         {msg && <p role="alert" className="mt-3 text-sm text-rose-700">{msg}</p>}
       </Card>
-      <Card title="What happens next" className="bg-slate-50/60">
+      <Card title="What happens next" className="bg-zinc-50/60">
         <ol className="space-y-6">
           {[
             ["Understand", "A guided interview captures the workflow and the facts behind it."],
@@ -212,12 +212,12 @@ export default function Intake({ sessionId, initialContext, initialModel, modelL
             ["Decide", "Review an advisory blueprint, or a simpler non-agentic alternative."],
           ].map(([title, detail], index) => (
             <li key={title} className="flex gap-3">
-              <span className="text-[11px] font-semibold text-teal-700 pt-0.5" aria-hidden="true">0{index + 1}</span>
-              <div><p className="text-xs font-semibold text-slate-800">{title}</p><p className="text-xs text-slate-500 leading-relaxed mt-1.5">{detail}</p></div>
+              <span className="text-[11px] font-semibold text-brand-700 pt-0.5" aria-hidden="true">0{index + 1}</span>
+              <div><p className="text-xs font-semibold text-zinc-800">{title}</p><p className="text-xs text-zinc-500 leading-relaxed mt-1.5">{detail}</p></div>
             </li>
           ))}
         </ol>
-        <p className="text-[11px] text-slate-500 leading-relaxed mt-6 pt-4 border-t border-slate-200">Recommendations guide decisions. They never execute or deploy your workflow.</p>
+        <p className="text-[11px] text-zinc-500 leading-relaxed mt-6 pt-4 border-t border-zinc-200">Recommendations guide decisions. They never execute or deploy your workflow.</p>
       </Card>
       </div>
     </div>
@@ -228,7 +228,7 @@ const inp = "form-control";
 function Field({ label, children, full }: any) {
   return (
     <label className={full ? "md:col-span-2" : ""}>
-      <span className="block text-xs font-medium text-slate-700 mb-2">{label}</span>
+      <span className="block text-xs font-medium text-zinc-700 mb-2">{label}</span>
       {children}
     </label>
   );

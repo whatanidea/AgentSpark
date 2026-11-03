@@ -18,12 +18,12 @@ export function ROIAssumptionForm({ value, onChange, disabled }: {
   value: ROIAssumptions; onChange: (value: ROIAssumptions) => void; disabled: boolean;
 }) {
   return (
-    <details className="rounded-xl border border-slate-200 bg-slate-50/50 p-5">
-      <summary className="cursor-pointer text-sm font-medium text-teal-800">Estimate assumptions — adjust before running analysis</summary>
-      <p className="text-xs text-slate-500 leading-relaxed mt-3">Defaults are illustrative, not observed facts or Azure pricing. Currency: USD. Blank operating cost means net savings are unknown.</p>
+    <details className="rounded border border-zinc-200 bg-zinc-50/50 p-5">
+      <summary className="cursor-pointer text-sm font-medium text-brand-800">Estimate assumptions — adjust before running analysis</summary>
+      <p className="text-xs text-zinc-500 leading-relaxed mt-3">Defaults are illustrative, not observed facts or Azure pricing. Currency: USD. Blank operating cost means net savings are unknown.</p>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mt-3">
         {FIELDS.map(({ key, label, min, max, step }) => (
-          <label key={key} className="text-xs font-medium text-slate-700">
+          <label key={key} className="text-xs font-medium text-zinc-700">
             {label}
             <input type="number" min={min} max={max} step={step} disabled={disabled}
               className="form-control block mt-2"
@@ -63,7 +63,7 @@ export default function ROIReport({ roi }: { roi: ROIResult }) {
     <div className="text-xs space-y-3">
       <p className="text-amber-800 leading-relaxed">{roi.estimate_basis}</p>
       <p>One-time build: {money(roi.implementation_cost)}. Payback / multiple use {roi.operating_costs_included ? "savings after supplied operating costs" : "gross labor savings, before unknown operating costs"}.</p>
-      <div className="overflow-x-auto rounded-lg border border-slate-200">
+      <div className="overflow-x-auto rounded border border-zinc-200">
         <table className="data-table">
           <thead><tr>{["Scenario", "Gross labor / yr", "Net after ops / yr", "Hours / yr", "Payback", "Annual savings / build"].map((s) => <th key={s}>{s}</th>)}</tr></thead>
           <tbody>{roi.scenarios.map((s) => (
@@ -77,7 +77,7 @@ export default function ROIReport({ roi }: { roi: ROIResult }) {
           ))}</tbody>
         </table>
       </div>
-      <p className="text-slate-500 leading-relaxed">{roi.assumptions}</p>
+      <p className="text-zinc-500 leading-relaxed">{roi.assumptions}</p>
     </div>
   );
 }

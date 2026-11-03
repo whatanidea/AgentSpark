@@ -8,7 +8,7 @@ async function intake(page: Page, sample?: string, cloud = "azure") {
   await expect(page).toHaveTitle("AgentSpark — Enterprise AI Transformation Advisor");
   await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
   await expect(page.locator("html")).toHaveCSS("color-scheme", "light");
-  await expect(page.getByRole("main")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await expect(page.getByRole("main")).toHaveCSS("background-color", "rgb(250, 249, 246)");
   await expect(page.getByText("AgentSpark", { exact: true })).toBeVisible();
   await expect(page.getByText("AgentSense", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Tell AgentSpark about a workflow", { exact: false })).toBeVisible();
@@ -461,7 +461,7 @@ test("light workspace supports keyboard focus, sample selection and readable pri
   await page.getByRole("button", { name: "Assess my workflow", exact: true }).first().click();
   const domain = page.getByLabel("Business Domain", { exact: true });
   await domain.focus();
-  await expect(domain).toHaveCSS("border-color", "rgb(13, 148, 136)");
+  await expect(domain).toHaveCSS("border-color", "rgb(101, 55, 223)");
   await page.keyboard.press("Tab");
   await expect(page.getByRole("combobox", { name: "Team Size", exact: true })).toBeFocused();
   const sample = page.getByRole("button", { name: "🧾 Invoice Approval (Finance)", exact: true });
@@ -474,7 +474,7 @@ test("light workspace supports keyboard focus, sample selection and readable pri
   await expect(submit).toBeDisabled();
   await page.getByLabel("Target cloud", { exact: true }).selectOption("azure");
   await expect(submit).toBeEnabled();
-  await expect(submit).toHaveCSS("background-color", "rgb(15, 118, 110)");
+  await expect(submit).toHaveCSS("background-color", "rgb(32, 33, 39)");
   await expect(submit).toHaveCSS("color", "rgb(255, 255, 255)");
   const contrast = await submit.evaluate((element) => {
     const luminance = (color: string) => {

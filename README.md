@@ -17,6 +17,11 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
 
 ## What you can do
 
+- **Use one editorial workspace:** Home, Discovery, assessments and team areas
+  share the public site's graphite, warm-white and violet identity. Violet
+  replaces green accents and positive score/status fills; explicit status labels
+  and amber/red warning states remain. The responsive shell retains visible
+  keyboard focus, readable forms and existing workflow, permission and data behavior.
 - **Start business-first discovery:** create a scoped engagement with an objective,
   sponsor, business units, topics and dates; save manual role contributions,
   candidate opportunities and links to existing assessments.
@@ -206,7 +211,7 @@ npm --prefix frontend run test:e2e
 
 The checks cover backend regressions, the offline workflow scenario, scoring
 evaluations, dependency consistency, frontend types/build, and browser workflows.
-Browser checks require Playwright Chromium and WebKit (the mobile Safari journey regression); see the
+Browser checks require Playwright Chromium and WebKit (mobile journey and portal design regressions); see the
 [toolchain and setup instructions](docs/operations.md#supported-toolchain-and-repeatable-checks).
 [GitHub CI](.github/workflows/ci.yml) also builds and smoke-tests a non-root container.
 CI does **not** deploy automatically.
