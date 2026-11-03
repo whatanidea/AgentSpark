@@ -136,7 +136,11 @@ test("mobile journey fits completely and advances, pauses and resumes in Safari 
     const pause = field.getByRole("button", { name: "Pause illustration", exact: true });
     expect((await pause.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     await pause.click();
-    await expect.poll(() => field.evaluate(node => node.getAnimations({ subtree: true }).every(animation => animation.playState === "paused"))).toBe(true);
+    await expect.poll(() => field.evaluate(node => node.getAnimations({ subtree: true }).every(animation => animation.playState === "paused" && !animation.pending))).toBe(true);
+    await field.evaluate(async node => {
+      await Promise.all(node.getAnimations({ subtree: true }).map(animation => animation.ready));
+      await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+    });
     const frozen = await flow.evaluate(node => getComputedStyle(node).strokeDashoffset);
     await page.waitForTimeout(100);
     expect(await flow.evaluate(node => getComputedStyle(node).strokeDashoffset)).toBe(frozen);
