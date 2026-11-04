@@ -27,7 +27,10 @@ test("source-linked hypotheses have explicit priorities and reviewed unverified 
     const current = await (await page.request.get(`/api/v1/engagements/${engagement}`)).json();
     const opportunity = current.engagement.opportunities[0].id;
     await page.getByRole("combobox", { name: "Opportunity to review", exact: true }).selectOption(opportunity);
-    await expect(page.getByText("Not ranked", { exact: false })).toBeVisible();
+    const prioritization = page.locator(".surface-card").filter({
+      has: page.getByRole("heading", { name: "Opportunity prioritization", exact: true }),
+    });
+    await expect(prioritization.getByText("Not ranked", { exact: false })).toBeVisible();
     for (const [name, value] of Object.entries({
       "Business value": "5", Feasibility: "4", "Evidence confidence": "3",
       "Risk (1 low, 5 high)": "2", "Delivery effort (1 low, 5 high)": "1",
@@ -35,7 +38,7 @@ test("source-linked hypotheses have explicit priorities and reviewed unverified 
     await page.getByRole("textbox", { name: "Priority rating rationale", exact: true }).fill("Fictional assessor assumptions; not verified savings.");
     await expect(page.getByRole("textbox", { name: "Engagement title", exact: true })).toBeDisabled();
     await page.getByRole("button", { name: "Save priority assumptions", exact: true }).click();
-    await expect(page.getByText("80/100", { exact: false })).toBeVisible();
+    await expect(prioritization.getByText("80/100", { exact: false })).toBeVisible();
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
     await page.getByRole("button", { name: "Select opportunity for assessment", exact: true }).click();
     await page.getByRole("combobox", { name: "Assessment target cloud", exact: true }).selectOption("azure");

@@ -94,8 +94,10 @@ export default function DiscoveryWorkflow({ record, blocked, onChange, onBusyCha
   return <section className="space-y-5 break-words min-w-0" aria-label="Discovery selling workflow">
     {error && <p role="alert" className="notice text-rose-700">{error}</p>}
     {message && <p role="status" className="notice">{message}</p>}
-    <DiscoveryProcesses record={record} blocked={busy || contributionDirty || ratingsDirty}
-      onChange={onChange} onBusyChange={onBusyChange} onDirtyChange={setProcessDirty} />
+    <div id="discovery-processes" tabIndex={-1} className="scroll-mt-6">
+      <DiscoveryProcesses record={record} blocked={busy || contributionDirty || ratingsDirty}
+        onChange={onChange} onBusyChange={onBusyChange} onDirtyChange={setProcessDirty} />
+    </div>
     <fieldset disabled={processDirty} className="space-y-5 min-w-0">
     <Card title="Engagement retention">
       <p>{record.retention.policy}</p>
@@ -103,6 +105,7 @@ export default function DiscoveryWorkflow({ record, blocked, onChange, onBusyCha
         Copies in assessments and decision archives follow their own retention.</p>
       <Button variant="ghost" disabled={busy || dirty || !record.permissions.write} onClick={() => void renew()}>Renew engagement for 30 days</Button>
     </Card>
+    <div id="discovery-people" tabIndex={-1} className="scroll-mt-6">
     <Card title="Stakeholder participation" description="Assign signed-in team members. Each person submits their own role contribution; statements remain unverified and workspace-visible.">
       <Button variant="ghost" disabled={busy || dirty} onClick={onManageAccess}>Manage team invitations</Button>
       {!record.participation.can_assign && <p className="text-sm mt-2">Assignment requires contributor access in an organization/team workspace.</p>}
@@ -148,6 +151,7 @@ export default function DiscoveryWorkflow({ record, blocked, onChange, onBusyCha
         {contributionDirty && <p className="notice">Unsaved contribution. Save it before other discovery actions.</p>}
       </form>}
     </Card>
+    </div>
     <Card title="Discovery synthesis" description="Themes, candidate opportunities, disagreements and gaps cite saved source statements. Generated hypotheses need human review.">
       <label>Approved discovery model<select className="form-control" value={model} disabled={busy || dirty} onChange={event => {
         const item = models?.items.find(candidate => candidate.id === event.target.value && candidate.available);

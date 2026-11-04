@@ -49,6 +49,16 @@ def raw_discovery_sources(state: WorkflowState) -> list[DiscoverySource]:
         raise ValueError("Discovery payload is required.")
     sources = [DiscoverySource(id=f"note.{note.id}", label=f"Manual {note.role} note; unverified",
                                statement=note.statement) for note in state.discovery.contributions]
+    if state.discovery.playbook_id:
+        from app.utils.discovery_playbooks import PLAYBOOKS
+        playbook = PLAYBOOKS[state.discovery.playbook_id]
+        for question in playbook["questions"]:
+            value = state.discovery.playbook_answers.get(question["id"], "")
+            if value.strip():
+                sources.append(DiscoverySource(
+                    id=f"playbook.{state.discovery.playbook_id}.{question['id']}",
+                    label=f"{playbook['title']} / {question['label']}; facilitator-recorded, unverified",
+                    statement=value))
     for participant in state.discovery_participants:
         if participant.status == "submitted":
             sources.extend(DiscoverySource(
@@ -113,6 +123,8 @@ def source_digest(state: WorkflowState) -> str:
                          for source in sources]}
     if collaborative:
         value["reviews"] = [review.model_dump(mode="json") for review in state.discovery_source_reviews]
+    if state.discovery.playbook_id:
+        value["playbook_id"] = state.discovery.playbook_id
     return sha256(json.dumps(value, sort_keys=True).encode()).hexdigest()
 
 

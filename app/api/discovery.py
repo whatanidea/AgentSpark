@@ -4,7 +4,7 @@ import logging
 from typing import Annotated, Literal
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Response
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from app.database.cosmos_client import db_client
@@ -17,6 +17,9 @@ from app.utils.discovery import (
     raw_discovery_sources, review_digest, priority_report, source_digest, synthesize,
 )
 from app.utils.model_catalog import assessment_model, model_definition
+from app.utils.discovery_engagement import engagement_overview, discovery_findings
+from app.utils.discovery_playbooks import PLAYBOOKS
+from app.utils.pdf_report import build_discovery_findings_pdf
 from app.utils.models import (
     CloudProvider, DiscoveryEngagement, DiscoveryHandoff, DiscoveryOpportunity, DiscoveryOrigin,
     DiscoveryParticipant, DiscoverySource, DiscoverySynthesis, EnterpriseContext, EvidenceEntry, SessionId, WorkflowState,
@@ -170,6 +173,7 @@ def response(state):
     synthesis = state.discovery_synthesis
     return {"id": state.session_id, "version": state._etag,
             "engagement": state.discovery.model_dump(mode="json"),
+            "overview": engagement_overview(state), "playbooks": list(PLAYBOOKS.values()),
             "permissions": permissions, "expires_at": state.expires_at.isoformat(),
             "retention": {"days": RETENTION_DAYS,
                           "created_at": state.discovery_created_at.isoformat() if state.discovery_created_at else None,
@@ -221,6 +225,27 @@ def create_engagement(req: EngagementRequest):
 @router.get("/engagements/{engagement_id}")
 def get_engagement(engagement_id: SessionId):
     return response(db_client.get_workflow_state(engagement_id, expected_kind="discovery"))
+
+
+@router.get("/engagements/{engagement_id}/findings")
+def get_findings(engagement_id: SessionId, http_response: Response,
+                 version: Annotated[str, Query(min_length=1, max_length=1000)]):
+    http_response.headers["Cache-Control"] = "no-store"
+    http_response.headers["X-Content-Type-Options"] = "nosniff"
+    return redact_data(discovery_findings(checked_state(engagement_id, version, "read")))
+
+
+@router.get("/engagements/{engagement_id}/findings/pdf")
+def get_findings_pdf(engagement_id: SessionId, version: Annotated[str, Query(min_length=1, max_length=1000)]):
+    snapshot = redact_data(discovery_findings(checked_state(engagement_id, version, "read")))
+    return Response(build_discovery_findings_pdf(snapshot), media_type="application/pdf",
+                    headers={"Content-Disposition": 'attachment; filename="AgentSpark_Discovery_Findings.pdf"',
+                             "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
+
+
+@router.get("/discovery-playbooks")
+def get_playbooks():
+    return list(PLAYBOOKS.values())
 
 
 @router.put("/engagements/{engagement_id}")

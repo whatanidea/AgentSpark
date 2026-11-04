@@ -201,6 +201,7 @@ export default function DiscoveryProcesses({ record, blocked, onChange, onBusyCh
         <Button type="submit" disabled={busy || !record.participation.step_questions}>Submit step contribution</Button>
       </form>}
     </Card>
+    <div id="discovery-evidence" tabIndex={-1} className="scroll-mt-6">
     <Card title="Source-linked baseline review" description="Measurements are submitted claims, not automatically verified. Only workspace reviewers can check facts or resolve disagreements.">
       <details><summary>Current process sources</summary>
         {(record.sources || []).map(source => <article key={source.id} className="mt-3">
@@ -244,6 +245,7 @@ export default function DiscoveryProcesses({ record, blocked, onChange, onBusyCh
         <Button type="submit" disabled={busy || !record.permissions.review || !editor.value.source_ids.length}>Save source review</Button>
       </form>}
     </Card>
+    </div>
     <Card title="Compare delivery alternatives" description="Write a rationale for every option. No AI default, automated preference or guaranteed savings.">
       {record.engagement.opportunities.map(opportunity => <article key={opportunity.id} className="mt-3">
         <h3>{opportunity.title}</h3>
