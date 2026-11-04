@@ -8,7 +8,7 @@ async function intake(page: Page, sample?: string, cloud = "azure") {
   await expect(page).toHaveTitle("AgentSpark — Enterprise AI Transformation Advisor");
   await expect(page.locator("body")).toHaveCSS("background-color", "rgb(255, 255, 255)");
   await expect(page.locator("html")).toHaveCSS("color-scheme", "light");
-  await expect(page.getByRole("main")).toHaveCSS("background-color", "rgb(250, 249, 246)");
+  await expect(page.getByRole("main")).toHaveCSS("background-color", "rgb(255, 255, 255)");
   await expect(page.getByText("AgentSpark", { exact: true })).toBeVisible();
   await expect(page.getByText("AgentSense", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Tell AgentSpark about a workflow", { exact: false })).toBeVisible();

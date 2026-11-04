@@ -67,7 +67,9 @@ test("editorial identity and authentication-independent booking are shared acros
   for (const path of ["/", "/consulting", "/consulting/workflow-pilot", "/about", "/resources/trust"]) {
     await page.goto(path);
     await expect(page.locator(".editorial-site")).toHaveAttribute("data-page", path);
+    await expect(page.locator(".editorial-site")).toHaveCSS("background-color", "rgb(255, 255, 255)");
     const header = page.getByRole("banner");
+    await expect(header).toHaveCSS("background-color", "rgba(255, 255, 255, 0.95)");
     const book = header.getByRole("button", { name: "Book a consultation", exact: false });
     await expect(book).toHaveCSS("border-radius", "2px");
     await expect(page.getByRole("navigation", { name: "Product navigation" }).getByRole("button").first()).toHaveText("Consulting");
