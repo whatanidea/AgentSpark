@@ -25,6 +25,14 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
 - **Start business-first discovery:** create a scoped engagement with an objective,
   sponsor, business units, topics and dates; save manual role contributions,
   candidate opportunities and links to existing assessments.
+- **Guide the engagement from scope to findings:** choose AI-native readiness or
+  Workflow opportunity discovery, record facilitator answers with explicit unknowns,
+  and use the engagement overview to find missing perspectives, overdue requests,
+  evidence issues and next actions. Section shortcuts preserve unsaved editors.
+  Export a standalone, version-scoped findings PDF without creating an assessment.
+  Record a human conclusion, including process improvement, conventional automation,
+  more evidence or do not proceed. Activity checks are not AI-readiness scores;
+  provider advice does not provision accounts. See [guided discovery](docs/discovery-processes.md#guided-discovery-engagements).
 - **Build a stakeholder-backed opportunity shortlist:** assign active team members
   their own structured contributions, generate source-linked hypotheses using an
   approved model, and rank opportunities using explicit weighted assumptions.

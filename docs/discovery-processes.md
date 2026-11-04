@@ -86,3 +86,61 @@ CI runs that configuration separately with
 The default configuration explicitly excludes `discovery-processes.spec.ts`, preserving
 its existing local-demo suite. The custom configuration selects only that authenticated
 specification and starts its separate signed-auth fixture server.
+# Guided Discovery engagements
+
+The engagement command centre derives activity checks and next actions from the
+saved record. It shows pending contribution requests, overdue requests (due before
+today in UTC), submitted role perspectives, source counts and evidence issues.
+Clarification-needed tasks do not count as submitted perspectives. Disagreements,
+stale reviews and clarification requests take priority over ordinary next actions.
+Checks describe documentation and review activity, **not an AI-readiness percentage,
+verified evidence, financial benefits or permission to implement**.
+
+Two optional playbooks support new and existing engagements:
+
+- **AI-native readiness:** outcomes, existing tools and developer workloads,
+  data/access/residency rules, approval and incident ownership, skills/adoption,
+  and source-referenced baselines.
+- **Workflow opportunity discovery:** work boundaries, friction, baselines,
+  systems/data, human authority and non-AI alternatives. This guide also prompts
+  the consultant to document the current process.
+
+Each has six suggested-role prompts. Answers are saved facilitator notes, not
+authenticated participant attestations. Empty answers and answers beginning with
+`Unconfirmed`, `Unknown`, `TBD` or `Not known` remain visible gaps. Changing a guide
+with answers requires confirmation and clears those answers; historical synthesis
+snapshots remain historical. Playbook answers join the source register, pass
+existing redaction/instruction checks and stale synthesis/reviews when edited.
+Legacy records with no playbook preserve the original source-digest shape.
+Guide selection alone does not populate confirmed assessment facts or provision
+Anthropic, OpenAI, Gemini or other provider accounts.
+
+Stage shortcuts focus Overview, Processes, People & inputs, Evidence, Opportunities
+and Findings without changing routes or unmounting editors. They preserve drafts;
+existing conflicting-action and departure protections still apply. The overview
+explicitly uses the last saved record, and findings export is disabled while any
+editor has unsaved changes.
+
+Writers can record a human conclusion and rationale: gather more evidence, improve
+the process first, explore conventional automation, investigate a bounded AI pilot,
+or do not proceed. These are discussion outcomes, not assessment approval. Readers
+can export the saved findings without write or reviewer access. Once a reasoned
+conclusion is recorded, the suggested next action follows that human direction
+instead of forcing an AI shortlist or unnecessary assessment; outstanding activity
+and evidence gaps remain visible in the checks.
+
+`GET /api/v1/discovery-playbooks` supplies the versioned guide catalogue.
+`GET /api/v1/engagements/{id}/findings?version=...` and its `/findings/pdf` equivalent
+return a standalone snapshot using normal workspace authorization and an exact
+saved version (409 on stale versions). No linked assessment or synthesis is
+required, and export does not extend retention or mutate records.
+The report includes scope, guide answers, participation/request status, current
+source-linked synthesis if available, candidate alternatives and relative priority
+gaps, human conclusion, source register/review status, next actions, limitations
+and exact snapshot provenance. Unsubmitted participant and task answers/evidence
+are excluded; stale generated findings are withheld rather than presented as current.
+Incomplete discoveries export with explicit gaps. Measurements remain submitted
+claims, and reviewer checks remain attributed human judgments.
+
+Tests: `tests/test_guided_discovery.py` and
+`frontend/e2e/guided-discovery.spec.ts` (Chromium and mobile WebKit).

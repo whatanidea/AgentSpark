@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useState } from "react";
-import { api, uid, type DiscoveryEngagement, type DiscoveryRecord, type HomeItem } from "../api";
+import { api, uid, type DiscoveryEngagement, type DiscoveryRecord, type DiscoveryPlaybook, type HomeItem } from "../api";
 import { Button, Card } from "./ui";
 import DiscoveryWorkflow from "./DiscoveryWorkflow";
+import DiscoveryGuide from "./DiscoveryGuide";
 
 const empty = (): DiscoveryEngagement => ({
   title: "", objective: "", business_units: "", sponsor: "", engagement_owner: "",
@@ -31,6 +32,7 @@ export default function Discovery({ canCreate, onOpen, onBusyChange, onManageAcc
   const [message, setMessage] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [workflowDirty, setWorkflowDirty] = useState(false);
+  const [playbooks, setPlaybooks] = useState<DiscoveryPlaybook[]>([]);
   const formDirty = draft !== null && JSON.stringify(draft) !== JSON.stringify(record?.engagement || empty());
   const dirty = formDirty || workflowDirty;
   const canWrite = record ? record.permissions.write : canCreate;
@@ -40,10 +42,11 @@ export default function Discovery({ canCreate, onOpen, onBusyChange, onManageAcc
   useEffect(() => {
     let alive = true;
     setBusy(true);
-    Promise.all([api.engagements(), api.home()]).then(([engagements, workflows]) => {
+    Promise.all([api.engagements(), api.home(), api.discoveryPlaybooks()]).then(([engagements, workflows, guides]) => {
       if (alive) {
         setItems(engagements.items); setCursor(engagements.next_cursor);
         setAssessments(workflows.items); setAssessmentCursor(workflows.next_cursor);
+        setPlaybooks(guides);
       }
     }).catch((e: unknown) => { if (alive) setError(e instanceof Error ? e.message : "Could not load discovery."); })
       .finally(() => { if (alive) setBusy(false); });
@@ -95,6 +98,25 @@ export default function Discovery({ canCreate, onOpen, onBusyChange, onManageAcc
   function update<K extends keyof DiscoveryEngagement>(key: K, value: DiscoveryEngagement[K]) {
     setDraft(current => current ? { ...current, [key]: value } : current);
   }
+  async function exportFindings() {
+    if (!record || dirty) return;
+    setBusy(true); setError("");
+    try {
+      const blob = await api.discoveryFindingsPdf(record.id, record.version);
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url; anchor.download = "AgentSpark_Discovery_Findings.pdf"; anchor.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      setMessage("Findings exported from the saved snapshot. This does not approve implementation.");
+    } catch (e) { setError(e instanceof Error ? e.message : "Could not export findings. Reload before retrying."); }
+    finally { setBusy(false); }
+  }
+  const playbook = playbooks.find(item => item.id === draft?.playbook_id);
+  const outcomes = [
+    ["gather_more_evidence", "Gather more evidence"], ["improve_process", "Improve the process first"],
+    ["conventional_automation", "Explore conventional automation"], ["bounded_ai_pilot", "Investigate a bounded AI pilot"],
+    ["do_not_proceed", "Do not proceed"],
+  ] as const;
   return <div className="space-y-6">
     <header className="page-header flex flex-wrap justify-between gap-4">
       <div><h1>Discovery engagements</h1><p className="mt-2">Start with a business objective, organize discovery notes,
@@ -115,9 +137,23 @@ export default function Discovery({ canCreate, onOpen, onBusyChange, onManageAcc
       </li>)}</ul>
       {cursor && <Button variant="ghost" disabled={busy} onClick={() => void more("engagements")}>More engagements</Button>}
     </Card>
+    {record && <DiscoveryGuide record={record} dirty={dirty} busy={busy} />}
     {draft && <form onSubmit={event => { event.preventDefault(); void save(); }} className="space-y-5">
       <fieldset disabled={workflowDirty} className="space-y-5 min-w-0">
       <Card title={record ? "Engagement brief" : "Create engagement"}>
+        <fieldset disabled={busy || !canWrite} className="space-y-3 mb-5">
+          <label>Discovery playbook<select aria-label="Discovery playbook" className="form-control" value={draft.playbook_id || ""}
+            onChange={event => {
+              const next = playbooks.find(item => item.id === event.target.value);
+              if (Object.values(draft.playbook_answers || {}).some(value => value.trim()) &&
+                !window.confirm("Changing playbook clears its current facilitator answers. Existing synthesis snapshots remain historical. Continue?")) return;
+              setDraft({ ...draft, playbook_id: next?.id || null, playbook_answers: {} });
+            }}>
+            <option value="">Custom engagement / choose a guide</option>
+            {playbooks.map(item => <option key={item.id} value={item.id}>{item.title}</option>)}
+          </select></label>
+          {playbook && <p className="text-sm text-zinc-600">{playbook.description}</p>}
+        </fieldset>
         {record && <p className="text-sm mb-3">Saved progress: {record.progress.contributions} notes /
           {" "}{record.progress.opportunities} opportunities / {record.progress.assessments} available assessments.
           Expires {new Date(record.expires_at).toLocaleString()}.</p>}
@@ -140,6 +176,17 @@ export default function Discovery({ canCreate, onOpen, onBusyChange, onManageAcc
           </div>
         </fieldset>
       </Card>
+      {playbook && <Card title={`${playbook.title} discussion guide`}
+        description="Facilitator-recorded notes, not stakeholder attestations. Cite sources where possible; use Unconfirmed for unknowns. Provider advice does not create accounts or access.">
+        <fieldset disabled={busy || !canWrite} className="grid md:grid-cols-2 gap-4">
+          {playbook.questions.map(question => <label key={question.id} className="text-sm font-semibold">{question.label}
+            <span className="block text-xs font-normal text-zinc-600 mt-1">Suggested perspective: {roles[question.role]}</span>
+            <textarea className="form-control mt-2" maxLength={1000} value={draft.playbook_answers?.[question.id] || ""}
+              onChange={event => update("playbook_answers", { ...draft.playbook_answers, [question.id]: event.target.value })} />
+          </label>)}
+        </fieldset>
+      </Card>}
+      <div id="discovery-notes" tabIndex={-1} className="scroll-mt-6">
       <Card title="Manually recorded contributions" description="Role-labelled notes, not participant attestations or verified evidence.">
         <fieldset disabled={busy || !canWrite} className="space-y-4">
           {draft.contributions.map((note, index) => <div key={note.id} className="border rounded p-3 space-y-2">
@@ -157,6 +204,8 @@ export default function Discovery({ canCreate, onOpen, onBusyChange, onManageAcc
             update("contributions", [...draft.contributions, { id: uid(), role: "business_operator", statement: "" }])}>Add contribution note</Button>
         </fieldset>
       </Card>
+      </div>
+      <div id="discovery-opportunities" tabIndex={-1} className="scroll-mt-6">
       <Card title="Candidate opportunities" description="Human-recorded hypotheses; no automatic ranking or benefit claims.">
         <fieldset disabled={busy || !canWrite} className="space-y-4">
           {draft.opportunities.map((opportunity, index) => <div key={opportunity.id} className="border rounded p-3 space-y-2">
@@ -177,6 +226,7 @@ export default function Discovery({ canCreate, onOpen, onBusyChange, onManageAcc
             update("opportunities", [...draft.opportunities, { id: uid(), title: "", problem: "", status: "proposed", source_ids: [], ratings: null }])}>Add candidate opportunity</Button>
         </fieldset>
       </Card>
+      </div>
       <Card title="Linked assessments" description="Links only; discovery notes are not copied into confirmed workflow facts.">
         <fieldset disabled={busy || !canWrite}>
           <label>Attach an existing assessment<select aria-label="Attach an existing assessment" className="form-control" value=""
@@ -200,6 +250,57 @@ export default function Discovery({ canCreate, onOpen, onBusyChange, onManageAcc
           Open {item.title}
         </Button>)}
       </Card>
+      <div id="discovery-findings" tabIndex={-1} className="scroll-mt-6">
+        <Card title="Discovery findings" description="A standalone discussion document. An assessment, AI recommendation or generated synthesis is not required.">
+          {record && <div className="space-y-3 mb-5 border-b border-zinc-200 pb-5">
+            <h3 className="font-semibold">Saved findings preview</h3>
+            <p className="text-sm">{record.engagement.objective}</p>
+            <p className="text-xs text-zinc-600">Snapshot {record.version}. Unsaved edits are not part of this preview.</p>
+            {record.synthesis && record.synthesis_current ? <>
+              {record.synthesis.content.themes.map((finding, index) => <article key={index}>
+                <h4 className="font-semibold">{finding.title}</h4>
+                <p className="text-sm">{finding.statement}</p>
+                <p className="text-xs text-zinc-600">Hypothesis sources: {finding.source_ids.join(", ")}</p>
+              </article>)}
+              {!!record.synthesis.content.conflicts.length && <p className="notice">
+                {record.synthesis.content.conflicts.length} reported synthesis disagreements need human review.
+              </p>}
+              {!!record.synthesis.content.open_questions.length && <ul className="list-disc pl-5 text-sm">
+                {record.synthesis.content.open_questions.map(question => <li key={question}>{question}</li>)}
+              </ul>}
+            </> : <p className="notice">{record.synthesis ? "Generated findings are stale and withheld. Refresh synthesis before relying on them."
+              : "No generated synthesis. You can still discuss the saved inputs and export a useful findings report."}</p>}
+            <p className="text-sm">{record.engagement.opportunities.length} candidates recorded /
+              {" "}{record.overview?.unranked_opportunities ?? record.engagement.opportunities.length} without a current relative ranking.
+              These are hypotheses, not approved pilots.</p>
+            {record.prioritization.items.map(item => <p key={item.opportunity_id} className="text-sm">
+              <strong>{item.title}</strong>: {item.score === null ? `Priority withheld: ${item.missing.join(", ")}` : `Relative priority ${item.score}/100`}
+            </p>)}
+            <p className="text-sm"><strong>Saved conclusion: </strong>
+              {outcomes.find(([id]) => id === record.engagement.discovery_outcome)?.[1] || "Not recorded"}.
+              {" "}{record.engagement.outcome_rationale}</p>
+            {record.overview && <><h4 className="font-semibold">Outstanding next actions</h4>
+              <ul className="list-disc pl-5 text-sm">{record.overview.next_actions.map((action, index) =>
+                <li key={index}>{action.message}</li>)}</ul></>}
+          </div>}
+          <fieldset disabled={busy || !canWrite} className="space-y-3">
+            <label>Discovery conclusion<select aria-label="Discovery conclusion" className="form-control" value={draft.discovery_outcome || ""}
+              onChange={event => {
+                const outcome = outcomes.find(([id]) => id === event.target.value);
+                update("discovery_outcome", outcome?.[0] || null);
+              }}><option value="">Choose after discussing the findings</option>
+              {outcomes.map(([id, label]) => <option key={id} value={id}>{label}</option>)}
+            </select></label>
+            <label>Conclusion rationale and proposed next steps<textarea className="form-control" maxLength={2000}
+              value={draft.outcome_rationale || ""} onChange={event => update("outcome_rationale", event.target.value)} /></label>
+          </fieldset>
+          <p className="text-sm text-zinc-600 mt-3">The report includes saved scope, participation, current findings, source register,
+            evidence gaps, candidate comparisons, your conclusion and snapshot provenance. Stale generated findings are withheld.
+            Incomplete discoveries can be exported with their gaps visible. Draft participant answers are excluded.</p>
+          {record && <Button variant="ghost" disabled={busy || dirty} onClick={() => void exportFindings()}>Export discovery findings PDF</Button>}
+          {dirty && <p className="text-sm mt-2">Save changes before exporting. This conclusion does not authorize implementation.</p>}
+        </Card>
+      </div>
       </fieldset>
       {dirty && <p role="status" className="notice">Unsaved discovery changes.</p>}
       <div className="flex flex-wrap gap-3">

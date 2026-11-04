@@ -669,10 +669,19 @@ class DiscoveryEngagement(BaseModel):
     opportunities: List[DiscoveryOpportunity] = Field(default_factory=list, max_length=20)
     assessment_ids: List[SessionId] = Field(default_factory=list, max_length=20)
     processes: List[DiscoveryProcess] = Field(default_factory=list, max_length=10)
+    playbook_id: Optional[Literal["ai_native_readiness", "workflow_opportunity"]] = None
+    playbook_answers: Dict[str, Annotated[str, StringConstraints(max_length=1000)]] = Field(default_factory=dict, max_length=6)
+    discovery_outcome: Optional[Literal["gather_more_evidence", "improve_process", "conventional_automation",
+                                        "bounded_ai_pilot", "do_not_proceed"]] = None
+    outcome_rationale: str = Field(default="", max_length=2000)
 
     @model_validator(mode="after")
     def valid_engagement(self):
+        from app.utils.discovery_playbooks import PLAYBOOKS
         from datetime import date
+        allowed = {question["id"] for question in PLAYBOOKS[self.playbook_id]["questions"]} if self.playbook_id else set()
+        if not set(self.playbook_answers).issubset(allowed):
+            raise ValueError("Playbook answers must belong to the selected playbook.")
         for value in (self.starts_on, self.ends_on):
             if value and date.fromisoformat(value).isoformat() != value:
                 raise ValueError("Discovery dates must use YYYY-MM-DD.")

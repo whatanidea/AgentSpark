@@ -27,6 +27,22 @@ export type DiscoveryEngagement = {
     alternatives?: DiscoveryAlternative[]; preferred_alternative?: DiscoveryAlternativeKind | null }[];
   assessment_ids: string[];
   processes?: DiscoveryProcess[];
+  playbook_id?: "ai_native_readiness" | "workflow_opportunity" | null;
+  playbook_answers?: Record<string, string>;
+  discovery_outcome?: "gather_more_evidence" | "improve_process" | "conventional_automation" | "bounded_ai_pilot" | "do_not_proceed" | null;
+  outcome_rationale?: string;
+};
+export type DiscoverySection = "overview" | "processes" | "people" | "evidence" | "opportunities" | "findings";
+export type DiscoveryPlaybook = {
+  id: NonNullable<DiscoveryEngagement["playbook_id"]>; title: string; description: string;
+  questions: { id: string; label: string; role: Exclude<InterviewRole, "all"> }[];
+};
+export type DiscoveryOverview = {
+  stage: string; documented_checks: number; total_checks: number; pending_requests: number;
+  overdue_requests: number; submitted_perspectives: number; source_count: number; review_issues: number;
+  unanswered_prompts: string[]; unranked_opportunities: number; limitations: string;
+  checks: { id: string; section: DiscoverySection; label: string; complete: boolean; detail: string }[];
+  next_actions: { section: DiscoverySection; message: string }[];
 };
 export type DiscoveryRatings = {
   value: number | null; feasibility: number | null; evidence_confidence: number | null;
@@ -76,6 +92,7 @@ export type DiscoveryParticipant = {
 };
 export type DiscoveryRecord = {
   id: string; version: string; engagement: DiscoveryEngagement; permissions: Permissions; expires_at: string;
+  overview?: DiscoveryOverview; playbooks?: DiscoveryPlaybook[];
   assessments: { session_id: string; title: string; status: string }[]; unavailable_assessments: string[];
   progress: { contributions: number; opportunities: number; assessments: number }; limitations: string;
   retention: { days: number; created_at: string | null; policy: string };
@@ -398,6 +415,9 @@ export const api = {
     request(`/sessions/${encodeURIComponent(id)}/interview`, "PUT", { version, answers, ...(role ? { role } : {}) }),
   engagements: (cursor = ""): Promise<DirectoryPage<HomeItem>> => get(`/engagements?${new URLSearchParams({ cursor })}`),
   engagement: (id: string): Promise<DiscoveryRecord> => get(`/engagements/${encodeURIComponent(id)}`),
+  discoveryPlaybooks: (): Promise<DiscoveryPlaybook[]> => get("/discovery-playbooks"),
+  discoveryFindingsPdf: async (id: string, version: string): Promise<Blob> =>
+    (await requestResponse(`/engagements/${encodeURIComponent(id)}/findings/pdf?${new URLSearchParams({ version })}`)).blob(),
   createEngagement: (engagement: DiscoveryEngagement): Promise<DiscoveryRecord> => post("/engagements", { engagement }),
   saveEngagement: (id: string, version: string, engagement: DiscoveryEngagement): Promise<DiscoveryRecord> =>
     request(`/engagements/${encodeURIComponent(id)}`, "PUT", { version, engagement }),

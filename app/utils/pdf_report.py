@@ -53,16 +53,16 @@ def _label(key: str) -> str:
 
 
 class _Report:
-    def __init__(self):
+    def __init__(self, accent=_TEAL):
         self.story = []
         base = {"fontName": "ReportVera", "fontSize": 9, "leading": 13, "spaceAfter": 5,
                 "alignment": TA_LEFT, "splitLongWords": True}
         self.body = ParagraphStyle("ReportBody", **base)
         self.title = ParagraphStyle("ReportTitle", parent=self.body, fontName="ReportVeraBold",
-                                    fontSize=21, leading=27, textColor=_TEAL, spaceAfter=12)
+                                    fontSize=21, leading=27, textColor=accent, spaceAfter=12)
         self.h1 = ParagraphStyle("ReportHeading", parent=self.body, fontName="ReportVeraBold",
                                  fontSize=13, leading=18, spaceBefore=14, spaceAfter=8, keepWithNext=True,
-                                 textColor=_TEAL)
+                                 textColor=accent)
         self.h2 = ParagraphStyle("ReportSubheading", parent=self.body, fontName="ReportVeraBold",
                                  fontSize=10, leading=14, spaceBefore=8, keepWithNext=True)
         self.small = ParagraphStyle("ReportSmall", parent=self.body, fontSize=8, leading=11)
@@ -142,6 +142,43 @@ class _Report:
                 self.story.append(Spacer(1, 4))
         if table:
             self.table(table)
+
+
+def build_discovery_findings_pdf(snapshot: dict) -> bytes:
+    report = _Report(accent=colors.HexColor("#6d28d9"))
+    report.paragraph("AgentSpark Discovery Findings", report.title)
+    report.paragraph("DISCUSSION DOCUMENT - NOT IMPLEMENTATION APPROVAL", report.h2)
+    report.paragraph(snapshot["limitations"])
+    report.heading("Engagement scope and discussion guide")
+    report.details(snapshot["scope"])
+    report.heading("Participation and outstanding requests")
+    report.details({"participation": snapshot["participation"], "requests": snapshot["requests"]})
+    report.heading("Activity checks and evidence gaps")
+    report.details(snapshot["overview"])
+    report.heading("Source-linked findings")
+    report.field("Synthesis status", snapshot["synthesis_status"])
+    if snapshot["synthesis"]:
+        report.details(snapshot["synthesis"])
+    else:
+        report.paragraph("No current generated findings are included. Sources and human conclusions remain available below.")
+    report.heading("Candidate shortlist and alternatives")
+    report.details(snapshot["opportunities"] or "No candidates recorded; AI is not a required outcome.")
+    report.details(snapshot["prioritization"])
+    report.heading("Human conclusion and proposed next actions")
+    report.details(snapshot["conclusion"])
+    report.details(snapshot["overview"]["next_actions"])
+    report.heading("Source register - submitted claims, not automatic verification")
+    report.details(snapshot["sources"] or "No sources recorded.")
+    report.heading("Attributed review history")
+    report.paragraph("Source register statuses describe current reviews. Historical review digests may no longer match edited sources.")
+    report.details(snapshot["source_reviews"] or "No source reviews recorded.")
+    report.heading("Snapshot provenance")
+    for key in ("report_version", "engagement_id", "source_version", "source_digest", "generated_at", "expires_at"):
+        report.field(_label(key), snapshot[key])
+    output = BytesIO()
+    SimpleDocTemplate(output, pagesize=A4, leftMargin=42, rightMargin=42, topMargin=42, bottomMargin=42,
+                      title="AgentSpark Discovery Findings").build(report.story)
+    return output.getvalue()
 
 
 def build_executive_brief_pdf(brief: dict) -> bytes:
