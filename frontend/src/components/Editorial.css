@@ -8,7 +8,7 @@
   --landing-muted: var(--muted);
   --landing-accent: var(--accent);
   --landing-line: var(--line);
-  background: #faf9f6;
+  background: var(--color-canvas);
 }
 .editorial-site .landing-container { width: min(1320px, calc(100% - 96px)); }
 .editorial-site .landing-button { border-radius: 2px; box-shadow: none; min-height: 48px; }
@@ -16,14 +16,14 @@
 .editorial-site .landing-button-primary:hover:not(:disabled) { background: var(--accent); box-shadow: none; }
 .editorial-site .landing-button-secondary { background: transparent; border-color: #c6c3ce; }
 .editorial-site .landing-eyebrow { color: var(--accent); }
-.editorial-site .marketing-header { top: 12px; width: min(1440px, calc(100% - 48px)); margin: 12px auto 0; border: 1px solid #d8d6dc; border-radius: 4px; background: #faf9f6f2; backdrop-filter: blur(18px); }
+.editorial-site .marketing-header { top: 12px; width: min(1440px, calc(100% - 48px)); margin: 12px auto 0; border: 1px solid #d8d6dc; border-radius: 4px; background: #fffffff2; backdrop-filter: blur(18px); }
 .editorial-site .marketing-header-inner { width: calc(100% - 40px); min-height: 68px; gap: 18px; }
 .editorial-site .landing-brand-mark { width: 28px; height: 28px; border-radius: 1px; background: var(--ink); font-size: 23px; }
 .editorial-site .marketing-header .landing-brand { font-size: 23px; letter-spacing: -1px; }
 .editorial-site .marketing-header-cta { font-size: 12px; gap: 15px; padding-inline: 16px; }
 .editorial-site .marketing-dropdown { top: calc(100% + 12px); border-radius: 2px; border-color: #cecad5; }
 .editorial-site .premium-menu-feature { border-radius: 0; background: #eeebf5; border-left: 2px solid var(--accent); }
-.editorial-site .premium-menu-icon, .editorial-site .premium-menu-map > svg { border-radius: 2px; background: #faf9f6; }
+.editorial-site .premium-menu-icon, .editorial-site .premium-menu-map > svg { border-radius: 2px; background: var(--color-canvas); }
 .editorial-site .landing-hero { display: block; padding-block: 32px 0; }
 .editorial-hero-meta { display: flex; justify-content: space-between; align-items: center; gap: 24px; }
 .editorial-hero-meta > span { color: var(--muted); font: 10px ui-monospace, Consolas, monospace; letter-spacing: .06em; text-align: right; }
@@ -130,7 +130,7 @@
 .editorial-site .premium-page-copy h1 { font-size: clamp(45px, 4.8vw, 69px); line-height: 1.04; letter-spacing: -.065em; font-weight: 500; }
 .editorial-site .premium-page-visual { position: relative; border-radius: 2px; box-shadow: none; background: #efedf3; border-color: #d4cedc; }
 .editorial-site .premium-page-visual > h2 { font-weight: 500; }
-.editorial-site .premium-visual-nodes li { border-radius: 1px; background: #faf9f6; border-color: #d4cedc; box-shadow: none; }
+.editorial-site .premium-visual-nodes li { border-radius: 1px; background: var(--color-canvas); border-color: #d4cedc; box-shadow: none; }
 .editorial-site .premium-node-number { border-radius: 1px; background: #e8e0f6; color: var(--accent); }
 .editorial-site .marketing-capabilities article { border-radius: 0; background: none; border-top: 1px solid var(--line); padding-top: 24px; }
 .editorial-site .consulting-definition, .editorial-site .consulting-next { border-radius: 2px; }

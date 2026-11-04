@@ -7,7 +7,7 @@ async function openPortal(page: Page) {
 
 async function verifyPalette(page: Page) {
   await expect(page.locator(".portal-sidebar")).toHaveCSS("background-color", "rgb(31, 32, 39)");
-  await expect(page.getByRole("main")).toHaveCSS("background-color", "rgb(250, 249, 246)");
+  await expect(page.getByRole("main")).toHaveCSS("background-color", "rgb(255, 255, 255)");
   const active = page.locator(".nav-item[aria-current]");
   await expect(active).toHaveCSS("background-color", "rgb(236, 229, 252)");
   await expect(active).toHaveCSS("color", "rgb(48, 32, 91)");

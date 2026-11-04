@@ -18,7 +18,7 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
 ## What you can do
 
 - **Use one editorial workspace:** Home, Discovery, assessments and team areas
-  share the public site's graphite, warm-white and violet identity. Violet
+  share the public site's graphite, pure-white and violet identity. Violet
   replaces green accents and positive score/status fills; explicit status labels
   and amber/red warning states remain. The responsive shell retains visible
   keyboard focus, readable forms and existing workflow, permission and data behavior.
