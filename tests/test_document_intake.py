@@ -350,6 +350,171 @@ class DocumentIntakeTests(unittest.TestCase):
             with self.assertRaises(InvalidDependencyResponse):
                 documents.preview_document(docx(["Steps: 7"]), "fictional.docx", WorkflowState(session_id=self.session))
 
+    def test_narrative_quote_is_corrected_once_without_weakening_grounding(self):
+        prose = "Each incident passes through 7 stages before the SRE hands over the investigation."
+        invalid = DocumentField(field_id="fact.steps", value="7", quote="The workflow has 7 steps.",
+                                location="Paragraph 1")
+        corrected = invalid.model_copy(update={"quote": prose})
+        stages = []
+        token = _sink.set(stages.append)
+        try:
+            with patch.object(documents, "demo_mode", return_value=False), \
+                    patch.object(documents, "get_chat_llm", return_value=Mock()), \
+                    patch.object(documents, "structured_call", side_effect=[
+                        DocumentExtraction(candidates=[invalid]), DocumentExtraction(candidates=[corrected])]) as call:
+                result = documents.preview_document(docx([prose]), "narrative.docx", WorkflowState(session_id=self.session))
+        finally:
+            _sink.reset(token)
+        self.assertEqual(call.call_count, 2)
+        feedback = json.loads(call.call_args.args[2])
+        self.assertEqual(feedback["validation_issues"][0]["field_id"], "fact.steps")
+        self.assertEqual(result["candidates"][0]["quote"], prose)
+        self.assertEqual(result["verification"], "proposals_unapproved")
+        self.assertTrue(any(event.get("label") == "Rechecking document proposals against their sources" for event in stages))
+        with self.assertRaises(WorkflowNotFound):
+            self.database.get_workflow_state(self.session)
+
+    def test_narrative_inferred_rating_is_omitted_with_warning_and_valid_facts_preserved(self):
+        prose = "The response has 7 stages. Incorrect advice may delay order processing."
+        step = DocumentField(field_id="fact.steps", value="7", quote="The response has 7 stages.",
+                             location="Paragraph 1")
+        inferred = DocumentField(field_id="fact.error_cost", value="High",
+                                 quote="Incorrect advice may delay order processing.", location="Paragraph 1")
+        with patch.object(documents, "demo_mode", return_value=False), \
+                patch.object(documents, "get_chat_llm", return_value=Mock()), \
+                patch.object(documents, "structured_call", side_effect=[
+                    DocumentExtraction(candidates=[step, inferred]), DocumentExtraction(candidates=[])]) as call:
+            result = documents.preview_document(docx([prose]), "narrative.docx", WorkflowState(session_id=self.session))
+        feedback = json.loads(call.call_args.args[2])
+        self.assertEqual([field["id"] for field in feedback["fields"]], ["fact.error_cost"])
+        self.assertEqual(feedback["validation_issues"][0]["value"], "High")
+        self.assertEqual(feedback["validation_issues"][0]["quote"], inferred.quote)
+        self.assertIn("must be explicit", feedback["validation_issues"][0]["reason"])
+        self.assertEqual([field["field_id"] for field in result["candidates"]], ["fact.steps"])
+        self.assertTrue(any("remain unresolved" in warning for warning in result["warnings"]))
+        self.assertTrue(any("human input" in warning for warning in result["warnings"]))
+        with self.assertRaises(WorkflowNotFound):
+            self.database.get_workflow_state(self.session)
+
+    def test_narrative_correction_deduplicates_same_values_but_keeps_real_conflicts(self):
+        prose = "The SRE describes 7 stages. The SAP lead describes 9 stages."
+        seven = DocumentField(field_id="fact.steps", value="7", quote="The SRE describes 7 stages.",
+                              location="Paragraph 1")
+        nine = seven.model_copy(update={"value": "9", "quote": "The SAP lead describes 9 stages."})
+        invalid = nine.model_copy(update={"quote": "Invented private quote"})
+        with patch.object(documents, "demo_mode", return_value=False), \
+                patch.object(documents, "get_chat_llm", return_value=Mock()), \
+                patch.object(documents, "structured_call", side_effect=[
+                    DocumentExtraction(candidates=[seven, invalid]),
+                    DocumentExtraction(candidates=[seven, nine])]):
+            result = documents.preview_document(docx([prose]), "narrative.docx", WorkflowState(session_id=self.session))
+        self.assertEqual({field["value"] for field in result["candidates"]}, {"7", "9"})
+        self.assertEqual(len(result["candidates"]), 2)
+        self.assertEqual(result["conflicting_fields"], ["fact.steps"])
+
+    def test_failed_narrative_correction_remains_explicit_and_never_returns_partial_success(self):
+        prose = "The workflow has 7 stages. Private narrative marker."
+        valid = DocumentField(field_id="fact.steps", value="7", quote="The workflow has 7 stages.",
+                              location="Paragraph 1")
+        invalid = DocumentField(field_id="fact.volume_per_day", value="25", quote="Private fabricated marker",
+                                location="Paragraph 1")
+        with patch.object(documents, "demo_mode", return_value=False), \
+                patch.object(documents, "get_chat_llm", return_value=Mock()), \
+                patch.object(documents, "structured_call", side_effect=[
+                    DocumentExtraction(candidates=[valid, invalid]),
+                    DocumentExtraction(candidates=[invalid])]) as call, \
+                self.assertLogs("app.utils.documents", level="WARNING") as logs:
+            with self.assertRaisesRegex(InvalidDependencyResponse, "No context was saved"):
+                documents.preview_document(docx([prose]), "narrative.docx", WorkflowState(session_id=self.session))
+        self.assertEqual(call.call_count, 2)
+        self.assertNotIn("Private", "".join(logs.output))
+        self.assertNotIn("25", "".join(logs.output))
+        with self.assertRaises(WorkflowNotFound):
+            self.database.get_workflow_state(self.session)
+
+    def test_narrative_correction_cannot_change_an_already_verified_field(self):
+        prose = "There are 7 stages and 25 incidents per day."
+        valid = DocumentField(field_id="fact.steps", value="7", quote=prose, location="Paragraph 1")
+        invalid = DocumentField(field_id="fact.volume_per_day", value="25", quote="Invented quotation",
+                                location="Paragraph 1")
+        with patch.object(documents, "demo_mode", return_value=False), \
+                patch.object(documents, "get_chat_llm", return_value=Mock()), \
+                patch.object(documents, "structured_call", side_effect=[
+                    DocumentExtraction(candidates=[valid, invalid]),
+                    DocumentExtraction(candidates=[valid])]):
+            with self.assertRaises(InvalidDependencyResponse):
+                documents.preview_document(docx([prose]), "narrative.docx", WorkflowState(session_id=self.session))
+
+    def test_region_format_failure_provides_specific_correction_feedback(self):
+        prose = "Preferred Azure region is West Europe (westeurope)."
+        invalid = DocumentField(field_id="context.preferred_region", value="West Europe",
+                                quote=prose, location="Paragraph 1")
+        fixed = invalid.model_copy(update={"value": "westeurope"})
+        with patch.object(documents, "demo_mode", return_value=False), \
+                patch.object(documents, "get_chat_llm", return_value=Mock()), \
+                patch.object(documents, "structured_call", side_effect=[
+                    DocumentExtraction(candidates=[invalid]), DocumentExtraction(candidates=[fixed])]) as call:
+            result = documents.preview_document(docx([prose]), "narrative.docx", WorkflowState(session_id=self.session))
+        self.assertIn("region code", json.loads(call.call_args.args[2])["validation_issues"][0]["reason"])
+        self.assertEqual(result["candidates"][0]["value"], "westeurope")
+
+    def test_streamed_narrative_correction_returns_real_stage_and_unapproved_result(self):
+        prose = "The workflow has 7 stages."
+        invalid = DocumentField(field_id="fact.steps", value="7", quote="There are 7 stages.",
+                                location="Paragraph 1")
+        fixed = invalid.model_copy(update={"quote": prose})
+        with patch.object(documents, "demo_mode", return_value=False), \
+                patch.object(documents, "get_chat_llm", return_value=Mock()), \
+                patch.object(documents, "structured_call", side_effect=[
+                    DocumentExtraction(candidates=[invalid]), DocumentExtraction(candidates=[fixed])]):
+            response = self.preview([prose], stream=True)
+        events = [json.loads(line) for line in response.text.splitlines()]
+        self.assertTrue(any(event.get("label") == "Rechecking document proposals against their sources"
+                            for event in events))
+        self.assertEqual(events[-1]["kind"], "result")
+        self.assertEqual(events[-1]["data"]["verification"], "proposals_unapproved")
+        with self.assertRaises(WorkflowNotFound):
+            self.database.get_workflow_state(self.session)
+
+    def test_streamed_failed_narrative_correction_returns_terminal_502_without_partial_result(self):
+        invalid = DocumentField(field_id="fact.steps", value="7", quote="Invented private quotation",
+                                location="Paragraph 1")
+        with patch.object(documents, "demo_mode", return_value=False), \
+                patch.object(documents, "get_chat_llm", return_value=Mock()), \
+                patch.object(documents, "structured_call", return_value=DocumentExtraction(candidates=[invalid])):
+            response = self.preview(["The workflow is described in prose."], stream=True)
+        events = [json.loads(line) for line in response.text.splitlines()]
+        self.assertEqual((events[-1]["kind"], events[-1]["status"]), ("error", 502))
+        self.assertIn("No context was saved", events[-1]["detail"])
+        self.assertNotIn("Invented private", response.text)
+        self.assertFalse(any(event["kind"] == "result" for event in events))
+        with self.assertRaises(WorkflowNotFound):
+            self.database.get_workflow_state(self.session)
+
+    def test_narrative_correction_provider_failure_does_not_return_valid_subset(self):
+        invalid = DocumentField(field_id="fact.steps", value="7", quote="Not in the source",
+                                location="Paragraph 1")
+        with patch.object(documents, "demo_mode", return_value=False), \
+                patch.object(documents, "get_chat_llm", return_value=Mock()), \
+                patch.object(documents, "structured_call", side_effect=[
+                    DocumentExtraction(candidates=[invalid]), DependencyUnavailable("openai")]):
+            with self.assertRaises(DependencyUnavailable):
+                documents.preview_document(docx(["Seven stages are reported."]), "narrative.docx",
+                                           WorkflowState(session_id=self.session))
+
+    def test_valid_narrative_requires_only_one_model_call_and_preserves_exact_source_whitespace(self):
+        prose = "The service handles 25 incidents\nper business day."
+        proposal = DocumentField(field_id="fact.volume_per_day", value="25",
+                                 quote="The service handles 25 incidents per business day.", location="Paragraph 1",
+                                 edited=True)
+        with patch.object(documents, "demo_mode", return_value=False), \
+                patch.object(documents, "get_chat_llm", return_value=Mock()), \
+                patch.object(documents, "structured_call", return_value=DocumentExtraction(candidates=[proposal])) as call:
+            result = documents.preview_document(docx([prose]), "narrative.docx", WorkflowState(session_id=self.session))
+        self.assertEqual(call.call_count, 1)
+        self.assertEqual(result["candidates"][0]["quote"], prose)
+        self.assertFalse(result["candidates"][0]["edited"])
+
     def test_stream_preview_and_json_compatibility_and_terminal_errors(self):
         streamed = self.preview(stream=True)
         self.assertEqual(streamed.headers["cache-control"], "no-store")

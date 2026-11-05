@@ -1,6 +1,7 @@
 """Stateless document preview and shared, validated intake field proposals."""
 from hashlib import sha256
 import json
+import logging
 import re
 import subprocess
 import sys
@@ -19,6 +20,7 @@ from app.utils.runtime import demo_mode
 from app.utils.processing import report_stage
 
 _readers = BoundedSemaphore(2)
+logger = logging.getLogger(__name__)
 CONTEXT_FIELDS = {
     "business_domain": ("Business domain", [], 200),
     "team_size": ("Team size", ["1-50", "51-200", "201-1000", "1000+"], 20),
@@ -67,6 +69,34 @@ def validate_fields(state: WorkflowState, candidates: list[DocumentField]):
             apply_answers(copy, {candidate.field_id: candidate.value})
 
 
+def _checked_candidates(state: WorkflowState, candidates: list[DocumentField],
+                        units: list[dict[str, str]]) -> tuple[list[DocumentField], list[dict[str, str]]]:
+    valid: list[DocumentField] = []
+    issues: list[dict[str, str]] = []
+    for candidate in candidates:
+        feedback = {"field_id": candidate.field_id, "value": candidate.value,
+                    "quote": candidate.quote, "location": candidate.location}
+        matches = [unit for unit in units if unit["location"] == candidate.location]
+        pattern = r"\s+".join(re.escape(token) for token in candidate.quote.split())
+        exact = next((match.group() for unit in matches
+                      if (match := re.search(pattern, unit["text"])) is not None), None)
+        if not exact or len(exact) > 500:
+            issues.append({**feedback, "reason":
+                           "Use an exact contiguous quote and its exact source location, or omit this proposal."})
+            continue
+        grounded = candidate.model_copy(update={"quote": exact, "edited": False})
+        try:
+            validate_fields(state, [grounded])
+        except ValidationError:
+            issues.append({**feedback, "reason":
+                           "The value does not match the catalog field's format. Correct it or omit this proposal."})
+        except ValueError as exc:
+            issues.append({**feedback, "reason": str(exc)})
+        else:
+            valid.append(grounded)
+    return valid, issues
+
+
 def preview_document(data: bytes, filename: str, state: WorkflowState) -> dict:
     suffix = filename.rsplit(".", 1)[-1].lower()
     if suffix not in ("pdf", "docx"):
@@ -103,7 +133,8 @@ def preview_document(data: bytes, filename: str, state: WorkflowState) -> dict:
         raise HTTPException(422, "The document contains instruction-override content. Upload workflow facts without instructions to the AI.")
     catalog = document_fields(state)
     report_stage("Matching explicit document facts to intake and diagnostic questions")
-    if demo_mode():
+    demo = demo_mode()
+    if demo:
         aliases = {}
         for field in catalog:
             for alias in (field["id"], field["id"].split(".", 1)[1], field["label"]):
@@ -129,30 +160,67 @@ def preview_document(data: bytes, filename: str, state: WorkflowState) -> dict:
             "Do not infer counts, infer risk ratings, estimate team size, certify readiness, or convert proposed future "
             "process counts into measured current-state counts. Skip unknown, missing or ambiguous facts. "
             "Use exact catalog options; comma-separated explicit lists and nonnegative digit-only counts. "
+            "Every selected option, including runtime options, must literally appear in its quote. "
+            "A count's digits must literally appear in its quote; spelled-out numbers are not digit evidence. "
+            "Preferred region requires a lowercase region code without spaces, not a region display name. "
+            "Quotes must be contiguous source text: do not join separate sentences, shorten with ellipses, "
+            "or remove words, punctuation or hyphens. Use a short excerpt, never a whole paragraph. "
             "Return separate candidates for conflicting explicit values, so the human can resolve them. "
             "edited must be false. Do not generate filler candidates."
         )
-        extraction = structured_call(get_chat_llm(), prompt, json.dumps({"fields": catalog, "sources": units}),
+        llm = get_chat_llm()
+        extraction = structured_call(llm, prompt, json.dumps({"fields": catalog, "sources": units}),
                                      DocumentExtraction)
         candidates = extraction.candidates
     report_stage("Checking source quotations and preparing human review")
     try:
         if len(candidates) > 50:
             raise ValueError("Too many proposals.")
-        for candidate in candidates:
-            candidate.edited = False
-            matches = [unit for unit in units if unit["location"] == candidate.location]
-            pattern = r"\s+".join(re.escape(token) for token in candidate.quote.split())
-            exact = next((match.group() for unit in matches
-                          if (match := re.search(pattern, unit["text"])) is not None), None)
-            if not exact or len(exact) > 500:
-                raise ValueError("A proposal has an unsupported source quotation.")
-            candidate.quote = exact
-        validate_fields(state, candidates)
+        checked, issues = _checked_candidates(state, candidates, units)
+        if issues:
+            if demo:
+                raise ValueError("Labelled document values could not be verified.")
+            logger.warning("Document source validation rejected %d proposal(s); retrying once. Content withheld.", len(issues))
+            report_stage("Rechecking document proposals against their sources")
+            rejected_ids = {issue["field_id"] for issue in issues}
+            repair_catalog = [field for field in catalog if field["id"] in rejected_ids]
+            repair_ids = {field["id"] for field in repair_catalog}
+            corrected = structured_call(llm, prompt + (
+                " A previous extraction failed source validation. Correct ONLY fields in the supplied "
+                "catalog using the validation feedback; other supported fields are already preserved. "
+                "Copy quotes verbatim; do not paraphrase quotations. "
+                "If a count or catalog option is not explicit, OMIT it rather than guess. "
+                "The feedback includes each previous invalid value and quote and the specific reason. "
+                "Do not return the same invalid proposal again. A field may be omitted even when it "
+                "seems semantically reasonable: explicit source evidence and the field format are mandatory. "
+                "Return candidates: [] if no facts can be supported."),
+                json.dumps({"fields": repair_catalog, "sources": units, "validation_issues": issues}), DocumentExtraction)
+            if any(field.field_id not in repair_ids for field in corrected.candidates):
+                raise ValueError("Source correction returned an unrequested field.")
+            repaired, remaining = _checked_candidates(state, corrected.candidates, units)
+            if remaining:
+                logger.warning("Document source correction still rejected %d proposal(s). Content withheld.", len(remaining))
+                raise ValueError("Document source correction failed.")
+            merged = {(field.field_id, field.value): field for field in repaired}
+            merged.update({(field.field_id, field.value): field for field in checked})
+            checked = list(merged.values())
+            if len(checked) > 50:
+                raise ValueError("Too many verified proposals.")
+            unresolved = {issue["field_id"] for issue in issues} - {field.field_id for field in checked}
+            if unresolved:
+                labels = sorted({field["label"] for field in catalog if field["id"] in unresolved})
+                source["warnings"].append(
+                    "Some proposed facts were not explicit enough to verify and remain unresolved"
+                    + (": " + ", ".join(labels) if labels else "")
+                    + ". Review the supported proposals; missing details require human input, not inferred answers.")
+            report_stage("Source correction complete; preparing supported proposals for review")
+        candidates = checked
     except (ValueError, ValidationError) as exc:
-        if demo_mode():
+        if demo:
             raise HTTPException(422, "Labelled document values do not match supported field formats. Use exact options, digit-only counts, and shorter excerpts.") from exc
-        raise InvalidDependencyResponse(model_dependency()) from exc
+        raise InvalidDependencyResponse(model_dependency(),
+            "Extracted facts could not be verified against the document after correction. "
+            "No context was saved. Retry the upload or use manual intake.") from exc
     identifiers = [candidate.field_id for candidate in candidates]
     conflicts = sorted({identifier for identifier in identifiers if identifiers.count(identifier) > 1})
     return {"metadata": metadata.model_dump(), "candidates": [item.model_dump() for item in candidates],
