@@ -5,8 +5,8 @@ class DependencyUnavailable(RuntimeError):
 
 
 class InvalidDependencyResponse(DependencyUnavailable):
-    def __init__(self, dependency: str):
-        super().__init__(dependency, f"{dependency} returned an invalid response.")
+    def __init__(self, dependency: str, message: str | None = None):
+        super().__init__(dependency, message or f"{dependency} returned an invalid response.")
 
 
 class ConcurrentUpdate(RuntimeError):

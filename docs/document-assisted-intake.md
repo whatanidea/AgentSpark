@@ -12,6 +12,16 @@ saved; existing assessments must use their pinned model.
 
 - Select, edit or omit proposals. Conflicting values start unselected; choose
   only one proposal per field. Unknown facts are not supplied automatically.
+- Narrative extraction checks each quotation against its source and validates
+  field formats, explicit counts and literal catalogue options. If proposals fail
+  these checks, one source-correction request receives the rejected proposals and
+  specific validation feedback. Already supported facts are preserved; the
+  correction can only propose fields that failed validation.
+- The model may explicitly omit unsupported proposals during correction. These
+  fields remain unresolved, with a review warning and the usual missing-fact
+  questions. Ratings, team-size ranges and readiness are not inferred.
+  If correction still returns invalid proposals or the provider fails, the
+  request fails explicitly without saving context or returning a partial result.
 - New document intake does not silently confirm the manual form's default
   team size or compliance rating. Blank values remain unknown.
 - Review the context acknowledgement, select the target cloud, then choose
@@ -69,6 +79,10 @@ Actual model invocation start/end events add a model-working indicator.
 Structured-response retry is reported only when it actually occurs. Saves
 also show request activity. No private reasoning, simulated percentage,
 provider fallback, or process-local progress lookup is used.
+The source-correction stage appears only when that additional request is needed.
+It is separate from the existing structured-response/schema retry; each actual
+model invocation retains its own activity events. Validation logs contain only
+rejected proposal counts, not document excerpts, proposed values or model output.
 
 `POST /api/v1/intake/document-preview` accepts a raw PDF/DOCX body with validated
 `session_id`, `filename`, `model_id` and optional `target_cloud` query parameters.
