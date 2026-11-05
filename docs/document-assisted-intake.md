@@ -27,7 +27,7 @@ saved; existing assessments must use their pinned model.
   being saved. Preserved source fields retain their original reviewer/time.
 - Context approval is **not** operational evidence confirmation, implementation
   readiness, recommendation approval, or permission to execute anything.
-  Human edits are attributed as checklist claims rather than exact document
+  Human edits are attributed as intake/checklist claims rather than exact document
   facts. Unedited document facts show filename/location references.
 - Leaving an unapproved preview requires confirmation. Discarding a preview
   restores unedited proposed intake values; explicit human edits remain in the
@@ -37,7 +37,8 @@ saved; existing assessments must use their pinned model.
 
 - One nonempty file, at most **5 MiB**; at most **50 PDF pages**.
 - At most **40,000 extracted characters / 200 source sections**.
-- DOCX reads main-body paragraphs and tables only, not images, headers,
+- DOCX reads standard/Strict OOXML main-body paragraphs and tables, including
+  content controls and explicit line/tab breaks, not images, headers,
   footers, comments or embedded files.
 - Image-only/scanned PDFs need OCR first. Pages without searchable text are
   explicitly flagged. No OCR service, malware scanner or shared-search upload

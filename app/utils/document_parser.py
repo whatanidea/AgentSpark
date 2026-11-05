@@ -83,22 +83,40 @@ def parse_document(data: bytes, kind: str) -> dict:
                            item.attrib.get("ContentType") == expected for item in types):
                     raise ValueError("Only plain DOCX documents are supported.")
                 root = fromstring(archive.read("word/document.xml"), forbid_dtd=True)
-                ns = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
+                namespaces = ("http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                              "http://purl.oclc.org/ooxml/wordprocessingml/main")
+                namespace = next((value for value in namespaces if root.tag == "{" + value + "}document"), None)
+                if namespace is None:
+                    raise ValueError("This DOCX uses an unsupported document namespace.")
+                ns = "{" + namespace + "}"
                 body = root.find(ns + "body")
                 if body is None:
                     raise ValueError("This DOCX has no supported document body.")
-                if len(body) > MAX_UNITS:
-                    raise ValueError("DOCX files are limited to 200 main-body sections. Upload a focused excerpt.")
+                def children(element, tags):
+                    for child in element:
+                        if child.tag in {ns + tag for tag in tags}:
+                            yield child
+                        elif child.tag in {ns + tag for tag in ("sdt", "sdtContent", "customXml")}:
+                            yield from children(child, tags)
+
+                def text_of(paragraph):
+                    return "".join(node.text or "" if node.tag == ns + "t" else
+                                   "\t" if node.tag == ns + "tab" else "\n"
+                                   for node in paragraph.iter()
+                                   if node.tag in {ns + tag for tag in ("t", "tab", "br", "cr")})
+
                 paragraph, table = 0, 0
-                for item in body:
+                for index, item in enumerate(children(body, ("p", "tbl")), 1):
+                    if index > MAX_UNITS:
+                        raise ValueError("DOCX files are limited to 200 main-body sections. Upload a focused excerpt.")
                     if item.tag == ns + "p":
                         paragraph += 1
-                        append(f"Paragraph {paragraph}", "".join(node.text or "" for node in item.iter(ns + "t")))
+                        append(f"Paragraph {paragraph}", text_of(item))
                     elif item.tag == ns + "tbl":
                         table += 1
-                        for row_index, row in enumerate(item.findall(ns + "tr"), 1):
-                            cells = [" ".join("".join(node.text or "" for node in p.iter(ns + "t"))
-                                              for p in cell.iter(ns + "p")) for cell in row.findall(ns + "tc")]
+                        for row_index, row in enumerate(children(item, ("tr",)), 1):
+                            cells = [" ".join(text_of(p) for p in cell.iter(ns + "p"))
+                                     for cell in children(row, ("tc",))]
                             append(f"Table {table}, row {row_index}", " | ".join(cells))
                 count = paragraph + table
                 warnings.append("DOCX analysis reads main-body paragraphs and tables only. Images, headers, footers, comments and embedded files are not analyzed.")

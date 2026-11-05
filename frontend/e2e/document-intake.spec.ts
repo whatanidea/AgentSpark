@@ -15,7 +15,7 @@ function fixture(kind: "pdf" | "docx", scenario: "partial" | "complete" | "confl
   ].join("\n");
   return execFileSync("python", ["-c", script, kind, scenario], { cwd: resolve(process.cwd(), ".."),
     env: { ...process.env, AGENTSENSE_MODE: "demo", AGENTSENSE_AUTH_MODE: "local-demo" },
-    stdio: ["ignore", "pipe", "ignore"] });
+    stdio: ["ignore", "pipe", "pipe"] });
 }
 
 async function start(page: Page) {
@@ -25,10 +25,11 @@ async function start(page: Page) {
 }
 
 async function upload(page: Page, kind: "pdf" | "docx", scenario: "partial" | "complete" | "conflict" | "scan") {
+  const buffer = fixture(kind, scenario);
   const sent = page.waitForRequest(request => request.url().includes("/intake/document-preview?"));
   await page.getByLabel("Upload a PDF or DOCX", { exact: true }).setInputFiles({
     name: `fictional-${scenario}.${kind}`, mimeType: kind === "pdf" ? "application/pdf" :
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document", buffer: fixture(kind, scenario),
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document", buffer,
   });
   const request = await sent;
   return new URL(request.url()).searchParams.get("session_id")!;

@@ -95,6 +95,16 @@ class ParserTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "OCR"):
             parse_document(pdf([]), "pdf")
 
+    def test_docx_content_controls_strict_namespace_and_explicit_breaks(self):
+        for namespace in ("http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                          "http://purl.oclc.org/ooxml/wordprocessingml/main"):
+            xml = f'<w:document xmlns:w="{namespace}"><w:body><w:sdt><w:sdtContent><w:p>' \
+                  '<w:r><w:t>Workflow name: Fictional SRE</w:t><w:br/><w:t>Steps:</w:t>' \
+                  '<w:tab/><w:t>7</w:t></w:r></w:p></w:sdtContent></w:sdt></w:body></w:document>'
+            parsed = parse_document(docx([], xml=xml.encode()), "docx")
+            self.assertEqual(parsed["units"][0]["text"], "Workflow name: Fictional SRE\nSteps:\t7")
+            self.assertEqual(parsed["units"][0]["location"], "Paragraph 1")
+
     def test_empty_oversized_mismatched_and_encrypted(self):
         for data, kind in ((b"", "pdf"), (b"x" * (MAX_FILE_BYTES + 1), "docx"),
                            (docx(["Steps: 7"]), "pdf"), (pdf(["Steps: 7"]), "docx"), (b"%PDF-invalid", "pdf")):
@@ -131,6 +141,8 @@ class ParserTests(unittest.TestCase):
             parse_document(docx(["Steps: 7"], extras={"word/vbaProject.bin": b"macro"}), "docx")
         with self.assertRaisesRegex(ValueError, "40,000"):
             parse_document(docx(["x" * 40001]), "docx")
+        self.assertEqual(len(parse_document(docx(["x" * 40000]), "docx")["units"][0]["text"]), 40000)
+        self.assertEqual(len(parse_document(docx(["text"] * 200), "docx")["units"]), 200)
         with self.assertRaisesRegex(ValueError, "200"):
             parse_document(docx(["text"] * 201), "docx")
 
@@ -311,6 +323,8 @@ class DocumentIntakeTests(unittest.TestCase):
         for path in ("/api/v1/intake", "/api/v1/intake/document-preview/"):
             self.assertEqual(self.client.post(path, content=b"x" * 65537).status_code, 413)
         self.assertEqual(self.preview(data=b"x" * (MAX_FILE_BYTES + 1)).status_code, 413)
+        valid = pdf(["Steps: 7"])
+        self.assertEqual(self.preview(kind="pdf", data=valid + b" " * (MAX_FILE_BYTES - len(valid))).status_code, 200)
         with patch.object(self.database, "_authorize", side_effect=HTTPException(403, "Read only")), \
                 patch.object(routes, "preview_document") as parse:
             self.assertEqual(self.preview().status_code, 403)
