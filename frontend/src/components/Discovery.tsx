@@ -17,16 +17,17 @@ const textFields = [
 ] as const;
 const roles = { business_operator: "Business operator", process_owner: "Process owner", technical_owner: "Technical owner" } as const;
 
-export default function Discovery({ canCreate, onOpen, onBusyChange, onManageAccess, onUnsavedChange }: {
+export default function Discovery({ canCreate, onOpen, onBusyChange, onManageAccess, onUnsavedChange, initialEngagementId, createNew }: {
   canCreate: boolean; onOpen: (session: string) => Promise<void>; onBusyChange: (busy: boolean) => void;
   onManageAccess: () => void; onUnsavedChange: (dirty: boolean) => void;
+  initialEngagementId?: string; createNew?: boolean;
 }) {
   const [items, setItems] = useState<HomeItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
   const [assessments, setAssessments] = useState<HomeItem[]>([]);
   const [assessmentCursor, setAssessmentCursor] = useState<string | null>(null);
   const [record, setRecord] = useState<DiscoveryRecord | null>(null);
-  const [draft, setDraft] = useState<DiscoveryEngagement | null>(null);
+  const [draft, setDraft] = useState<DiscoveryEngagement | null>(() => createNew && canCreate ? empty() : null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -42,16 +43,20 @@ export default function Discovery({ canCreate, onOpen, onBusyChange, onManageAcc
   useEffect(() => {
     let alive = true;
     setBusy(true);
-    Promise.all([api.engagements(), api.home(), api.discoveryPlaybooks()]).then(([engagements, workflows, guides]) => {
+    Promise.all([api.engagements(), api.home(), api.discoveryPlaybooks()]).then(async ([engagements, workflows, guides]) => {
       if (alive) {
         setItems(engagements.items); setCursor(engagements.next_cursor);
         setAssessments(workflows.items); setAssessmentCursor(workflows.next_cursor);
         setPlaybooks(guides);
       }
+      if (alive && initialEngagementId) {
+        const selected = await api.engagement(initialEngagementId);
+        if (alive) { setRecord(selected); setDraft(selected.engagement); }
+      }
     }).catch((e: unknown) => { if (alive) setError(e instanceof Error ? e.message : "Could not load discovery."); })
       .finally(() => { if (alive) setBusy(false); });
     return () => { alive = false; };
-  }, []);
+  }, [initialEngagementId]);
 
   function discard() { return !dirty || window.confirm("Discard unsaved discovery changes?"); }
   async function open(id: string) {

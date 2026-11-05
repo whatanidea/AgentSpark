@@ -239,3 +239,57 @@ test("failed/conflicting process writes preserve editor drafts and synchronous B
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   } finally { await page.unroute(pattern); await cleanup(page.request, value); }
 });
+
+test("Home discovery library isolates identities and workspace changes and opens viewer records read-only", async ({ page, browser }) => {
+  const value = await fixture(page.request);
+  const ownerHeaders = { Authorization: "Bearer " + value.owner.token };
+  const operatorHeaders = { Authorization: "Bearer " + value.operator.token };
+  const personal = await json(page.request, "post", "/engagements", ownerHeaders, { engagement: {
+    title: "Owner personal Home discovery", objective: "Personal scope", business_units: "Fictional SRE",
+    sponsor: "Fictional sponsor", engagement_owner: "Fictional lead",
+  } });
+  const other = await json(page.request, "post", "/engagements", operatorHeaders, { engagement: {
+    title: "Other identity Home discovery", objective: "Other personal scope", business_units: "Fictional operations",
+    sponsor: "Fictional sponsor", engagement_owner: "Fictional lead",
+  } });
+  const viewerContext = await browser.newContext();
+  try {
+    await open(page, value.owner, value);
+    await page.getByRole("button", { name: "Home", exact: true }).click();
+    await page.getByRole("tab", { name: "Discovery engagements", exact: true }).click();
+    let panel = page.getByRole("tabpanel", { name: "Discovery engagements", exact: true });
+    await expect(panel.locator("tbody tr")).toHaveCount(1);
+    await expect(panel).toContainText("Browser process discovery");
+    await expect(panel).not.toContainText("Owner personal Home discovery");
+    await expect(panel).not.toContainText("Other identity Home discovery");
+    await page.getByRole("button", { name: "Organizations & teams", exact: true }).click();
+    await page.getByRole("button", { name: "Use personal workspace", exact: true }).click();
+    await page.getByRole("tab", { name: "Discovery engagements", exact: true }).click();
+    panel = page.getByRole("tabpanel", { name: "Discovery engagements", exact: true });
+    await expect(panel.locator("tbody tr")).toHaveCount(1);
+    await expect(panel).toContainText("Owner personal Home discovery");
+    await expect(panel).not.toContainText("Browser process discovery");
+    await expect(panel).not.toContainText("Other identity Home discovery");
+    await panel.getByRole("button", { name: "Open discovery Owner personal Home discovery", exact: true }).click();
+    await expect(page.getByRole("textbox", { name: "Engagement title", exact: true })).toHaveValue("Owner personal Home discovery");
+    const viewer = await viewerContext.newPage();
+    await open(viewer, value.operator, value);
+    await viewer.getByRole("button", { name: "Home", exact: true }).click();
+    await viewer.getByRole("tab", { name: "Discovery engagements", exact: true }).click();
+    const viewerPanel = viewer.getByRole("tabpanel", { name: "Discovery engagements", exact: true });
+    await expect(viewerPanel.locator("tbody tr")).toHaveCount(1);
+    await expect(viewer.getByRole("button", { name: /^New discovery engagement/ })).toBeDisabled();
+    await viewerPanel.getByRole("button", { name: "Open discovery Browser process discovery", exact: true }).click();
+    await expect(viewer.getByRole("textbox", { name: "Engagement title", exact: true })).toHaveValue("Browser process discovery");
+    await expect(viewer.getByRole("textbox", { name: "Engagement title", exact: true })).toBeDisabled();
+    await expect(viewer.getByRole("button", { name: "Save discovery engagement", exact: true })).toBeDisabled();
+    expect((await viewer.request.get(`/api/v1/engagements/${personal.id}`, { headers: operatorHeaders })).status()).toBe(404);
+  } finally {
+    await viewerContext.close();
+    for (const [record, headers] of [[personal, ownerHeaders], [other, operatorHeaders]] as const) {
+      const current = await (await page.request.get(`/api/v1/engagements/${record.id}`, { headers })).json();
+      expect((await page.request.delete(`/api/v1/engagements/${record.id}?${new URLSearchParams({ version: current.version })}`, { headers })).ok()).toBe(true);
+    }
+    await cleanup(page.request, value);
+  }
+});
