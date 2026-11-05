@@ -333,7 +333,7 @@ export type InterviewProgress = {
   role: InterviewRole; roles: Record<InterviewRole, string>; role_missing_fields: string[];
   deferred_fields: string[]; unconfirmed_fields: string[];
   version: string; rounds_used: number; max_rounds: number; limit_reached: boolean; can_chat: boolean;
-  questions: string[]; missing_fields: string[]; missing_facts: string[];
+  questions: string[]; question_ids: string[]; missing_fields: string[]; missing_facts: string[];
   fields: InterviewField[]; answers: Record<string, string>; permissions: Permissions;
   document?: {
     available: boolean; filename: string | null; expires_at: string | null;
@@ -343,7 +343,9 @@ export type InterviewProgress = {
   };
 };
 export type ChatResponse = { status: "blocked"; response: string } |
-  { status: "success"; response: string; message: string; interview: InterviewProgress };
+  { status: "success"; response: string; message: string; interview: InterviewProgress;
+    capture: { field_id: string; label: string;
+      status: "captured" | "unconfirmed" | "needs_confirmation" | "not_answered"; value: string | null }[] };
 export type Readiness = {
   status: "ready" | "degraded";
   ready: boolean;
@@ -593,8 +595,9 @@ export const api = {
     return response.json();
   },
   intake: (body: any) => post("/intake", body),
-  chat: (session_id: string, message: string, demo_scenario?: DemoScenario): Promise<ChatResponse> =>
-    post("/chat", { session_id, message, demo_scenario }),
+  chat: (session_id: string, message: string, version: string, question_ids: string[],
+    demo_scenario?: DemoScenario): Promise<ChatResponse> =>
+    post("/chat", { session_id, message, version, question_ids, demo_scenario }),
   analyze: (session_id: string, roi_assumptions?: ROIAssumptions, version?: string) =>
     post(`/analyze/${session_id}`, { roi_assumptions, ...(version ? { version } : {}) }),
   blueprint: (session_id: string) => get(`/blueprint/${session_id}`),

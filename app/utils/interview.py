@@ -164,6 +164,7 @@ def interview_progress(state: WorkflowState) -> dict:
         "version": state._etag, "rounds_used": min(rounds, MAX_INTERVIEW_ROUNDS),
         "max_rounds": MAX_INTERVIEW_ROUNDS, "limit_reached": exhausted,
         "can_chat": not exhausted and bool(role_pending), "questions": questions,
+        "question_ids": [field["id"] for field in role_pending if field["question"] in questions],
         "missing_fields": missing, "missing_facts": diagnosis.missing_facts,
         "fields": fields, "answers": answers, "permissions": {},
     }

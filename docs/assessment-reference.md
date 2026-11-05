@@ -237,15 +237,14 @@ optional constraints remain editable. Explicit unknowns are retained, not guesse
 Runtime enum extraction requires a quoted literal option label (spaces,
 underscores or hyphens); otherwise use the checklist. Enum values use the exact
 option token, not the full quote. Free text retains verbatim provenance.
-The model-facing capture schema restricts answer keys, runtime option tokens and
-region-code syntax. Free-text captures return one supporting quote rather than
-separate quote/value strings that can disagree; the verified quote becomes the
-stored draft answer. Unanswered fields are omitted, not filled with guesses.
-Only runtime option tokens literally present in the stakeholder/intake text are
-offered to the extractor; unrelated inferred options cannot be selected.
-An evidence-validation retry identifies rejected fields and requests corrected
-quotes or omission of unsupported answers. Persistent unverifiable evidence still
-fails explicitly with `502`; it is never accepted as a confirmed answer.
+Guided capture uses server-assigned reply source IDs, not generated quotations.
+Runtime options and region syntax are checked independently against the cited
+reply and the field catalog. Free text must be the actual user text, including
+qualifications, not a paraphrase. One targeted repair checks unsupported fields;
+remaining value problems explicitly need confirmation and never become confirmed
+answers. Provider failures or unusable field/source references fail the whole
+request without saving a subset. Legacy uncached analysis retains its original
+bounded verbatim-evidence extraction.
 
 During mapping, versioned deterministic rules recommend two independent layers:
 
@@ -630,17 +629,30 @@ fields use explicit choices, and comma-separated systems/departments accept
 required to finish. Missing essential facts still withhold scoring, ROI and
 blueprints; optional deployment/readiness gaps remain explicitly unresolved.
 
-Live turns use structured extraction with the existing verbatim-quote checks,
-not a free-form follow-up generator. Deployment, readiness and pilot capture
-requires exact supporting user/intake quotes; region codes must appear in their
-quote. Assistant suggestions cannot supply evidence. Earlier supplied facts are
-retained when omitted by a later extraction; explicit inferred/withdrawn facts
-require clarification. Checklist edits take precedence and have `checklist`
-provenance. Analysis reuses saved guided facts instead of extracting them again.
+Live turns capture only the new reply, not the entire workflow again. The server
+provides the exact ordered question IDs, existing document/checklist/interview
+answers, and permitted fields. Assistant questions provide mapping context, never
+evidence. Numbered replies are bound to that batch; simple text, literal options,
+zero counts, number words through 1000 and explicit unknowns need no model call.
+Free prose uses a small answer-list schema with server-assigned source IDs.
+Retrieved text must support every value; unsupported ranges, estimates, options
+and paraphrases remain unresolved. Region codes must appear in the supporting
+reply. Normalization can remove field-label prefixes but retains the source text.
+Known answers are never erased by omission. Changing a known answer requires an
+explicit correction naming the field; corrections receive new interview
+provenance and revalidate the assessment. Analysis reuses saved guided facts.
+
+One targeted repair preserves independently validated answers in memory while
+checking rejected fields. Persistently unsupported values are returned as
+`needs_confirmation`, alongside captured/unconfirmed/not-answered outcomes.
+Provider, schema, coverage and invalid-source failures remain explicit errors:
+no subset or chat round is saved. The reply acknowledges captured values and
+explains missing or unverifiable fields before listing the next questions.
 
 Captured readiness text fills empty findings as **Needs validation**, without
 creating evidence entries, confirmed owners, reviewer attestations or Ready
-statuses. Existing manually assessed findings are not overwritten by chat.
+statuses. Existing findings are not overwritten by incidental chat; an explicit
+named correction replaces the finding as an unverified draft.
 Users must review findings and add actual evidence/ownership in the readiness
 and evidence pages. Captured deployment constraints populate the structured
 Enterprise Context; the selected cloud remains authoritative and unchanged.
@@ -650,11 +662,19 @@ Intake changes clear cached extraction and supersede checklist systems/complianc
 when those intake fields change; they never reset the round budget.
 
 `GET /api/v1/sessions/{session_id}/interview` returns progress, catalog, current
-answers and an opaque `version`. `PUT` accepts that version and a partial
+answers, ordered `question_ids` and an opaque `version`. New chat clients submit
+both `version` and the displayed `question_ids`; stale or changed batches return
+409 before inference. Legacy self-contained prose remains supported, but
+unversioned numbered replies require reload rather than guessing their mapping.
+`PUT` accepts the version and a partial
 `answers` map keyed by the catalog IDs. Stale edits return 409 without replacing
 answers; invalid keys/types/limits return 422. Authentication, owner/workspace
 permissions, privacy redaction, expiry and conditional persistence apply.
 After the cap, `POST /chat` returns 409 directing users to the checklist.
+The multiline reply box supports Shift+Enter for a newline. Failed requests
+retain the draft and consume no round. After a reload changes the assessment
+version, a retained draft must be reviewed and edited before resubmission, so an
+old numbered reply cannot silently move onto new questions.
 
 Demo chat still uses explicitly selected fictional fixtures, not extraction of
 arbitrary messages. In demo mode use the checklist for readiness/deployment

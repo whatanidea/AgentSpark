@@ -17,6 +17,7 @@ export default function Diagnose({ sessionId, context, initialHistory = [], demo
   const [progress, setProgress] = useState<InterviewProgress | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [text, setText] = useState("");
+  const [draftVersion, setDraftVersion] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
@@ -50,10 +51,11 @@ export default function Diagnose({ sessionId, context, initialHistory = [], demo
 
   async function send(value = text, scenario?: DemoScenario) {
     const input = value.trim();
-    if (!input || busy || dirty || !progress?.can_chat) return;
+    if (!input || busy || dirty || !progress?.can_chat || (value === text && draftVersion !== progress.version)) return;
     setBusy(true); onBusyChange(true); setError(""); setMessage("");
+    let saved = false;
     try {
-      const response = await api.chat(sessionId, input, scenario);
+      const response = await api.chat(sessionId, input, progress.version, progress.question_ids, scenario);
       if (response.status === "blocked") {
         setHistory(current => [...current, { role: "assistant", content: response.response, blocked: true }]);
       } else {
@@ -61,9 +63,14 @@ export default function Diagnose({ sessionId, context, initialHistory = [], demo
           { role: "assistant", content: response.response }]);
         accept(response.interview);
         setText("");
+        setDraftVersion(null);
+        saved = true;
         await onRefresh();
       }
-    } catch (e) { setError(e instanceof Error ? e.message : "Interview request failed. Reload before retrying."); }
+    } catch (e) {
+      setError(saved ? "Your answers were saved, but the workspace could not refresh. Reload the interview before continuing."
+        : e instanceof Error ? e.message : "Interview request failed. Your reply is retained; reload before retrying.");
+    }
     finally { setBusy(false); onBusyChange(false); }
   }
   async function reload() {
@@ -205,6 +212,9 @@ export default function Diagnose({ sessionId, context, initialHistory = [], demo
             </blockquote>)}
         </Card>}
       <Card title="Your conversation" description="Answer the grouped questions together. Every message is screened before extraction.">
+        {text && draftVersion !== progress.version && <p role="status" className="notice">
+          Your draft is retained. Review the current questions and edit the reply before sending it again.
+        </p>}
         <div role="log" aria-live="polite" aria-label="Diagnostic conversation" className="space-y-5 max-h-[46vh] overflow-y-auto pr-1">
           {!history.some(item => item.role === "user") && <button className="text-brand-700 underline"
             onClick={() => void send(SUGGESTION, demoMode ? "invoice" : undefined)}
@@ -219,11 +229,15 @@ export default function Diagnose({ sessionId, context, initialHistory = [], demo
           {busy && <p>Loading or saving interview...</p>}
         </div>
         <div className="flex gap-3 mt-5">
-          <input aria-label="Describe your workflow" maxLength={8000} className="form-control flex-1" value={text}
-            onChange={event => setText(event.target.value)} onKeyDown={event => {
-              if (event.key === "Enter" && !event.nativeEvent.isComposing) void send();
+          <textarea aria-label="Describe your workflow" rows={3} maxLength={8000}
+            className="form-control flex-1 min-w-0 resize-y" value={text}
+            onChange={event => { setText(event.target.value); setDraftVersion(progress.version); }} onKeyDown={event => {
+              if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+                event.preventDefault(); void send();
+              }
             }} placeholder="Answer the grouped questions..." disabled={busy || dirty || !progress.can_chat} />
-          <Button onClick={() => void send()} disabled={busy || dirty || !progress.can_chat || !text.trim()}>Send</Button>
+          <Button onClick={() => void send()}
+            disabled={busy || dirty || !progress.can_chat || !text.trim() || draftVersion !== progress.version}>Send</Button>
         </div>
       </Card>
       {(showChecklist || progress.limit_reached || !progress.can_chat) && <Card title="Editable interview checklist">

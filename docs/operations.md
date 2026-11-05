@@ -487,10 +487,20 @@ Structured agent output uses function calling (not strict JSON-schema mode),
 because Azure strict mode rejects the optional fields in the app's schemas. The
 Diagnostic Agent retries extraction once if a "supplied" fact's quote isn't
 found verbatim (ignoring whitespace and typographic punctuation) in the user
-input. This also applies to live guided-chat deployment/readiness/pilot capture.
-If the second attempt also fails, `/chat` or uncached `/analyze` returns 502.
+input. This legacy extraction is still used by uncached `/analyze`; if the second
+attempt fails, analysis returns 502.
 App logs name recognized affected fields, never their content or unknown
 model-generated field names.
+
+Guided `/chat` instead binds the new reply to the displayed question IDs and
+assessment version, carries existing captured answers as context, and avoids
+whole-workflow regeneration. Simple numbered answers are validated without a
+model call. Free prose uses bounded source-ID capture and one targeted repair.
+Unsupported individual values explicitly need confirmation; unknown field/source
+IDs, unusable schema/coverage and provider failures save no subset or round.
+502 denotes invalid dependency output, not necessarily an Azure ingress failure;
+provider unavailability is 503. Check sanitized model-validation logs before
+changing timeouts or models. Never log replies, credentials or model completions.
 
 For guided-interview acceptance, verify the visible round counter, a maximum of
 three related questions, omission of known facts and a hard stop at round ten.
@@ -502,6 +512,11 @@ owner confirmations, Ready status or human approval is created.
 Exercise stale checklist saves (409 with unsaved edits retained), invalid counts,
 read-only team access and blocked/failed turns not consuming the budget. A changed
 checklist invalidates current analysis/approval; archived decisions stay unchanged.
+Also check numbered and labelled answers after document prefill, explicit named
+corrections, independently validated partial captures and reload persistence.
+Fail a chat request and confirm the draft remains available for retry. Change
+questions in another tab: stale submission must return 409 before model work,
+and reload must retain but not silently remap the old draft.
 
 Users sign in with **Sign in with Microsoft** (MSAL pop-up, authorization code + PKCE,
 configured by `AUTH_SPA_CLIENT_ID`, `AUTH_SPA_AUTHORITY` and `AUTH_SPA_SCOPE`;

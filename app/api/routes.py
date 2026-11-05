@@ -132,6 +132,14 @@ class ChatRequest(RequestModel):
     session_id: SessionId
     message: str = Field(min_length=1, max_length=8000)
     demo_scenario: DemoScenario | None = None
+    version: str | None = Field(default=None, min_length=1, max_length=1000)
+    question_ids: list[Annotated[str, Field(min_length=1, max_length=100)]] | None = Field(default=None, max_length=3)
+
+    @model_validator(mode="after")
+    def bound_questions(self):
+        if (self.version is None) != (self.question_ids is None):
+            raise ValueError("Provide both the assessment version and displayed question IDs.")
+        return self
 
 
 class AnalyzeRequest(RequestModel):
@@ -514,6 +522,9 @@ def chat_interaction(req: ChatRequest):
     db_client._authorize(state, "write")
     if state._etag is None and not demo_mode():
         raise HTTPException(422, "Start with intake and select an assessment model before the interview.")
+    progress = interview_progress(state)
+    if req.version is not None and (req.version != state._etag or req.question_ids != progress["question_ids"]):
+        raise ConcurrentUpdate()
 
     # Security gate: screen every inbound message before it reaches the LLM.
     guard = scan_input(req.message)
@@ -538,15 +549,16 @@ def chat_interaction(req: ChatRequest):
         raise HTTPException(409, "Interview capture is complete. Review the checklist or run analysis.")
     scenario = req.demo_scenario or state.demo_scenario
     message = redact_pii(req.message)
-    progress = interview_progress(state)
     explicit_unknown = message.strip().lower().rstrip(".") in ("unconfirmed", "unknown")
     with assessment_model(state.inference_model) as selection:
         if explicit_unknown:
-            diagnosis = InterviewDiagnosis()
+            diagnosis = InterviewDiagnosis(capture_outcomes={
+                identifier: "unconfirmed" for identifier in progress["question_ids"]})
         else:
             diagnosis = diagnostic_agent.analyze_chat_history(
                 state.chat_history + [{"role": "user", "content": message}],
-                state.enterprise_context, scenario, include_readiness=True)
+                state.enterprise_context, scenario, include_readiness=True, state=state,
+                question_ids=req.question_ids)
         state.inference_model = selection
         state.model_locked = True
     previous_diagnosis = state.interview_diagnosis or state.diagnosis
@@ -556,10 +568,15 @@ def chat_interaction(req: ChatRequest):
         WorkflowDiagnosis.model_validate(redact_data(diagnosis.model_dump())))
     if isinstance(diagnosis, InterviewDiagnosis):
         try:
+            for identifier in diagnosis.answers:
+                if identifier.startswith("fact.") and identifier in diagnosis.capture_outcomes:
+                    state.interview_answers.pop(identifier.split(".", 1)[1], None)
             if explicit_unknown:
                 apply_answers(state, {field["id"]: "unconfirmed" for field in progress["fields"]
                                       if field["question"] in progress["questions"]}, captured=True)
             apply_answers(state, redact_data({key: answer.value for key, answer in diagnosis.answers.items()}), captured=True)
+            apply_answers(state, redact_data({key: diagnosis.answers[key].value
+                for key in diagnosis.capture_corrections if not key.startswith("fact.")}))
             for key, answer in diagnosis.answers.items():
                 if key.startswith("runtime."):
                     source = state.runtime_requirement_sources.get(key.split(".", 1)[1])
@@ -572,6 +589,30 @@ def chat_interaction(req: ChatRequest):
     resolve_document_questions(state)
     state.chat_history.append({"role": "user", "content": redact_pii(req.message)})
     response_text = redact_pii(interview_reply(state))
+    capture = []
+    if isinstance(diagnosis, InterviewDiagnosis):
+        current_answers = interview_progress(state)["answers"]
+        catalog = {field["id"]: field for field in interview_fields(state)}
+        capture = [{"field_id": identifier, "label": catalog[identifier]["label"], "status": status,
+                    "value": current_answers.get(identifier) if status == "captured" else None}
+                   for identifier, status in diagnosis.capture_outcomes.items() if identifier in catalog]
+        acknowledged = [f"{item['label']}: {item['value'][:200]}" for item in capture
+                        if item["status"] == "captured" and item["value"]]
+        unresolved = [item["label"] for item in capture if item["status"] == "needs_confirmation"]
+        unconfirmed = [item["label"] for item in capture if item["status"] == "unconfirmed"]
+        unanswered = [item["label"] for item in capture if item["status"] == "not_answered"
+                      and item["field_id"] in progress["question_ids"]]
+        notices = (["Captured: " + "; ".join(acknowledged) + "."] if acknowledged else [])
+        if unconfirmed:
+            notices.append("Marked unconfirmed: " + ", ".join(unconfirmed) + ".")
+        if unresolved:
+            notices.append("Could not verify: " + ", ".join(unresolved) +
+                           ". Please clarify these answers or use the checklist.")
+        if unanswered:
+            notices.append("Still needed: " + ", ".join(unanswered) +
+                           ". If your reply covered these, clarify with field labels or use the checklist.")
+        if notices:
+            response_text = "\n".join(notices) + "\n\n" + response_text
     if demo_mode():
         label = f"[Demo fixture: {scenario}] " if scenario else "Demo mode: "
         response_text = (label + "Uses the selected fictional fixture for suitability, not extraction from free text. "
@@ -579,7 +620,7 @@ def chat_interaction(req: ChatRequest):
     state.chat_history.append({"role": "assistant", "content": response_text})
     db_client.save_workflow_state(state)
     return {"status": "success", "response": response_text, "message": message, "guardrail": guard.model_dump(),
-            "interview": interview_response(state)}
+            "interview": interview_response(state), "capture": capture}
 
 
 @router.post("/analyze/{session_id}")

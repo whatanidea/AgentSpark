@@ -119,6 +119,61 @@ test("guided interview skips fixture facts and rejects a stale checklist without
   await expect(page.getByRole("textbox", { name: /^Pilot scope/ })).toHaveValue("");
 });
 
+test("guided interview retains a failed reply and acknowledges a successful retry", async ({ page }) => {
+  await intake(page);
+  const input = page.getByRole("textbox", { name: "Describe your workflow", exact: true });
+  const pointer = JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!);
+  const initial = await (await page.request.get(`/api/v1/sessions/${pointer.session}/interview`)).json();
+  await page.route("**/api/v1/chat", async route => {
+    const body = route.request().postDataJSON();
+    expect(body.version).toBe(initial.version);
+    expect(body.question_ids).toEqual(initial.question_ids);
+    await route.fulfill({ status: 503, json: { detail: "Model temporarily unavailable. Retry with your retained reply." } });
+  }, { times: 1 });
+  await input.fill("unconfirmed");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Model temporarily unavailable");
+  await expect(input).toHaveValue("unconfirmed");
+  await expect(page.getByText("Interview rounds: 0 / 10", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.getByText("Interview rounds: 1 / 10", { exact: true })).toBeVisible();
+  await expect(input).toHaveValue("");
+  await expect(page.getByRole("log")).toContainText("Marked unconfirmed:");
+  const after = await (await page.request.get(`/api/v1/sessions/${pointer.session}/interview`)).json();
+  for (const id of initial.question_ids) expect(after.unconfirmed_fields).toContain(id);
+  expect(after.question_ids.some((id: string) => initial.question_ids.includes(id))).toBe(false);
+  await page.reload();
+  await page.getByRole("button", { name: "2 · Diagnostic Interview", exact: true }).click();
+  await expect(page.getByRole("log")).toContainText("Marked unconfirmed:");
+});
+
+test("guided interview rejects a stale question batch without remapping the retained draft", async ({ page }) => {
+  await intake(page);
+  const input = page.getByRole("textbox", { name: "Describe your workflow", exact: true });
+  await input.fill("unconfirmed");
+  const pointer = JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!);
+  const path = `/api/v1/sessions/${pointer.session}/interview`;
+  const before = await (await page.request.get(path)).json();
+  const update = await page.request.put(path, { data: {
+    version: before.version, answers: { "fact.workflow_name": "Externally named fictional workflow" },
+  } });
+  expect(update.status()).toBe(200);
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("session changed");
+  await expect(input).toHaveValue("unconfirmed");
+  await expect(page.getByText("Interview rounds: 0 / 10", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Reload interview", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Your draft is retained" })).toBeVisible();
+  await expect(input).toHaveValue("unconfirmed");
+  await expect(page.getByRole("button", { name: "Send", exact: true })).toBeDisabled();
+  await input.fill("unknown");
+  await page.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page.getByText("Interview rounds: 1 / 10", { exact: true })).toBeVisible();
+  const after = await (await page.request.get(path)).json();
+  expect(after.answers["fact.workflow_name"]).toBe("Externally named fictional workflow");
+  expect(after.unconfirmed_fields).not.toContain("fact.workflow_name");
+});
+
 test("PDF reports download for provisional and approved blueprints without replacing Markdown export", async ({ page }) => {
   await intake(page, "🧾 Invoice Approval (Finance)", "aws");
   const analysis = await analyze(page);

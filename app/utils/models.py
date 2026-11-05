@@ -105,6 +105,9 @@ class InterviewAnswer(BaseModel):
 
 class InterviewDiagnosis(WorkflowDiagnosis):
     answers: Dict[str, InterviewAnswer] = Field(default_factory=dict, max_length=64)
+    capture_outcomes: Dict[str, Literal["captured", "unconfirmed", "needs_confirmation", "not_answered"]] = Field(
+        default_factory=dict, max_length=64)
+    capture_corrections: List[str] = Field(default_factory=list, max_length=64)
 
 
 # ──────────────────────────────────────────────────────────────

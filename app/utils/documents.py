@@ -18,6 +18,7 @@ from app.utils.llm import get_chat_llm, structured_call, model_dependency
 from app.utils.errors import InvalidDependencyResponse
 from app.utils.runtime import demo_mode
 from app.utils.processing import report_stage
+from app.utils.answer_values import explicit_option as _explicit_option, supported_count
 
 _readers = BoundedSemaphore(2)
 logger = logging.getLogger(__name__)
@@ -44,44 +45,10 @@ def document_fields(state: WorkflowState) -> list[dict]:
     return list(fields.values())
 
 
-def _number_words(number: int) -> str:
-    small = ("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen "
-             "sixteen seventeen eighteen nineteen").split()
-    if number < 20:
-        return small[number]
-    if number < 100:
-        tens = ("", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety")
-        return tens[number // 10] + (" " + small[number % 10] if number % 10 else "")
-    if number < 1000:
-        return small[number // 100] + " hundred" + (" " + _number_words(number % 100) if number % 100 else "")
-    return "one thousand"
-
-
 def _supported_count(candidate: DocumentField) -> bool:
-    if not re.fullmatch(r"[0-9]+", candidate.value):
-        return False
-    text = " ".join([candidate.quote, *(quote.quote for quote in candidate.supporting_quotes)]).lower()
-    if candidate.count_basis == "literal":
-        return bool(re.search(r"(?<![0-9])" + re.escape(candidate.value) + r"(?![0-9])", text))
-    number = int(candidate.value)
-    if candidate.count_basis == "number_words":
-        normalized = re.sub(r"\s+", " ", text.replace("-", " "))
-        words = ("zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen "
-                 "sixteen seventeen eighteen nineteen twenty thirty forty fifty sixty seventy eighty ninety hundred thousand").split()
-        token = "(?:" + "|".join(words) + ")"
-        phrases = re.findall(r"\b" + token + r"(?:\s+(?:and\s+)?" + token + r")*\b", normalized)
-        return number <= 1000 and _number_words(number) in [phrase.replace(" and ", " ") for phrase in phrases]
-    if candidate.field_id != "fact.decision_points":
-        return False
-    ordinals = ("first", "second", "third", "fourth", "fifth", "sixth", "seventh", "eighth", "ninth", "tenth")
-    observed = {index + 1 for index, word in enumerate(ordinals)
-                if re.search(r"\b" + word + r"\s+(?:formal\s+)?(?:human\s+)?decision point\b", text)}
-    return 0 < number <= len(ordinals) and observed == set(range(1, number + 1))
-
-
-def _explicit_option(option: str, text: str) -> bool:
-    pattern = re.escape(option).replace("_", r"[\s_-]+")
-    return bool(re.search(r"(?<![\w-])" + pattern + r"(?![\w-])", text, re.IGNORECASE))
+    return supported_count(candidate.value,
+        " ".join([candidate.quote, *(quote.quote for quote in candidate.supporting_quotes)]),
+        candidate.count_basis, candidate.field_id)
 
 
 def validate_fields(state: WorkflowState, candidates: list[DocumentField]):
