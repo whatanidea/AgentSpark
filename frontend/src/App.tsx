@@ -54,6 +54,7 @@ export default function App() {
   const navigate = useNavigate();
   const previousPath = useRef(location.pathname);
   const [view, setView] = useState<View>("home");
+  const [discoveryEntry, setDiscoveryEntry] = useState<{ id?: string; createNew?: boolean } | null>(null);
   const [showLanding, setShowLanding] = useState(() => location.pathname !== "/workspace");
   const [snapshot, setSnapshot] = useState<SessionSnapshot | null>(null);
   const [identity, setIdentity] = useState<Identity | null>(null);
@@ -187,6 +188,7 @@ export default function App() {
     setBusy(true);
     try {
       if (sessionId && !["workspaces", "discovery"].includes(next)) await refreshSession();
+      if (next === "discovery") setDiscoveryEntry(null);
       setView(next); setConfirmDelete(false);
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
@@ -388,12 +390,18 @@ export default function App() {
               onSelect={changeWorkspace} onBusyChange={setBusy} inviteCode={pendingInvite}
               onInviteHandled={() => setPendingInvite("")} />}
             {view === "discovery" && <Discovery canCreate={workspace?.permissions.write !== false}
+              initialEngagementId={discoveryEntry?.id} createNew={discoveryEntry?.createNew}
               onOpen={openWorkflow} onBusyChange={setBusy} onUnsavedChange={updateDiscoveryUnsaved}
               onManageAccess={() => void changeView("workspaces")} />}
-            {view === "home" && <Home demo={auth?.mode === "local-demo"} retentionDays={auth?.archive_retention_days ?? 30}
+            {view === "home" && <Home key={`${identity.identity}:${workspace?.organization_id || ""}:${workspace?.team_id || ""}`}
+              demo={auth?.mode === "local-demo"} retentionDays={auth?.archive_retention_days ?? 30}
               workspaceName={workspace ? `${workspace.organization_name} / ${workspace.team_name}` : undefined}
               canCreate={workspace?.permissions.write !== false}
               onCreate={newWorkflow} onOpen={openWorkflow} onBusyChange={setBusy}
+              onDiscover={(id) => {
+                setDiscoveryEntry(id ? { id } : { createNew: true });
+                setView("discovery"); setConfirmDelete(false); setMessage("");
+              }}
               onDeleted={(id) => {
                 if (id === sessionId) { forgetPointer(); setSnapshot(null); }
                 setMessage("Workflow and all retained decision snapshots deleted.");

@@ -4,6 +4,23 @@ Inside an existing discovery engagement, add a process card before choosing tech
 owner, goal, bounded scope, systems, volume/period, baseline pain and ordered work steps.
 Use “unconfirmed” for unknowns; a filled form is not verified evidence.
 
+## Find and resume engagements from Home
+
+Home has **Workflow library** and **Discovery engagements** tabs. The discovery
+library lists saved, unexpired engagements with their title, updated
+time and expiry. Use **Open engagement** to resume the existing editor,
+**Refresh engagements** to refresh or retry a failed listing, and **Load more
+engagements** when another page is available. **New discovery engagement**
+opens a blank engagement and is disabled for read-only team members.
+
+Personal workspace listings contain only the signed-in identity's records.
+Select a team under **Organizations & teams** for its membership-authorized
+records; personal records are not mixed with team records. The shared local
+demo is fictional and is not private. Opening an engagement fetches its current
+server version and permissions; unavailable records show an error, not an empty
+editable form. Existing save/discard guards apply when leaving the editor.
+Listing and opening do not renew retention or approve discovery findings.
+
 ## Team contributions and review
 
 - A writer can request a specific process/step contribution from an active authenticated

@@ -8,6 +8,7 @@ import { EvidenceSummary } from "./EvidenceRegister";
 import { ReadinessSummary } from "./ImplementationReadiness";
 import RuntimeDecisionSummary from "./RuntimeDecision";
 import ExecutiveBriefSummary from "./ExecutiveBrief";
+import HomeDiscovery from "./HomeDiscovery";
 
 const STATUS: Record<HomeStatus, { label: string; tone: "positive" | "red" | "amber" | "slate" }> = {
   draft: { label: "Draft / clarification", tone: "slate" },
@@ -17,9 +18,10 @@ const STATUS: Record<HomeStatus, { label: string; tone: "positive" | "red" | "am
 };
 const date = (value: string) => value ? new Date(value).toLocaleString() : "Time unavailable";
 
-export default function Home({ demo, retentionDays, workspaceName, canCreate, onCreate, onOpen, onDeleted, onBusyChange }: {
+export default function Home({ demo, retentionDays, workspaceName, canCreate, onCreate, onDiscover, onOpen, onDeleted, onBusyChange }: {
   demo: boolean; retentionDays: number; onCreate: () => void;
   workspaceName?: string; canCreate: boolean;
+  onDiscover: (id?: string) => void;
   onOpen: (session: string) => Promise<void>; onDeleted: (session: string) => void;
   onBusyChange: (busy: boolean) => void;
 }) {
@@ -30,6 +32,7 @@ export default function Home({ demo, retentionDays, workspaceName, canCreate, on
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
+  const [library, setLibrary] = useState<"workflows" | "discovery">("workflows");
 
   useEffect(() => {
     onBusyChange(busy);
@@ -84,12 +87,14 @@ export default function Home({ demo, retentionDays, workspaceName, canCreate, on
       <div>
         <div className="eyebrow mb-2">{workspaceName || "Personal workspace"}</div>
         <h1>{decision ? "Decision details" : "Home"}</h1>
-        <p className="mt-2">{decision ? "A retained, read-only snapshot of this analysis and its decision." : "Your workflow assessments, review decisions, and next steps in one place."}</p>
+        <p className="mt-2">{decision ? "A retained, read-only snapshot of this analysis and its decision." : "Your discovery engagements, workflow assessments, and review decisions in one place."}</p>
       </div>
       {decision ? <Button variant="ghost" disabled={busy} onClick={() => { setDecision(null); setError(""); }}>Back to Home</Button>
-        : <Button disabled={busy || !canCreate} onClick={onCreate}>Create workflow <span aria-hidden="true">+</span></Button>}
+        : <Button disabled={busy || !canCreate} onClick={() => library === "discovery" ? onDiscover() : onCreate()}>
+          {library === "discovery" ? "New discovery engagement" : "Create workflow"} <span aria-hidden="true">+</span>
+        </Button>}
     </header>
-    {!workspaceName && <p className="notice">Team workflows and pending reviews are listed in their team workspace. Select your team under Organizations &amp; teams, then choose Pending review.</p>}
+    {!workspaceName && <p className="notice">Team engagements, workflows and pending reviews are listed in their team workspace. Select your team under Organizations &amp; teams to view them.</p>}
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       {[
         [demo ? "Shared local demo" : workspaceName ? "Team-scoped access" : "Owner-isolated access",
@@ -174,6 +179,24 @@ export default function Home({ demo, retentionDays, workspaceName, canCreate, on
       {decision.details.roadmap && <Card title="Retained delivery roadmap"><Markdown>{decision.details.roadmap}</Markdown></Card>}
       <p className="text-xs text-zinc-500 leading-relaxed">This deletable decision snapshot is not an immutable compliance audit log. Full interview transcripts are not retained in this archive.</p>
     </> : <>
+      <div role="tablist" aria-label="Workspace libraries" className="flex flex-wrap gap-2">
+        {([["workflows", "Workflow library"], ["discovery", "Discovery engagements"]] as const).map(([value, label]) =>
+          <Button key={value} id={`home-${value}-tab`} role="tab" variant="ghost" disabled={busy}
+            aria-selected={library === value} aria-controls={`home-${value}-panel`} tabIndex={library === value ? 0 : -1}
+            className={library === value ? "bg-brand-50 border-brand-300 text-brand-900" : ""}
+            onClick={() => { setLibrary(value); setError(""); }}
+            onKeyDown={event => {
+              if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+              event.preventDefault();
+              const next = event.key === "Home" ? "workflows" : event.key === "End" ? "discovery"
+                : value === "workflows" ? "discovery" : "workflows";
+              setLibrary(next); setError("");
+              document.getElementById(`home-${next}-tab`)?.focus();
+            }}>{label}</Button>)}
+      </div>
+      {library === "discovery" ? <section role="tabpanel" id="home-discovery-panel" aria-labelledby="home-discovery-tab">
+        <HomeDiscovery onOpen={onDiscover} onBusyChange={setBusy} />
+      </section> : <section role="tabpanel" id="home-workflows-panel" aria-labelledby="home-workflows-tab">
       <Card title="Workflow library" description="Active work and retained decision versions. Reanalysis can create multiple decision records for the same workflow.">
         <div role="group" aria-label="Workflow status filters" className="flex flex-wrap gap-2 mb-5">
           {(["all", "draft", "pending_review", "approved", "rejected"] as const).map(value =>
@@ -205,6 +228,7 @@ export default function Home({ demo, retentionDays, workspaceName, canCreate, on
         {page?.next_cursor && <div className="mt-5"><Button variant="ghost" disabled={busy} onClick={more}>Load more workflows</Button></div>}
         <p className="text-xs text-zinc-500 leading-relaxed mt-5">Approved includes policy auto-approval. Rejected includes policy rejection and human rejection. Session expiry and archive expiry are independent; older sessions without archive metadata remain short-lived.</p>
       </Card>
+      </section>}
     </>}
   </div>;
 }
