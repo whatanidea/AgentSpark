@@ -20,8 +20,11 @@ class SecurityBoundary:
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
 
+        response_started = False
         async def secured_send(message):
+            nonlocal response_started
             if message["type"] == "http.response.start":
+                response_started = True
                 headers = list(message.get("headers", []))
                 headers.extend([
                     (b"x-content-type-options", b"nosniff"),
@@ -60,6 +63,8 @@ class SecurityBoundary:
         except Exception as exc:
             # Handle API failures here so the server cannot log sensitive exception text.
             logger.error("API operation failed (%s); request and exception content withheld.", type(exc).__name__)
+            if response_started:
+                raise RuntimeError("API response interrupted after headers were sent.") from None
             await JSONResponse(status_code=500, content={
                 "detail": "An internal error occurred.", "code": "internal_error",
             })(scope, receive, secured_send)
@@ -77,6 +82,7 @@ class RequestSizeLimit:
             await self.app(scope, receive, send)
             return
         lengths = [value for name, value in scope["headers"] if name.lower() == b"content-length"]
+        limit = 5 * 1024 * 1024 if scope["path"] == "/api/v1/intake/document-preview" and scope["method"] == "POST" else MAX_REQUEST_BYTES
         if lengths:
             try:
                 if len(lengths) != 1 or not lengths[0].isdigit():
@@ -85,8 +91,8 @@ class RequestSizeLimit:
             except ValueError:
                 await JSONResponse(status_code=400, content={"detail": "Invalid Content-Length."})(scope, receive, send)
                 return
-            if size > MAX_REQUEST_BYTES:
-                await self._too_large(scope, receive, send)
+            if size > limit:
+                await self._too_large(scope, receive, send, limit)
                 return
         body = bytearray()
         while True:
@@ -94,8 +100,8 @@ class RequestSizeLimit:
             if message["type"] == "http.disconnect":
                 return
             body.extend(message.get("body", b""))
-            if len(body) > MAX_REQUEST_BYTES:
-                await self._too_large(scope, receive, send)
+            if len(body) > limit:
+                await self._too_large(scope, receive, send, limit)
                 return
             if not message.get("more_body", False):
                 break
@@ -111,7 +117,7 @@ class RequestSizeLimit:
         await self.app(scope, replay, send)
 
     @staticmethod
-    async def _too_large(scope, receive, send):
+    async def _too_large(scope, receive, send, limit=MAX_REQUEST_BYTES):
         await JSONResponse(status_code=413, content={
-            "detail": f"Request body exceeds {MAX_REQUEST_BYTES} bytes.",
+            "detail": f"Request body exceeds {limit} bytes.",
         })(scope, receive, send)

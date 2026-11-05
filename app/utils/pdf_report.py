@@ -228,6 +228,10 @@ def build_blueprint_pdf(snapshot: dict) -> bytes:
     if snapshot.get("discovery_origin"):
         report.heading("Discovery origin - unverified source snapshot")
         report.details(snapshot["discovery_origin"])
+    if snapshot.get("document_intake"):
+        report.heading("Document context - human-reviewed, not independently verified")
+        report.paragraph("Original files are not retained. Excerpts and upload fingerprints are reviewer-provided claims, not attestation or implementation evidence.")
+        report.details(snapshot["document_intake"])
     report.field("Generated at (UTC)", datetime.now(timezone.utc).isoformat())
     if snapshot.get("executive_brief"):
         report.heading("Executive decision brief")

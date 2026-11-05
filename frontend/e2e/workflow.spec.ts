@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { randomUUID } from "node:crypto";
+import { processingResult, watchProcessing } from "./responses";
 
 async function intake(page: Page, sample?: string, cloud = "azure") {
   await page.goto("/");
@@ -23,9 +24,9 @@ async function analyze(page: Page) {
   await page.getByRole("button", { name: "3 · Workflow Analysis", exact: true }).click();
   const button = page.getByRole("button", { name: "▶ Run Multi-Agent Analysis", exact: true });
   await expect(button).toBeEnabled();
-  const response = page.waitForResponse(r => r.url().includes("/analyze/") && r.request().method() === "POST");
+  await watchProcessing(page, "/analyze/");
   await button.click();
-  const result = await (await response).json();
+  const result = await processingResult(page);
   await expect(button).toBeEnabled();
   return result;
 }

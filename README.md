@@ -241,6 +241,8 @@ CI does **not** deploy automatically.
 
 ## Documentation
 
+- [Document-assisted intake](docs/document-assisted-intake.md): PDF/DOCX review,
+  human approval, missing-question/blueprint continuation and live processing stages.
 - [Assessment reference](docs/assessment-reference.md): scoring, grounding, evidence,
   governance, API contracts, permissions, and compatibility.
 - [Operations runbook](docs/operations.md): configuration, delivery, security

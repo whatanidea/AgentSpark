@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
-import { api, uid, type InferenceModel, type ModelCatalog } from "../api";
+import { api, uid, type DocumentApproval, type InferenceModel, type ModelCatalog } from "../api";
 import { Card, Button } from "./ui";
 import Icon, { type IconName } from "./Icon";
+import DocumentIntake from "./DocumentIntake";
 
 const SAMPLES: Record<string, any> = {
   "🧾 Invoice Approval (Finance)": {
@@ -45,7 +46,7 @@ const SAMPLE_PRESENTATION: Record<string, { name: string; detail: string; icon: 
   payroll: { name: "Payroll Calculation", detail: "A standard-software alternative", icon: "payroll" },
 };
 
-export default function Intake({ sessionId, initialContext, initialModel, modelLocked, onSaved, onBusyChange }: any) {
+export default function Intake({ sessionId, initialContext, initialModel, modelLocked, onSaved, onBusyChange, onUnsavedChange }: any) {
   const [form, setForm] = useState<any>({ ...EMPTY, ...initialContext });
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -53,6 +54,12 @@ export default function Intake({ sessionId, initialContext, initialModel, modelL
   const [confirmChange, setConfirmChange] = useState(false);
   const [catalog, setCatalog] = useState<ModelCatalog | null>(null);
   const [modelId, setModelId] = useState<InferenceModel["id"] | "">(initialModel?.id || "");
+  const [draftId] = useState<string>(sessionId || uid());
+  const [documentMode, setDocumentMode] = useState(false);
+  const [document, setDocument] = useState<DocumentApproval | null>(null);
+  const [overwrite, setOverwrite] = useState(false);
+  const [touched, setTouched] = useState<Set<string>>(new Set());
+  useEffect(() => () => { onUnsavedChange?.(false); }, [onUnsavedChange]);
 
   useEffect(() => {
     api.health().then((health) => setMode(health.mode)).catch((e: Error) => setMsg(e.message));
@@ -62,12 +69,21 @@ export default function Intake({ sessionId, initialContext, initialModel, modelL
     }).catch((e: Error) => setMsg(`Model catalog could not be loaded: ${e.message}`));
   }, []);
 
-  const set = (k: string) => (e: any) => setForm({ ...form, [k]: e.target.value });
+  const set = (k: string) => (e: any) => {
+    setTouched(current => new Set(current).add(k));
+    setForm({ ...form, [k]: e.target.value });
+  };
+  const contextValues: Record<string, string> = Object.fromEntries(Object.keys(EMPTY).map(key => [key, String(form[key] || "")]));
+  const baseline = Object.fromEntries(Object.entries(contextValues).map(([key, value]) => [key,
+    !initialContext && key !== "target_cloud" && !touched.has(key) &&
+    (key === "team_size" || key === "compliance_requirements" || form.demo_scenario) ? "" : value]));
 
   async function submit() {
     if (!modelId && !modelLocked) { setMsg("Select the assessment model before the interview."); return; }
     if (!form.target_cloud) { setMsg("Select the target cloud for this assessment."); return; }
     if (!/^[a-z0-9-]{0,100}$/.test(form.preferred_region)) { setMsg("Use lowercase letters, numbers and hyphens for the region."); return; }
+    if (documentMode && !document) { setMsg("Review the selected document proposals and acknowledge the context before continuing."); return; }
+    if (documentMode && sessionId && !overwrite) { setMsg("Confirm replacement of selected saved answers before approving context."); return; }
     if (sessionId && initialContext && !confirmChange && [
       "target_cloud", "preferred_region", "data_residency_requirements", "deployment_constraints",
     ].some(key => (initialContext[key] || (key === "target_cloud" ? "azure" : "")) !== form[key])) {
@@ -76,10 +92,18 @@ export default function Intake({ sessionId, initialContext, initialModel, modelL
     setBusy(true); onBusyChange(true);
     setMsg("");
     try {
-      const sid = sessionId || uid();
-      const saved = await api.intake({ session_id: sid, ...form, ...(modelId ? { model_id: modelId } : {}) });
+      const sid = sessionId || draftId;
+      const approval = document ? { ...document, confirm_overwrite: overwrite,
+        fields: document.fields.map(field => {
+          const key = field.field_id.startsWith("intake.") || field.field_id.startsWith("context.") ? field.field_id.split(".", 2)[1] : null;
+          const value = key ? contextValues[key] : field.value;
+          return { ...field, value, edited: field.edited || value !== field.value };
+        }) } : null;
+      const saved = await api.intake({ session_id: sid, ...form, ...(modelId ? { model_id: modelId } : {}),
+        ...(approval ? { document: approval, demo_scenario: null } : {}) });
       setForm({ ...saved.enterprise_context, demo_scenario: form.demo_scenario });
-      await onSaved(sid);
+      onUnsavedChange?.(false);
+      await onSaved(sid, Boolean(approval && saved.interview && saved.interview.missing_facts.length === 0), saved.interview?.version);
     } catch (e: any) {
       setMsg(`❌ ${e.message}`);
     } finally {
@@ -101,7 +125,7 @@ export default function Intake({ sessionId, initialContext, initialModel, modelL
             const sample = SAMPLE_PRESENTATION[SAMPLES[k].demo_scenario];
             return (
               <button key={k} type="button" aria-label={k} aria-pressed={form.business_domain === SAMPLES[k].business_domain}
-                className="sample-tile" disabled={!mode || busy} onClick={() => setForm({
+                className="sample-tile" disabled={!mode || busy || documentMode} onClick={() => setForm({
                   ...form, ...SAMPLES[k], demo_scenario: mode === "demo" ? SAMPLES[k].demo_scenario : null,
                 })}>
                 <span className="sample-icon"><Icon name={sample.icon} /></span>
@@ -123,7 +147,7 @@ export default function Intake({ sessionId, initialContext, initialModel, modelL
       <Card title="Assessment model" description="Choose the AI used for the interview and generated assessment, independently of the blueprint's target cloud.">
         <Field label="Assessment model">
           <select aria-label="Assessment model" className={inp} value={modelId} required={!modelLocked}
-            disabled={busy || modelLocked || !catalog}
+            disabled={busy || modelLocked || documentMode || !catalog}
             onChange={event => setModelId(catalog?.items.find(item => item.id === event.target.value && item.available)?.id || "")}>
             <option value="">{modelLocked ? "Legacy Azure OpenAI default" : "Choose a model before the interview"}</option>
             {catalog?.items.map(item => <option key={item.id} value={item.id} disabled={!item.available}
@@ -182,11 +206,18 @@ export default function Intake({ sessionId, initialContext, initialModel, modelL
         <Button variant="ghost" disabled={busy} onClick={() => setConfirmChange(false)}>Cancel</Button>
       </section>}
       <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_250px] items-start gap-6">
-      <Card title="Workflow details" description="Give your advisor the context it needs to ask better questions.">
+      <DocumentIntake sessionId={sessionId || draftId} modelId={modelId} targetCloud={form.target_cloud}
+        busy={busy} baseline={baseline} contextValues={contextValues}
+        onBusyChange={value => { setBusy(value); onBusyChange(value); }}
+        onReady={() => { setForm({ ...baseline, demo_scenario: null }); setOverwrite(false); setDocumentMode(true); }}
+        onContext={(key, value) => setForm((current: typeof EMPTY) => ({ ...current, [key]: value, demo_scenario: null }))}
+        onChange={(approval, active) => { setDocument(approval); setDocumentMode(active); onUnsavedChange?.(active); }} />
+      <Card title="Workflow details" description={documentMode ? "Review proposed context; blank values stay unknown. Selected facts are applied only when you approve." : "Give your advisor the context it needs to ask better questions."}>
         <fieldset disabled={busy} className="grid grid-cols-1 md:grid-cols-2 gap-x-5 gap-y-5">
-          <Field label="Business Domain"><input className={inp} value={form.business_domain} onChange={set("business_domain")} placeholder="e.g. Financial Services" required /></Field>
+          <Field label="Business Domain"><input className={inp} value={form.business_domain} onChange={set("business_domain")} placeholder="e.g. Financial Services" required={!documentMode} /></Field>
           <Field label="Team Size">
             <select className={inp} value={form.team_size} onChange={set("team_size")}>
+              <option value="">Not yet known</option>
               {["1-50", "51-200", "201-1000", "1000+"].map((o) => <option key={o}>{o}</option>)}
             </select>
           </Field>
@@ -194,14 +225,22 @@ export default function Intake({ sessionId, initialContext, initialModel, modelL
           <Field label="Current Pain Points" full><textarea className={inp} rows={4} value={form.pain_points} onChange={set("pain_points")} placeholder="What slows this workflow down? Describe manual steps, exceptions, or bottlenecks." /></Field>
           <Field label="Compliance Requirements">
             <select className={inp} value={form.compliance_requirements} onChange={set("compliance_requirements")}>
+              <option value="">Not yet known</option>
               {["Low", "Medium", "High"].map((o) => <option key={o}>{o}</option>)}
             </select>
           </Field>
         </fieldset>
         <div className="flex items-center justify-between flex-wrap gap-4 mt-6 pt-5 border-t border-zinc-100">
-          <p className="text-xs text-zinc-500">Next: a focused diagnostic interview</p>
-          <Button onClick={submit} disabled={busy || !catalog || (!modelId && !modelLocked) || !form.business_domain || !form.target_cloud || confirmChange}>{busy ? "Saving…" : "Submit Intake"}<span aria-hidden="true">→</span></Button>
+          <p className="text-xs text-zinc-500">{documentMode ? "Next: missing questions, or automatic analysis if essential facts are complete" : "Next: a focused diagnostic interview"}</p>
+          <Button onClick={submit} disabled={busy || !catalog || (!modelId && !modelLocked) ||
+            (!documentMode && (!form.business_domain || !form.team_size || !form.compliance_requirements)) ||
+            !form.target_cloud || confirmChange || (documentMode && (!document || (sessionId && !overwrite)))}>
+            {busy ? "Processing…" : documentMode ? "Approve context and continue" : "Submit Intake"}<span aria-hidden="true">→</span></Button>
         </div>
+        {documentMode && sessionId && <label className="flex items-start gap-2 text-xs text-zinc-700 mt-4">
+          <input type="checkbox" checked={overwrite} disabled={busy} onChange={event => setOverwrite(event.target.checked)} />
+          <span>Replace selected saved answers and clear the current analysis, blueprint and recommendation approval. Unselected answers and archived decisions remain.</span>
+        </label>}
         {msg && <p role="alert" className="mt-3 text-sm text-rose-700">{msg}</p>}
       </Card>
       <Card title="What happens next" className="bg-zinc-50/60">

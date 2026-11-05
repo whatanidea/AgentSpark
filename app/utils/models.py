@@ -2,6 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, StringConstraint
 from typing import List, Optional, Dict, Any, Literal, Annotated
 from datetime import datetime, timezone, timedelta
 import os
+from app.utils.document_models import ApprovedDocument
 
 
 AutonomyLevel = Literal["Autonomous", "Supervised", "Assisted", "Manual"]
@@ -61,10 +62,11 @@ class FactEvidence(BaseModel):
     status: Literal["supplied", "inferred", "missing"] = Field(
         default="missing", description="Whether the fact was supplied verbatim, inferred, or is missing"
     )
-    source: Literal["interview", "intake", "checklist", "demo_fixture", "none"] = Field(
+    source: Literal["interview", "intake", "checklist", "document", "demo_fixture", "none"] = Field(
         default="none", description="Where the verbatim quote came from; none when there is no quote"
     )
     quote: str = Field(default="", max_length=2000, description="Exact verbatim quote backing a supplied fact")
+    reference: str = Field(default="", max_length=240, description="Human-reviewed document filename and source location, not independent verification")
 
 
 class WorkflowDiagnosis(BaseModel):
@@ -728,6 +730,7 @@ class WorkflowState(BaseModel):
     diagnosis: Optional[WorkflowDiagnosis] = None
     interview_diagnosis: Optional[WorkflowDiagnosis] = None
     interview_answers: Dict[str, str] = Field(default_factory=dict, max_length=14)
+    document_intake: Optional[ApprovedDocument] = None
     interview_role: InterviewRole = "all"
     interview_unconfirmed: List[str] = Field(default_factory=list, max_length=64)
     executive_brief: Optional[ExecutiveBrief] = None

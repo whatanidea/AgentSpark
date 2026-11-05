@@ -45,6 +45,8 @@ from app.agents.governance_agent import governance_agent
 from app.scoring.scoring_engine import scoring_engine
 from app.scoring.roi import estimate_roi
 from app.database.cosmos_client import db_client
+from app.utils.processing import report_stage
+from app.utils.errors import ConcurrentUpdate
 
 logger = logging.getLogger(__name__)
 
@@ -86,6 +88,7 @@ def _trace(state: GraphState, agent: str, detail: str, started: float, status: s
 
 # ── Nodes ────────────────────────────────────────────────────────────────
 def extract_intelligence(state: GraphState) -> GraphState:
+    report_stage("Checking workflow facts and essential-data completeness")
     t = time.perf_counter()
     logger.info("[1/7] Diagnostic Agent → extracting workflow intelligence")
     diagnosis = state.get("diagnosis") or diagnostic_agent.analyze_chat_history(
@@ -107,6 +110,7 @@ def extract_intelligence(state: GraphState) -> GraphState:
 
 
 def score_workflow(state: GraphState) -> GraphState:
+    report_stage("Scoring the workflow with deterministic suitability rules")
     t = time.perf_counter()
     logger.info("[2/7] Scoring Engine → Agentification Readiness Index")
     score = scoring_engine.evaluate(state["workflow_intelligence"])
@@ -117,6 +121,7 @@ def score_workflow(state: GraphState) -> GraphState:
 
 
 def map_services(state: GraphState) -> GraphState:
+    report_stage("Mapping cloud services and runtime candidates")
     t = time.perf_counter()
     logger.info("[3/7] Mapping Agent: target cloud service mapping")
     state["runtime_decision"] = recommend_runtime(
@@ -131,6 +136,7 @@ def map_services(state: GraphState) -> GraphState:
 
 
 def generate_recommendations(state: GraphState) -> GraphState:
+    report_stage("Retrieving reference patterns and generating the recommendation")
     t = time.perf_counter()
     logger.info("[4/7] Recommendation Agent → RAG-grounded design")
     state["evidence_report"] = build_evidence_report(
@@ -152,6 +158,7 @@ def generate_recommendations(state: GraphState) -> GraphState:
 
 
 def evaluate_governance(state: GraphState) -> GraphState:
+    report_stage("Evaluating governance and human-review requirements")
     t = time.perf_counter()
     logger.info("[6/7] Governance Agent → enterprise compliance & risk rules")
     result = governance_agent.evaluate(
@@ -166,6 +173,7 @@ def evaluate_governance(state: GraphState) -> GraphState:
 
 
 def estimate_value(state: GraphState) -> GraphState:
+    report_stage("Calculating the value estimate from explicit assumptions")
     t = time.perf_counter()
     logger.info("[5/7] ROI Engine → value estimate")
     roi = estimate_roi(state["workflow_intelligence"], state["suitability_score"], state["roi_assumptions"])
@@ -176,6 +184,7 @@ def estimate_value(state: GraphState) -> GraphState:
 
 
 def create_blueprint(state: GraphState) -> GraphState:
+    report_stage("Generating the advisory blueprint for review")
     t = time.perf_counter()
     logger.info("[7/7] Blueprint Agent → architecture + scaffold")
     state["blueprint"] = blueprint_agent.generate_blueprint(
@@ -193,6 +202,7 @@ def create_blueprint(state: GraphState) -> GraphState:
 
 
 def reject_recommendation(state: GraphState) -> GraphState:
+    report_stage("Preparing the governance rejection; no agentic blueprint generated")
     t = time.perf_counter()
     state["blueprint"] = None
     state["status"] = "rejected"
@@ -234,9 +244,12 @@ workflow.add_edge("reject_recommendation", END)
 orchestrator_app = workflow.compile()
 
 
-def run_orchestration(session_id: str, roi_assumptions: ROIAssumptions | None = None) -> WorkflowState:
+def run_orchestration(session_id: str, roi_assumptions: ROIAssumptions | None = None,
+                      expected_version: str | None = None) -> WorkflowState:
     """Load state from DB, run the 7-stage LangGraph flow, persist, and return it."""
     db_state = db_client.get_workflow_state(session_id)
+    if expected_version is not None and db_state._etag != expected_version:
+        raise ConcurrentUpdate()
     if roi_assumptions is not None:
         db_state.roi_assumptions = roi_assumptions
 
@@ -305,5 +318,6 @@ def run_orchestration(session_id: str, roi_assumptions: ROIAssumptions | None = 
         completion_tokens=cb.completion_tokens
     )
 
+    report_stage("Saving the completed assessment and unresolved readiness gaps")
     db_client.save_workflow_state(db_state)
     return db_state
