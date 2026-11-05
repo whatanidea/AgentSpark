@@ -205,7 +205,7 @@ export default function Intake({ sessionId, initialContext, initialModel, modelL
         <Button disabled={busy} onClick={submit}>Confirm preferences and save intake</Button>
         <Button variant="ghost" disabled={busy} onClick={() => setConfirmChange(false)}>Cancel</Button>
       </section>}
-      <div className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_250px] items-start gap-6">
+      <div className="space-y-6">
       <DocumentIntake sessionId={sessionId || draftId} modelId={modelId} targetCloud={form.target_cloud}
         busy={busy} baseline={baseline} contextValues={contextValues}
         onBusyChange={value => { setBusy(value); onBusyChange(value); }}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { api, type CloudProvider, type DocumentApproval, type DocumentField, type DocumentPreview, type InferenceModel } from "../api";
 import { Button, Card } from "./ui";
 
@@ -17,6 +17,9 @@ function contextKey(identifier: string) {
 }
 
 export default function DocumentIntake(props: Props) {
+  const fileInput = useRef<HTMLInputElement>(null);
+  const fileInputId = useId();
+  const [filename, setFilename] = useState("");
   const [preview, setPreview] = useState<DocumentPreview | null>(null);
   const [fields, setFields] = useState<ReviewedField[]>([]);
   const [baseline, setBaseline] = useState<Record<string, string>>({});
@@ -55,6 +58,7 @@ export default function DocumentIntake(props: Props) {
     if (file.size === 0 || file.size > 5 * 1024 * 1024) { setError("Choose one nonempty PDF or DOCX, up to 5 MiB."); return; }
     if (!/\.(pdf|docx)$/i.test(file.name)) { setError("Only searchable PDF and DOCX files are supported."); return; }
     if (preview && !window.confirm("Discard this unapproved document preview and review another file?")) return;
+    setFilename(file.name);
     setLoading(true); props.onBusyChange(true); setError(""); setApproved(false); props.onChange(null, Boolean(preview));
     try {
       const result = await api.previewDocument(file, props.sessionId, props.modelId, props.targetCloud || undefined);
@@ -96,13 +100,21 @@ export default function DocumentIntake(props: Props) {
   const valid = fields.some(field => field.selected) && fields.filter(field => field.selected).every(field => valueOf(field).trim());
   return (
     <Card title="Start from a document" description="Upload a workflow brief, process description or intake document. Review proposed facts before anything is saved.">
-      <label className="block text-xs font-semibold text-zinc-700">
-        Searchable PDF or DOCX
-        <input type="file" aria-label="Upload a PDF or DOCX" accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-          className="block w-full mt-3 text-xs min-w-0" disabled={props.busy || loading || !props.modelId}
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4">
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-zinc-700">Searchable PDF or DOCX</p>
+          <p aria-live="polite" className="text-sm text-zinc-500 mt-1 break-words">{filename || "No file selected"}</p>
+        </div>
+        <input ref={fileInput} id={fileInputId} type="file" hidden aria-label="Upload a PDF or DOCX"
+          aria-describedby={`${fileInputId}-help`} accept=".pdf,.docx,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+          disabled={props.busy || loading || !props.modelId}
           onChange={event => { const file = event.currentTarget.files?.[0]; event.currentTarget.value = ""; if (file) void upload(file); }} />
-      </label>
-      <p className="text-xs text-zinc-500 mt-3">One file, up to 5 MiB. PDFs: up to 50 pages. Scans need OCR first.
+        <Button variant="ghost" className="shrink-0" disabled={props.busy || loading || !props.modelId}
+          aria-controls={fileInputId} aria-describedby={`${fileInputId}-help`} onClick={() => fileInput.current?.click()}>
+          Select file
+        </Button>
+      </div>
+      <p id={`${fileInputId}-help`} className="text-xs text-zinc-500 mt-3">One file, up to 5 MiB. PDFs: up to 50 pages. Scans need OCR first.
         Original files are discarded after the request, never added to shared reference search. Only approved context and bounded redacted excerpts are retained.</p>
       {error && <p role="alert" className="text-sm text-rose-700 mt-4">{error}</p>}
       {preview && <section aria-label="Review extracted context" className="mt-6 space-y-4 min-w-0">

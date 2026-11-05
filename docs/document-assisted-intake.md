@@ -1,7 +1,9 @@
 # Document-assisted Enterprise Intake
 
-Upload one searchable PDF or plain DOCX from Enterprise Intake after choosing
-the assessment model. AgentSpark proposes existing intake and interview fields,
+Choose **Select file** in Enterprise Intake to upload one searchable PDF or plain
+DOCX after choosing the assessment model. The selected filename is displayed.
+Document upload and workflow details are stacked at full width on desktop and
+mobile so manual context fields remain readable. AgentSpark proposes existing intake and interview fields,
 shows exact redacted source excerpts, and waits for human approval. Preview
 does not create or save a workflow. The model is fixed when approved context is
 saved; existing assessments must use their pinned model.
