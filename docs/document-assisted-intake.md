@@ -12,6 +12,32 @@ saved; existing assessments must use their pinned model.
 
 - Select, edit or omit proposals. Conflicting values start unselected; choose
   only one proposal per field. Unknown facts are not supplied automatically.
+- Approving document use retains its redacted text privately inside the
+  assessment and authorizes automatic question-level capture. Before asking the
+  interview questions, AgentSpark checks every unanswered, non-excluded field.
+  Existing answers, deliberately omitted proposals and human-marked Unconfirmed
+  fields are not overwritten automatically. A source-only approval is supported
+  when the initial preview has no proposals.
+- The engine checks questions in bounded batches of eight with an explicit
+  outcome for every question. It cites server-assigned excerpt IDs; the server
+  retrieves the actual source text rather than asking the model to reproduce
+  quotations. Descriptive summaries are allowed; counts may be backed by number
+  words or explicitly named consecutive decision points, with all supporting
+  excerpts. Catalogue options require whole-word evidence (normalized spaces,
+  hyphens and underscores are accepted for runtime labels).
+- Each unanswered question and checklist field has **Find answer in uploaded
+  document** when retained text is available. This performs a versioned,
+  write-authorized targeted lookup, applies a supported answer without another
+  approval dialog, and shows its excerpts and document location. It does not
+  consume an interview round. Existing analysis requires confirmation before
+  interactive lookup can invalidate it.
+- Absent facts remain unanswered (`not_found`). Conflicts remain unselected
+  (`conflict`). Related context that still cannot support a valid answer after
+  one correction is explicitly marked `needs_confirmation`, never falsely
+  reported as absent or silently applied. Provider, schema, coverage and
+  invalid-source-reference failures are terminal errors with no saved subset.
+  Automatically captured fields identify the `document_lookup` actor; they do
+  not claim that a human reviewed each answer.
 - Narrative extraction checks each quotation against its source and validates
   field formats, explicit counts and literal catalogue options. If proposals fail
   these checks, one source-correction request receives the rejected proposals and
@@ -62,9 +88,15 @@ saved; existing assessments must use their pinned model.
   PDF decoding, two concurrent readers per replica, and a **256 MiB Linux
   address-space ceiling**. Windows local parsing uses the same library limits
   and deadline, without the Linux address-space control.
-- Originals and full extracted content are never saved. They are discarded
-  after the request. Only approved values, bounded redacted excerpts and
-  reviewer provenance persist within the assessment's existing retention.
+- Original PDF/DOCX files are discarded after the request. Before approval,
+  redacted extracted text lives only in the preview response/browser. After
+  approval, at most 40,000 characters / 200 sections / 200,000 UTF-8 bytes of
+  redacted text are retained in the assessment, using its existing owner/team
+  permissions, encryption at rest and expiry/deletion policy. No new storage or
+  permissions are introduced. Full source text is excluded from session API
+  snapshots, shared reference search and long-lived decision archives.
+  Approved values, bounded redacted excerpts and reviewer/capture provenance
+  remain subject to the existing assessment retention.
   Each approval payload is limited to **32,000 UTF-8 bytes** and 50 unique fields.
 - Preview is stateless. Upload hashes, quotes and locations in approval
   payloads are **reviewer-provided claims**, not cryptographic attestation of an
@@ -87,11 +119,20 @@ rejected proposal counts, not document excerpts, proposed values or model output
 `POST /api/v1/intake/document-preview` accepts a raw PDF/DOCX body with validated
 `session_id`, `filename`, `model_id` and optional `target_cloud` query parameters.
 Authorization and scoped write permissions are checked before parsing. Only
-this exact upload path has a 5 MiB request limit; other API bodies retain 64 KiB.
+this exact upload path has a 5 MiB request limit. The exact intake POST accepts
+up to 384 KiB for bounded redacted source approval; other API bodies retain 64 KiB.
 
 `POST /api/v1/intake` accepts an optional `document` approval containing
 metadata, selected fields, `context_approved: true`, preview `version`, and
-`confirm_overwrite`. Ordinary manual intake retains its existing validation.
+`confirm_overwrite`, with optional `source` and `excluded_fields`. Ordinary
+manual intake retains its existing field validation.
+
+`POST /api/v1/sessions/{id}/interview/document-lookup` accepts the current
+`version` and optional `field_ids`. Omitting IDs checks only still-unchecked
+eligible questions; explicit IDs retry those unanswered questions. Answers,
+per-field outcomes and source references are returned in interview progress.
+Old assessments without retained text explicitly require re-upload. GET
+endpoints do not invoke models or mutate saved answers.
 
 Clients without an explicit streaming header still receive ordinary JSON.
 Intake, document preview, chat, analysis and Discovery synthesis additionally

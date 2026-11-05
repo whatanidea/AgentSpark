@@ -82,7 +82,12 @@ class RequestSizeLimit:
             await self.app(scope, receive, send)
             return
         lengths = [value for name, value in scope["headers"] if name.lower() == b"content-length"]
-        limit = 5 * 1024 * 1024 if scope["path"] == "/api/v1/intake/document-preview" and scope["method"] == "POST" else MAX_REQUEST_BYTES
+        limit = MAX_REQUEST_BYTES
+        if scope["method"] == "POST":
+            if scope["path"] == "/api/v1/intake/document-preview":
+                limit = 5 * 1024 * 1024
+            elif scope["path"] == "/api/v1/intake":
+                limit = 384 * 1024
         if lengths:
             try:
                 if len(lengths) != 1 or not lengths[0].isdigit():

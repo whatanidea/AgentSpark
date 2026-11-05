@@ -104,8 +104,11 @@ def effective_diagnosis(state: WorkflowState) -> WorkflowDiagnosis:
         candidate = next((field for field in state.document_intake.fields if field.field_id == identifier
                           and field.value == text), None) if state.document_intake else None
         if candidate and not candidate.edited:
-            return FactEvidence(status="supplied", source="document", quote=candidate.quote,
-                                reference=f"{candidate.source.filename} / {candidate.location}")
+            quotes = [candidate, *candidate.supporting_quotes]
+            locations = ", ".join(dict.fromkeys(quote.location for quote in quotes))
+            return FactEvidence(status="supplied", source="document",
+                                quote="\n".join(quote.quote for quote in quotes),
+                                reference=f"{candidate.source.filename} / {locations}"[:240])
         return fallback
     for key, text in (("compliance_sensitivity", intake.compliance_requirements), ("systems", intake.existing_systems)):
         if text and diagnosis.evidence.get(key, FactEvidence()).status != "supplied":

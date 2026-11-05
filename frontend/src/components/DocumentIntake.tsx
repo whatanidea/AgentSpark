@@ -43,9 +43,12 @@ export default function DocumentIntake(props: Props) {
   }
 
   function approval(next: ReviewedField[], checked: boolean, document = preview) {
-    if (!document || !checked || !next.some(field => field.selected)) { props.onChange(null, Boolean(document)); return; }
+    if (!document || !checked || (!next.some(field => field.selected) && !document.source)) { props.onChange(null, Boolean(document)); return; }
     props.onChange({
       metadata: document.metadata, version: document.version, confirm_overwrite: false, context_approved: true,
+      source: document.source,
+      excluded_fields: [...new Set(next.filter(field => !field.selected).map(field => field.proposal.field_id))]
+        .filter(id => !next.some(field => field.selected && field.proposal.field_id === id)),
       fields: next.filter(field => field.selected).map(field => {
         const value = valueOf(field).trim();
         return { ...field.proposal, value, edited: value !== field.proposal.value };
@@ -97,7 +100,8 @@ export default function DocumentIntake(props: Props) {
     setFields(next); setApproved(false); approval(next, false);
   }
 
-  const valid = fields.some(field => field.selected) && fields.filter(field => field.selected).every(field => valueOf(field).trim());
+  const valid = (fields.some(field => field.selected) || Boolean(preview?.source)) &&
+    fields.filter(field => field.selected).every(field => valueOf(field).trim());
   return (
     <Card title="Start from a document" description="Upload a workflow brief, process description or intake document. Review proposed facts before anything is saved.">
       <div className="flex flex-col sm:flex-row sm:items-center gap-4 rounded-xl border border-dashed border-zinc-300 bg-zinc-50 p-4">
@@ -115,7 +119,9 @@ export default function DocumentIntake(props: Props) {
         </Button>
       </div>
       <p id={`${fileInputId}-help`} className="text-xs text-zinc-500 mt-3">One file, up to 5 MiB. PDFs: up to 50 pages. Scans need OCR first.
-        Original files are discarded after the request, never added to shared reference search. Only approved context and bounded redacted excerpts are retained.</p>
+        Original files are discarded after the request. After approval, redacted document text is retained privately
+        until this assessment expires or is deleted, so unanswered questions can be checked against it.
+        It is never added to shared reference search or long-lived decision archives.</p>
       {error && <p role="alert" className="text-sm text-rose-700 mt-4">{error}</p>}
       {preview && <section aria-label="Review extracted context" className="mt-6 space-y-4 min-w-0">
         <div>
@@ -126,7 +132,9 @@ export default function DocumentIntake(props: Props) {
         {preview.conflicting_fields.length > 0 && <p className="notice notice-warning block">
           Conflicting values were found. Those fields start unselected; choose one supported value, edit it if necessary, or leave it unresolved.
         </p>}
-        {!fields.length && <p className="notice block">No supported explicit facts were proposed. Use manual intake, or upload a document with clearer workflow facts.</p>}
+        {!fields.length && <p className="notice block">No initial facts were proposed.
+          {preview.source ? " Approve use of this document to check the individual interview questions, or use manual intake."
+            : " Use manual intake, or upload a document with clearer workflow facts."}</p>}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {fields.map((field, index) => {
             const spec = preview.fields.find(item => item.id === field.proposal.field_id);
@@ -149,6 +157,12 @@ export default function DocumentIntake(props: Props) {
                 </label>
                 <p className="text-[11px] text-zinc-500 mt-3">{field.proposal.location} / exact redacted source excerpt</p>
                 <blockquote className="mt-1 border-l-2 border-brand-200 pl-3 text-xs text-zinc-600 whitespace-pre-wrap break-words">{field.proposal.quote}</blockquote>
+                {field.proposal.supporting_quotes?.map((quote, index) => <blockquote key={index}
+                  className="mt-2 border-l-2 border-brand-200 pl-3 text-xs text-zinc-600 whitespace-pre-wrap break-words">
+                  {quote.location}: {quote.quote}
+                </blockquote>)}
+                {field.proposal.count_basis && field.proposal.count_basis !== "literal" &&
+                  <p className="text-xs mt-2">Count derived from cited number words or named decision points, not a measured verification.</p>}
                 {valueOf(field) !== field.proposal.value && <p className="text-[11px] text-amber-800 mt-2">Human-edited value; the source excerpt does not independently verify this edit.</p>}
               </article>
             );
@@ -158,7 +172,9 @@ export default function DocumentIntake(props: Props) {
         <label className="flex items-start gap-2 text-sm text-zinc-700">
           <input type="checkbox" checked={approved} disabled={props.busy || loading || !valid}
             onChange={event => { setApproved(event.target.checked); approval(fields, event.target.checked); }} />
-          <span>I reviewed the selected context and source excerpts. They are appropriate for this assessment, not verified operational evidence.</span>
+          <span>I reviewed the selected context and source excerpts. Use this redacted document to automatically answer
+            missing questions in this assessment; omitted fields stay excluded from automatic lookup.
+            These are document-derived claims, not verified operational evidence.</span>
         </label>
         <Button variant="ghost" disabled={props.busy || loading} onClick={() => {
           for (const field of fields.filter(field => field.selected)) {

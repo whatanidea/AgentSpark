@@ -10,7 +10,7 @@ from app.utils.models import (
     WorkflowDiagnosis, InterviewDiagnosis, InterviewRole, FactEvidence,
 )
 from app.utils.interview import (
-    apply_answers, merge_diagnosis, interview_progress, interview_reply, MAX_INTERVIEW_ROUNDS,
+    apply_answers, merge_diagnosis, interview_progress, interview_reply, interview_fields, MAX_INTERVIEW_ROUNDS,
 )
 from app.utils.readiness import build_readiness_report, readiness_catalog
 from app.utils.pdf_report import build_blueprint_pdf, build_executive_brief_pdf
@@ -20,8 +20,9 @@ from app.agents.cloud_catalog import pattern_for_cloud
 from app.utils.runtime import demo_mode
 from app.utils.model_catalog import available_models, model_definition, assessment_model, MODEL_IDS
 from app.utils.llm import model_dependency
-from app.utils.document_models import DocumentApproval, ApprovedDocument, ApprovedDocumentField
-from app.utils.documents import preview_document, validate_fields
+from app.utils.document_models import DocumentApproval, ApprovedDocument, ApprovedDocumentField, RetainedDocumentSource
+from app.utils.documents import preview_document, validate_fields, document_fields, _checked_candidates
+from app.utils.document_lookup import document_status, resolve_document_questions
 from app.utils.errors import ConcurrentUpdate
 
 from app.database.cosmos_client import db_client
@@ -64,7 +65,7 @@ def restore_session(session_id: SessionId):
         organization = tenant_directory.get(state.organization_id, "organization")
         team = tenant_directory.get(state.organization_id, f"team-{state.team_id}")
         workspace = {"organization_name": organization.name, "team_name": team.name}
-    return {**state.model_dump(mode="json", exclude={"owner_id"}), "version": state._etag,
+    return {**state.model_dump(mode="json", exclude={"owner_id", "document_source"}), "version": state._etag,
             "permissions": db_client.permissions(state),
             "workspace": workspace}
 
@@ -169,7 +170,31 @@ class InterviewRequest(RequestModel):
 
 
 def interview_response(state):
-    return {**interview_progress(state), "permissions": db_client.permissions(state)}
+    return {**interview_progress(state), "permissions": db_client.permissions(state),
+            "document": document_status(state)}
+
+
+class DocumentLookupRequest(RequestModel):
+    version: str = Field(min_length=1, max_length=1000)
+    field_ids: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(default_factory=list, max_length=64)
+
+
+@router.post("/sessions/{session_id}/interview/document-lookup")
+def lookup_document_answers(session_id: SessionId, req: DocumentLookupRequest):
+    state = db_client.get_workflow_state(session_id)
+    db_client._authorize(state, "write")
+    if req.version != state._etag:
+        raise ConcurrentUpdate()
+    if state.document_source is None:
+        raise HTTPException(409, "Document text is unavailable. Re-upload and approve the document in Enterprise Intake.")
+    known = {field["id"] for field in interview_fields(state)}
+    if not set(req.field_ids).issubset(known):
+        raise HTTPException(422, "Choose supported interview questions.")
+    if any(field not in interview_progress(state)["missing_fields"] for field in req.field_ids):
+        raise HTTPException(409, "This question already has an answer. Edit it in the checklist instead.")
+    resolve_document_questions(state, req.field_ids or None, force=bool(req.field_ids))
+    db_client.save_workflow_state(state)
+    return interview_response(state)
 
 
 @router.get("/sessions/{session_id}/interview")
@@ -188,6 +213,7 @@ def save_interview(session_id: SessionId, req: InterviewRequest):
     if state.interview_diagnosis is None and state.diagnosis is not None:
         state.interview_diagnosis = state.diagnosis.model_copy(deep=True)
     before = state.model_dump(mode="json")
+    before_answers = interview_progress(state)["answers"]
     try:
         apply_answers(state, redact_data(req.answers))
     except (ValidationError, ValueError) as exc:
@@ -201,6 +227,11 @@ def save_interview(session_id: SessionId, req: InterviewRequest):
     if content_changed:
         state.invalidate_analysis()
         state.invalidate_readiness_context()
+        if state.document_source:
+            changed = [key for key, value in req.answers.items()
+                       if value != before_answers.get(key, "")]
+            state.document_source.excluded_fields = sorted(set(state.document_source.excluded_fields) | set(changed))
+    resolve_document_questions(state)
     db_client.save_workflow_state(state)
     return interview_response(state)
 
@@ -380,6 +411,16 @@ def save_intake(req: IntakeRequest):
                 raise HTTPException(422, "Approved document context contains instruction-override content. Please rephrase.")
             if field.field_id.startswith("intake.") and getattr(req, field.field_id.split(".", 1)[1], None) != field.value:
                 raise HTTPException(422, "The reviewed intake proposal differs from the form. Review the current value before approving.")
+        if req.document.source:
+            known = {field["id"] for field in document_fields(state)}
+            if not set(req.document.excluded_fields).issubset(known):
+                raise HTTPException(422, "Document exclusions must use supported field IDs.")
+            if any(not scan_input(unit.text).safe for unit in req.document.source.units):
+                raise HTTPException(422, "Document text contains instruction-override content.")
+            units = [{"location": unit.location, "text": redact_pii(unit.text)} for unit in req.document.source.units]
+            _, issues = _checked_candidates(state, [field for field in req.document.fields if not field.edited], units)
+            if issues:
+                raise HTTPException(422, "Approved proposals do not match the retained document. Review the upload again.")
     if state._etag is None and not demo_mode() and req.model_id is None:
         raise HTTPException(422, "Select an assessment model before starting the interview.")
     if req.model_id is not None:
@@ -444,10 +485,19 @@ def save_intake(req: IntakeRequest):
             metadata=metadata,
             fields=list(previous.values()), approved_by=principal_context.get().owner_id,
             approved_at=datetime.now(timezone.utc))
+        if req.document.source:
+            try:
+                state.document_source = RetainedDocumentSource(metadata=metadata, units=units,
+                    excluded_fields=req.document.excluded_fields)
+            except ValidationError as exc:
+                raise HTTPException(422, "Redacted document text exceeds the bounded source limits.") from exc
+        else:
+            state.document_source = None
         state.model_locked = True
         # Even a zero-candidate suitability import must use known intake facts, not a demo fixture.
         if state.interview_diagnosis is None:
             state.interview_diagnosis = WorkflowDiagnosis()
+        resolve_document_questions(state)
     db_client.save_workflow_state(state)
     return {"status": "success", "session_id": req.session_id,
             "enterprise_context": state.enterprise_context.model_dump(),
@@ -519,6 +569,7 @@ def chat_interaction(req: ChatRequest):
         except ValueError as exc:
             raise InvalidDependencyResponse(model_dependency(state.inference_model)) from exc
     state.demo_scenario = scenario
+    resolve_document_questions(state)
     state.chat_history.append({"role": "user", "content": redact_pii(req.message)})
     response_text = redact_pii(interview_reply(state))
     if demo_mode():

@@ -29,7 +29,7 @@ PRIVATE_FIELDS = (
     "interview_diagnosis", "interview_answers",
     "discovery", "executive_brief", "runtime_requirement_sources", "runtime_decision",
     "discovery_participants", "discovery_synthesis", "discovery_handoffs", "discovery_origin",
-    "discovery_tasks", "discovery_source_reviews",
+    "discovery_tasks", "discovery_source_reviews", "document_source",
 )
 
 
