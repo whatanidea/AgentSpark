@@ -3,6 +3,7 @@ import { useBlocker, useLocation, useNavigate } from "react-router-dom";
 import { api, ApiError, AuthConfig, Identity, parseInviteCode, Readiness, SessionSnapshot, setAccessToken, setTokenProvider, setWorkspace, type WorkspaceSelection } from "./api";
 const signInModule = () => import("./auth");
 import Intake from "./components/Intake";
+import ProcessingStatus from "./components/ProcessingStatus";
 import Diagnose from "./components/Diagnose";
 import Analyze from "./components/Analyze";
 import Blueprint from "./components/Blueprint";
@@ -63,6 +64,13 @@ export default function App() {
   const [busy, setBusy] = useState(false);
   const [discoveryUnsaved, setDiscoveryUnsaved] = useState(false);
   const discoveryUnsavedRef = useRef(false);
+  const [documentUnsaved, setDocumentUnsaved] = useState(false);
+  const [intakeEntry, setIntakeEntry] = useState(0);
+  const documentUnsavedRef = useRef(false);
+  const updateDocumentUnsaved = useCallback((dirty: boolean) => {
+    documentUnsavedRef.current = dirty;
+    setDocumentUnsaved(dirty);
+  }, []);
   const updateDiscoveryUnsaved = useCallback((dirty: boolean) => {
     discoveryUnsavedRef.current = dirty;
     setDiscoveryUnsaved(dirty);
@@ -79,10 +87,10 @@ export default function App() {
   const canWrite = snapshot ? snapshot.permissions.write : workspace?.permissions.write !== false;
   const canDelete = snapshot ? snapshot.permissions.delete : workspace?.permissions.delete !== false;
   const blocker = useBlocker(({ currentLocation, nextLocation, historyAction }) =>
-    historyAction === "POP" && discoveryUnsavedRef.current && currentLocation.pathname === "/workspace" && nextLocation.pathname !== "/workspace");
+    historyAction === "POP" && (discoveryUnsavedRef.current || documentUnsavedRef.current) && currentLocation.pathname === "/workspace" && nextLocation.pathname !== "/workspace");
   useEffect(() => {
     if (blocker.state === "blocked") {
-      if (window.confirm("Discard unsaved discovery changes?")) blocker.proceed();
+      if (window.confirm(documentUnsavedRef.current ? "Discard the unapproved document context?" : "Discard unsaved discovery changes?")) blocker.proceed();
       else blocker.reset();
     }
   }, [blocker]);
@@ -183,6 +191,7 @@ export default function App() {
   }
   async function changeView(next: View) {
     if (view === "discovery" && next !== view && discoveryUnsaved && !window.confirm("Discard unsaved discovery changes?")) return;
+    if (view === "intake" && next !== view && documentUnsaved && !window.confirm("Discard the unapproved document context?")) return;
     setShowLanding(false);
     if (next === view) return;
     setBusy(true);
@@ -228,6 +237,8 @@ export default function App() {
   }
   function newWorkflow() {
     if (view === "discovery" && discoveryUnsaved && !window.confirm("Discard unsaved discovery changes?")) return;
+    if (view === "intake" && documentUnsaved && !window.confirm("Discard the unapproved document context?")) return;
+    setIntakeEntry(current => current + 1);
     forgetPointer(); setSnapshot(null); setView("intake"); setConfirmDelete(false);
     setMessage("New workflow. The previous server session remains until expiry unless deleted.");
   }
@@ -271,6 +282,7 @@ export default function App() {
           <button className="text-xs text-brand-300 min-h-11 mt-2 hover:underline" disabled={busy}
             onClick={() => {
               if (view === "discovery" && discoveryUnsaved && !window.confirm("Discard unsaved discovery changes?")) return;
+              if (view === "intake" && documentUnsaved && !window.confirm("Discard the unapproved document context?")) return;
               void navigate("/"); setShowLanding(true);
             }}>Product overview <span aria-hidden="true">↗</span></button>
         </div>
@@ -364,6 +376,7 @@ export default function App() {
               <Button disabled={busy} variant="ghost" onClick={() => setConfirmDelete(false)} autoFocus>Cancel</Button>
             </div>
           </section>}
+          {identity && <ProcessingStatus />}
           {starting ? <p role="status">Loading access configuration…</p> : !identity ? (
             <section className="surface-card max-w-xl space-y-4">
               <h1 className="text-2xl font-bold">Organization access</h1>
@@ -407,11 +420,22 @@ export default function App() {
                 setMessage("Workflow and all retained decision snapshots deleted.");
               }} />}
             {snapshot && !canWrite && ["intake", "diagnose", "analyze"].includes(view) && <p className="notice">Read-only access: your current team permissions do not allow workflow changes.</p>}
-            {view === "intake" && <fieldset disabled={!canWrite} className="min-w-0"><Intake sessionId={sessionId} initialContext={snapshot ? { ...snapshot.enterprise_context, demo_scenario: snapshot.demo_scenario } : undefined}
+            {view === "intake" && <fieldset disabled={!canWrite || busy} className="min-w-0"><Intake key={intakeEntry} sessionId={sessionId} initialContext={snapshot ? { ...snapshot.enterprise_context, demo_scenario: snapshot.demo_scenario } : undefined}
               initialModel={snapshot?.inference_model}
               modelLocked={Boolean(snapshot && (snapshot.model_locked || snapshot.chat_history.length || snapshot.interview_diagnosis || snapshot.analysis_id || snapshot.trace.length))}
-              onSaved={async (id: string) => { await refreshSession(id); setView("diagnose"); }}
-              onBusyChange={setBusy} /></fieldset>}
+              onSaved={async (id: string, analyzeDocument = false, approvedVersion?: string) => {
+                await refreshSession(id);
+                if (!analyzeDocument) { setView("diagnose"); return; }
+                try {
+                  const result = await api.analyze(id, undefined, approvedVersion);
+                  await refreshSession(id);
+                  setView(result.status === "needs_clarification" ? "diagnose" : "blueprint");
+                } catch (error) {
+                  setMessage(`Context saved, but analysis did not complete: ${error instanceof Error ? error.message : "Reload saved state before retrying."}`);
+                  setView("analyze");
+                }
+              }}
+              onBusyChange={setBusy} onUnsavedChange={updateDocumentUnsaved} /></fieldset>}
             {view === "diagnose" && <fieldset disabled={!canWrite} className="min-w-0"><Diagnose sessionId={sessionId} context={snapshot?.enterprise_context}
               demoMode={runtime?.mode === "demo"}
               hasAnalysis={!!snapshot?.analysis_id}

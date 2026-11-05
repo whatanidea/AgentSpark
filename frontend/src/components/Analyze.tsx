@@ -17,6 +17,7 @@ function analysisData(s: any) {
 export default function Analyze({ sessionId, active, initialSnapshot, onRefresh, onBusyChange, goNext }: any) {
   const [data, setData] = useState<any>(analysisData(initialSnapshot));
   const [busy, setBusy] = useState(false);
+  const [running, setRunning] = useState(false);
   const [err, setErr] = useState("");
   const [assumptions, setAssumptions] = useState(initialSnapshot?.roi_assumptions || DEFAULT_ROI_ASSUMPTIONS);
 
@@ -35,12 +36,12 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
 
   async function run() {
     if (!sessionId) return;
-    setBusy(true); onBusyChange(true); setErr(""); setData(null);
+    setBusy(true); setRunning(true); onBusyChange(true); setErr(""); setData(null);
     try {
       setData(await api.analyze(sessionId, assumptions));
       await onRefresh();
     } catch (e: any) { setErr(e.message); }
-    finally { setBusy(false); onBusyChange(false); }
+    finally { setBusy(false); setRunning(false); onBusyChange(false); }
   }
 
   const score = data?.score;
@@ -62,7 +63,7 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
       </header>
 
       {!sessionId && <Card><p className="text-amber-800 text-sm">⚠️ Chat with the Diagnostic Agent first to describe a workflow.</p></Card>}
-      {busy && <Card><Spinner label="Running the 7-stage agent flow…" /></Card>}
+      {busy && <Card><Spinner label={running ? "Running the agent flow; live stages appear above…" : "Loading the saved assessment…"} /></Card>}
       {err && <Card><p role="alert" className="text-rose-700 text-sm">❌ {err}</p></Card>}
       {data?.enterprise_context && <p className="notice">Assessment target: {data.enterprise_context.target_cloud === "aws" ? "AWS" : "Azure"}.
         {" "}Region: {data.enterprise_context.preferred_region || "not specified"} (unverified). This does not change AgentSpark hosting or deploy resources.</p>}

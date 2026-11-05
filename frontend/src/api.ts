@@ -319,7 +319,7 @@ export type ROIAssumptions = {
 };
 export type Diagnosis = {
   intelligence: Record<string, unknown> | null;
-  evidence: Record<string, { status: "supplied" | "inferred" | "missing"; source: string; quote: string }>;
+  evidence: Record<string, { status: "supplied" | "inferred" | "missing"; source: string; quote: string; reference?: string }>;
   missing_facts: string[];
   follow_up_questions: string[];
   data_completeness: number;
@@ -344,6 +344,70 @@ export type Readiness = {
   mode: "demo" | "live";
   dependencies: Record<string, "demo" | "ready" | "unavailable">;
 };
+export type DocumentMetadata = { filename: string; format: "pdf" | "docx"; sha256: string; source_count: number };
+export type DocumentField = { field_id: string; value: string; quote: string; location: string; edited: boolean };
+export type DocumentApproval = {
+  metadata: DocumentMetadata; fields: DocumentField[]; context_approved: true;
+  version: string | null; confirm_overwrite: boolean;
+};
+export type DocumentPreview = {
+  metadata: DocumentMetadata; candidates: DocumentField[]; fields: InterviewField[];
+  conflicting_fields: string[]; warnings: string[]; version: string | null; model_id: InferenceModel["id"];
+};
+export type ProcessingUpdate = {
+  id: string; label: string; phase: "start" | "stage" | "activity" | "complete" | "error";
+  stage?: string; active?: boolean; error?: string;
+};
+export const PROCESSING_EVENT = "agentsense-processing";
+function processing(update: ProcessingUpdate) {
+  window.dispatchEvent(new CustomEvent<ProcessingUpdate>(PROCESSING_EVENT, { detail: update }));
+}
+
+async function readProcessingResponse(response: Response, id: string, label: string): Promise<Response> {
+  if (!response.body) throw new ApiError(0, "The processing stream is unavailable. Reload saved state before retrying.");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  let result: Response | null = null;
+  function consume(line: string) {
+    if (!line.trim()) return;
+    const event: unknown = JSON.parse(line);
+    if (!event || typeof event !== "object" || !("kind" in event)) {
+      throw new ApiError(0, "Invalid processing event. Reload saved state before retrying.");
+    }
+    if (result) throw new ApiError(0, "Unexpected event after completion. Reload saved state before retrying.");
+    if (event.kind === "stage" && "label" in event && typeof event.label === "string" && event.label.length <= 240) {
+      processing({ id, label, phase: "stage", stage: event.label });
+    } else if (event.kind === "activity" && "active" in event && typeof event.active === "boolean") {
+      processing({ id, label, phase: "activity", active: event.active });
+    } else if (event.kind === "result" && "data" in event) {
+      result = new Response(JSON.stringify(event.data), { headers: { "Content-Type": "application/json" } });
+    } else if (event.kind === "error" && "status" in event && typeof event.status === "number" &&
+               "detail" in event && typeof event.detail === "string") {
+      if (event.status === 401) window.dispatchEvent(new Event("agentsense-auth-expired"));
+      throw new ApiError(event.status, `${event.status}: ${event.detail}`);
+    } else if (event.kind !== "heartbeat") {
+      throw new ApiError(0, "Invalid processing event. Reload saved state before retrying.");
+    }
+  }
+  try {
+    while (true) {
+      const chunk = await reader.read();
+      buffer += decoder.decode(chunk.value, { stream: !chunk.done });
+      if (buffer.length > 2 * 1024 * 1024) throw new ApiError(0, "The processing response exceeded safe limits.");
+      const lines = buffer.split("\n");
+      buffer = lines.pop() || "";
+      lines.forEach(consume);
+      if (chunk.done) break;
+    }
+    consume(buffer);
+    if (!result) throw new ApiError(0, "Processing was interrupted. The operation may still finish; reload saved state before retrying.");
+    return result;
+  } finally {
+    await reader.cancel();
+    reader.releaseLock();
+  }
+}
 
 // Safe UUID: crypto.randomUUID() is only defined in secure contexts (https or
 // localhost). Fall back so sessions still work if ever served over plain http.
@@ -357,14 +421,26 @@ export function uid(): string {
   });
 }
 
-async function requestResponse(path: string, method = "GET", body?: unknown): Promise<Response> {
+async function requestResponse(path: string, method = "GET", body?: unknown, file?: File): Promise<Response> {
+  const id = uid();
+  const track = method !== "GET";
+  const stream = method === "POST" && (path === "/intake" || path.startsWith("/intake/document-preview?") ||
+    path === "/chat" || path.startsWith("/analyze/") || /^\/engagements\/[^/]+\/synthesis$/.test(path));
+  const label = file ? "Document review" : path.startsWith("/analyze/") ? "Workflow analysis and blueprint"
+    : path === "/chat" ? "Diagnostic response" : path.endsWith("/synthesis") ? "Discovery synthesis"
+    : path === "/intake" ? "Enterprise intake" : "Saving workspace changes";
+  if (track) processing({ id, label, phase: "start", stage: "Preparing a secure request" });
+  try {
   const token = tokenProvider ? (await tokenProvider().catch(() => "")) || accessToken : accessToken;
-  const r = await fetch(`${BASE}${path}`, {
+  if (track) processing({ id, label, phase: "stage", stage: file ? "Uploading the document" : "Sending the request" });
+  let r = await fetch(`${BASE}${path}`, {
     method, cache: "no-store",
-    headers: { ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+    headers: { ...(file ? { "Content-Type": file.type || "application/octet-stream" }
+      : body === undefined ? {} : { "Content-Type": "application/json" }),
+      ...(stream ? { Accept: "application/x-ndjson" } : {}),
       ...(workspace ? { "X-Organization-ID": workspace.organization_id, "X-Team-ID": workspace.team_id } : {}),
       ...(token ? { Authorization: "Bearer " + token } : {}) },
-    body: body === undefined ? undefined : JSON.stringify(body),
+    body: file || (body === undefined ? undefined : JSON.stringify(body)),
   });
   if (!r.ok) {
     const error = await r.json().catch(() => null);
@@ -374,7 +450,17 @@ async function requestResponse(path: string, method = "GET", body?: unknown): Pr
     if (r.status === 401) window.dispatchEvent(new Event("agentsense-auth-expired"));
     throw new ApiError(r.status, `${r.status}: ${detail}`);
   }
+  if (stream && r.headers.get("content-type")?.includes("application/x-ndjson")) {
+    r = await readProcessingResponse(r, id, label);
+  }
+  if (track) processing({ id, label, phase: "complete" });
   return r;
+  } catch (error) {
+    const failure = error instanceof ApiError ? error
+      : new ApiError(0, "The response was interrupted. The operation may still finish; reload saved state before retrying.");
+    if (track) processing({ id, label, phase: "error", error: failure.message });
+    throw failure;
+  }
 }
 async function request(path: string, method = "GET", body?: unknown) {
   return (await requestResponse(path, method, body)).json();
@@ -383,6 +469,11 @@ const get = (path: string) => request(path);
 const post = (path: string, body: unknown) => request(path, "POST", body);
 
 export const api = {
+  previewDocument: async (file: File, session_id: string, model_id: InferenceModel["id"],
+    target_cloud?: CloudProvider): Promise<DocumentPreview> => {
+    const query = new URLSearchParams({ session_id, filename: file.name, model_id, ...(target_cloud ? { target_cloud } : {}) });
+    return (await requestResponse(`/intake/document-preview?${query}`, "POST", undefined, file)).json();
+  },
   models: (): Promise<ModelCatalog> => get("/models"),
   organizations: (cursor = ""): Promise<DirectoryPage<Organization>> =>
     get(`/organizations?${new URLSearchParams({ cursor })}`),
@@ -487,7 +578,8 @@ export const api = {
   intake: (body: any) => post("/intake", body),
   chat: (session_id: string, message: string, demo_scenario?: DemoScenario): Promise<ChatResponse> =>
     post("/chat", { session_id, message, demo_scenario }),
-  analyze: (session_id: string, roi_assumptions?: ROIAssumptions) => post(`/analyze/${session_id}`, { roi_assumptions }),
+  analyze: (session_id: string, roi_assumptions?: ROIAssumptions, version?: string) =>
+    post(`/analyze/${session_id}`, { roi_assumptions, ...(version ? { version } : {}) }),
   blueprint: (session_id: string) => get(`/blueprint/${session_id}`),
   blueprintPdf: async (id: string, analysis_id: string, status: string): Promise<Blob> => {
     const response = await requestResponse(`/blueprint/${encodeURIComponent(id)}/pdf?${new URLSearchParams({ analysis_id, status })}`);

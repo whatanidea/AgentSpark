@@ -89,11 +89,15 @@ def invoke_llm(llm, messages):
     if llm is None:
         logger.error("A model call was attempted without a live client.")
         raise DependencyUnavailable(model_dependency())
+    from app.utils.processing import report_activity
+    report_activity(True)
     try:
         return llm.invoke(messages)
     except (OpenAIError, AnthropicError, httpx.HTTPError, TimeoutError, OSError) as exc:
         logger.error("%s request failed (%s); request and exception content withheld.", model_dependency(), type(exc).__name__)
         raise DependencyUnavailable(model_dependency()) from exc
+    finally:
+        report_activity(False)
 
 
 def structured_call(llm, system_prompt: str, user_content: str, schema: Type[T]) -> T:
@@ -107,6 +111,8 @@ def structured_call(llm, system_prompt: str, user_content: str, schema: Type[T])
         return _validate_output(result, schema)
     except (ValueError, OutputParserException) as exc:
         logger.warning("Structured output was invalid (%s); retrying once using JSON completion.", _error_summary(exc))
+        from app.utils.processing import report_stage
+        report_stage("Retrying structured generation after an invalid model response")
 
     json_messages = [
         SystemMessage(content=system_prompt + _json_instruction(schema)),

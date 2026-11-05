@@ -100,6 +100,13 @@ def effective_diagnosis(state: WorkflowState) -> WorkflowDiagnosis:
                  ).model_copy(deep=True)
     values = diagnosis.intelligence.model_dump() if diagnosis.intelligence else {"workflow_name": "Workflow not yet supplied"}
     intake = state.enterprise_context
+    def document_evidence(identifier, text, fallback):
+        candidate = next((field for field in state.document_intake.fields if field.field_id == identifier
+                          and field.value == text), None) if state.document_intake else None
+        if candidate and not candidate.edited:
+            return FactEvidence(status="supplied", source="document", quote=candidate.quote,
+                                reference=f"{candidate.source.filename} / {candidate.location}")
+        return fallback
     for key, text in (("compliance_sensitivity", intake.compliance_requirements), ("systems", intake.existing_systems)):
         if text and diagnosis.evidence.get(key, FactEvidence()).status != "supplied":
             if key == "compliance_sensitivity" and text not in ("Low", "Medium", "High"):
@@ -109,10 +116,11 @@ def effective_diagnosis(state: WorkflowState) -> WorkflowDiagnosis:
                 logger.info("Intake systems need bounded named entries; interview clarification is required.")
                 continue
             values[key] = parsed
-            diagnosis.evidence[key] = FactEvidence(status="supplied", source="intake", quote=text)
+            identifier = "intake.compliance_requirements" if key == "compliance_sensitivity" else "intake.existing_systems"
+            diagnosis.evidence[key] = document_evidence(identifier, text, FactEvidence(status="supplied", source="intake", quote=text))
     for key, text in state.interview_answers.items():
         values[key] = _fact_value(key, text)
-        diagnosis.evidence[key] = FactEvidence(status="supplied", source="checklist", quote=text)
+        diagnosis.evidence[key] = document_evidence(f"fact.{key}", text, FactEvidence(status="supplied", source="checklist", quote=text))
     for identifier in state.interview_unconfirmed:
         if identifier.startswith("fact."):
             diagnosis.evidence[identifier.split(".", 1)[1]] = FactEvidence(status="inferred")

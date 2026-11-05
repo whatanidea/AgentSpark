@@ -1,3 +1,2 @@
 # Lock generation and PDF validation tools; not installed in the application image.
 uv==0.13.4
-pypdf==6.21.0

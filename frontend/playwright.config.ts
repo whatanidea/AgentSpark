@@ -16,8 +16,8 @@ export default defineConfig({
   use: { baseURL: "http://127.0.0.1:8767", trace: "off", screenshot: "off" },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile-safari", testMatch: ["**/editorial.spec.ts", "**/portal-design.spec.ts", "**/guided-discovery.spec.ts", "**/home-discovery.spec.ts"],
-      grep: /mobile journey fits completely|editorial portal|editorial form controls|positive portfolio|guided discovery|Home discovery library/,
+    { name: "mobile-safari", testMatch: ["**/editorial.spec.ts", "**/portal-design.spec.ts", "**/guided-discovery.spec.ts", "**/home-discovery.spec.ts", "**/document-intake.spec.ts"],
+      grep: /mobile journey fits completely|editorial portal|editorial form controls|positive portfolio|guided discovery|Home discovery library|document intake/,
       use: { browserName: "webkit", viewport: { width: 440, height: 956 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 } },
   ],
   webServer: {

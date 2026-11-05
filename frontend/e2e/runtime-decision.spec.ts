@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import type { RuntimeDecision, RuntimeRequirements } from "../src/api";
+import { processingResult, watchProcessing } from "./responses";
 
 test("structured runtime requirements persist the same advisory decision in analysis, blueprint and Markdown", async ({ page }) => {
   let session = "";
@@ -41,12 +42,9 @@ test("structured runtime requirements persist the same advisory decision in anal
     await page.getByRole("button", { name: "3 · Workflow Analysis", exact: true }).click();
     const run = page.getByRole("button", { name: "▶ Run Multi-Agent Analysis", exact: true });
     await expect(run).toBeEnabled();
-    const analyzed = page.waitForResponse(response =>
-      response.url().includes(`/analyze/${session}`) && response.request().method() === "POST");
+    await watchProcessing(page, `/analyze/${session}`);
     await run.click();
-    const analysisResponse = await analyzed;
-    expect(analysisResponse.ok()).toBe(true);
-    const analysis = await analysisResponse.json();
+    const analysis = await processingResult(page);
     const decision: RuntimeDecision = analysis.runtime_decision;
     expect(decision.status).toBe("provisional");
     expect(decision.reasoning.selected).toBe("langgraph");

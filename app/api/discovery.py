@@ -27,7 +27,9 @@ from app.utils.models import (
     DiscoveryRatings,
 )
 
-router = APIRouter()
+from app.utils.processing import ProcessingRoute, report_stage
+
+router = APIRouter(route_class=ProcessingRoute)
 logger = logging.getLogger(__name__)
 
 
@@ -516,6 +518,7 @@ def save_contribution(engagement_id: SessionId, req: ContributionRequest):
 
 @router.post("/engagements/{engagement_id}/synthesis")
 def generate_synthesis(engagement_id: SessionId, req: GenerationRequest):
+    report_stage("Checking Discovery sources and synthesizing candidate workflows")
     state = checked_state(engagement_id, req.version)
     with assessment_model(model_definition(req.model_id)) as model:
         try:
@@ -525,6 +528,7 @@ def generate_synthesis(engagement_id: SessionId, req: GenerationRequest):
         state.discovery_synthesis = DiscoverySynthesis(
             source_digest=source_digest(state), sources=discovery_sources(state), content=content, model=model,
             generated_by=principal_context.get().owner_id, generated_at=datetime.now(timezone.utc))
+    report_stage("Saving the generated Discovery synthesis for review")
     db_client.save_workflow_state(state)
     return response(state)
 

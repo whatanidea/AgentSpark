@@ -1,12 +1,13 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Request
 from fastapi.responses import Response
-from pydantic import BaseModel, Field, ConfigDict, ValidationError
+from pydantic import BaseModel, Field, ConfigDict, ValidationError, model_validator
+from starlette.concurrency import run_in_threadpool
 from datetime import datetime, timezone
 from typing import Literal, Annotated
 from app.utils.models import (
     HumanReview, SessionId, SignalLevel, DemoScenario, ROIAssumptions, CloudProvider,
     EvidenceInput, EvidenceEntry, EvidenceConfirmation, ReadinessAssessment,
-    WorkflowDiagnosis, InterviewDiagnosis, InterviewRole,
+    WorkflowDiagnosis, InterviewDiagnosis, InterviewRole, FactEvidence,
 )
 from app.utils.interview import (
     apply_answers, merge_diagnosis, interview_progress, interview_reply, MAX_INTERVIEW_ROUNDS,
@@ -19,6 +20,9 @@ from app.agents.cloud_catalog import pattern_for_cloud
 from app.utils.runtime import demo_mode
 from app.utils.model_catalog import available_models, model_definition, assessment_model, MODEL_IDS
 from app.utils.llm import model_dependency
+from app.utils.document_models import DocumentApproval, ApprovedDocument, ApprovedDocumentField
+from app.utils.documents import preview_document, validate_fields
+from app.utils.errors import ConcurrentUpdate
 
 from app.database.cosmos_client import db_client
 from app.database.tenant_directory import tenant_directory
@@ -29,7 +33,9 @@ from app.security.guardrails import scan_input, redact_pii, redact_data
 from app.security.auth import auth_settings, principal_context, require_reviewer
 import os
 
-router = APIRouter()
+from app.utils.processing import ProcessingRoute, report_stage
+
+router = APIRouter(route_class=ProcessingRoute)
 
 
 @router.get("/models")
@@ -99,17 +105,26 @@ class RequestModel(BaseModel):
 
 class IntakeRequest(RequestModel):
     session_id: SessionId
-    business_domain: str = Field(min_length=1, max_length=200)
-    team_size: Literal["1-50", "51-200", "201-1000", "1000+"]
+    business_domain: str = Field(max_length=200)
+    team_size: Literal["1-50", "51-200", "201-1000", "1000+", ""]
     existing_systems: str = Field(max_length=4000)
     pain_points: str = Field(max_length=8000)
-    compliance_requirements: SignalLevel
+    compliance_requirements: SignalLevel | Literal[""]
     demo_scenario: DemoScenario | None = None
     target_cloud: CloudProvider | None = None
     preferred_region: str = Field(default="", max_length=100, pattern=r"^[a-z0-9-]*$")
     data_residency_requirements: str = Field(default="", max_length=2000)
     deployment_constraints: str = Field(default="", max_length=2000)
     model_id: Literal["azure-openai", "foundry-claude-haiku", "demo"] | None = None
+    document: DocumentApproval | None = None
+
+    @model_validator(mode="after")
+    def manual_required_context(self):
+        if self.document is None and (not self.business_domain or not self.team_size or not self.compliance_requirements):
+            raise ValueError("Manual intake requires business domain, team size and compliance requirements.")
+        if self.document is not None and self.demo_scenario is not None:
+            raise ValueError("Document intake cannot use fixed demo scenario facts.")
+        return self
 
 
 class ChatRequest(RequestModel):
@@ -120,6 +135,7 @@ class ChatRequest(RequestModel):
 
 class AnalyzeRequest(RequestModel):
     roi_assumptions: ROIAssumptions | None = None
+    version: str | None = Field(default=None, min_length=1, max_length=1000)
 
 
 class ReviewRequest(RequestModel):
@@ -310,8 +326,38 @@ def confirm_evidence(session_id: SessionId, entry_id: SessionId, req: Confirmati
     return evidence_response(state)
 
 
+@router.post("/intake/document-preview")
+async def document_preview(request: Request, session_id: SessionId, filename: Annotated[str, Query(min_length=1, max_length=120)],
+                           model_id: Literal["azure-openai", "foundry-claude-haiku", "demo"],
+                           target_cloud: CloudProvider | None = None):
+    def prepare():
+        state = db_client.get_workflow_state(session_id, create_if_missing=True)
+        db_client._authorize(state, "write")
+        if state.record_kind != "assessment":
+            raise HTTPException(422, "Upload documents to an assessment, not a Discovery engagement.")
+        selection = model_definition(model_id)
+        if (state.model_locked or state.chat_history or state.interview_diagnosis or state.analysis_id or state.trace) and (
+                state.inference_model is None or state.inference_model != selection):
+            raise HTTPException(409, "The assessment model is fixed. Use its saved model or start a new assessment.")
+        if target_cloud is not None:
+            state.enterprise_context.target_cloud = target_cloud
+        return state, selection
+    state, selection = await run_in_threadpool(prepare)
+    content_type = request.headers.get("content-type", "").split(";", 1)[0]
+    expected = "application/pdf" if filename.lower().endswith(".pdf") else "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    if content_type not in ("application/octet-stream", expected):
+        raise HTTPException(415, "The file content type does not match its supported extension.")
+    data = await request.body()
+    def extract():
+        with assessment_model(selection):
+            result = preview_document(data, filename, state)
+        return {**result, "version": state._etag, "model_id": selection.id}
+    return await run_in_threadpool(extract)
+
+
 @router.post("/intake")
 def save_intake(req: IntakeRequest):
+    report_stage("Validating and saving enterprise context")
     if req.demo_scenario is not None and not demo_mode():
         raise HTTPException(status_code=422, detail="Demo fixtures cannot be selected in live mode.")
     for text in (req.business_domain, req.existing_systems, req.pain_points,
@@ -320,6 +366,20 @@ def save_intake(req: IntakeRequest):
             raise HTTPException(status_code=422, detail="Intake contains instruction-override content. Please rephrase.")
     state = db_client.get_workflow_state(req.session_id, create_if_missing=True)
     db_client._authorize(state, "write")
+    if req.document:
+        if state.record_kind != "assessment":
+            raise HTTPException(422, "Document intake requires an assessment.")
+        if req.document.version != state._etag:
+            raise ConcurrentUpdate()
+        if state._etag is not None and not req.document.confirm_overwrite:
+            raise HTTPException(409, "Confirm replacing selected saved answers and clearing the current analysis before approving.")
+        if req.model_id is None or req.target_cloud is None:
+            raise HTTPException(422, "Choose the assessment model and target cloud before approving context.")
+        for field in req.document.fields:
+            if not scan_input(field.value).safe or not scan_input(field.quote).safe:
+                raise HTTPException(422, "Approved document context contains instruction-override content. Please rephrase.")
+            if field.field_id.startswith("intake.") and getattr(req, field.field_id.split(".", 1)[1], None) != field.value:
+                raise HTTPException(422, "The reviewed intake proposal differs from the form. Review the current value before approving.")
     if state._etag is None and not demo_mode() and req.model_id is None:
         raise HTTPException(422, "Select an assessment model before starting the interview.")
     if req.model_id is not None:
@@ -347,7 +407,8 @@ def save_intake(req: IntakeRequest):
     for field in ("preferred_region", "data_residency_requirements", "deployment_constraints"):
         if field in req.model_fields_set:
             setattr(state.enterprise_context, field, redact_pii(getattr(req, field)))
-    if state._etag is not None and previous_context != (state.enterprise_context.model_dump(), state.demo_scenario):
+    context_changed = state._etag is not None and previous_context != (state.enterprise_context.model_dump(), state.demo_scenario)
+    if context_changed:
         state.invalidate_readiness_context()
         state.interview_diagnosis = None
         for context_key, fact in (("existing_systems", "systems"), ("compliance_requirements", "compliance_sensitivity")):
@@ -355,14 +416,48 @@ def save_intake(req: IntakeRequest):
                 state.interview_answers.pop(fact, None)
                 state.interview_unconfirmed = [
                     identifier for identifier in state.interview_unconfirmed if identifier != f"fact.{fact}"]
+    if req.document:
+        report_stage("Applying human-approved context and checking remaining questions")
+        if not context_changed:
+            state.invalidate_readiness_context()
+        try:
+            validate_fields(state, req.document.fields)
+            answers = {field.field_id: redact_pii(field.value) for field in req.document.fields
+                       if not field.field_id.startswith("intake.")}
+            apply_answers(state, answers)
+        except (ValueError, ValidationError) as exc:
+            raise HTTPException(422, "Approved values do not match supported interview formats or the selected cloud's fields.") from exc
+        previous = {field.field_id: field for field in state.document_intake.fields} if state.document_intake else {}
+        metadata = req.document.metadata.model_copy(update={"filename": redact_pii(req.document.metadata.filename)[:120]})
+        for field in req.document.fields:
+            quote = redact_pii(field.quote)
+            if len(quote) > 500:
+                raise HTTPException(422, "A redacted source excerpt exceeds 500 characters. Shorten the excerpt before approval.")
+            previous[field.field_id] = ApprovedDocumentField(
+                **{**field.model_dump(), "value": redact_pii(field.value), "quote": quote}, source=metadata,
+                reviewed_by=principal_context.get().owner_id, reviewed_at=datetime.now(timezone.utc))
+            if field.field_id.startswith("runtime.") and not field.edited:
+                key = field.field_id.split(".", 1)[1]
+                state.runtime_requirement_sources[key] = FactEvidence(status="supplied", source="document", quote=quote,
+                    reference=f"{metadata.filename} / {field.location}")
+        state.document_intake = ApprovedDocument(
+            metadata=metadata,
+            fields=list(previous.values()), approved_by=principal_context.get().owner_id,
+            approved_at=datetime.now(timezone.utc))
+        state.model_locked = True
+        # Even a zero-candidate suitability import must use known intake facts, not a demo fixture.
+        if state.interview_diagnosis is None:
+            state.interview_diagnosis = WorkflowDiagnosis()
     db_client.save_workflow_state(state)
     return {"status": "success", "session_id": req.session_id,
             "enterprise_context": state.enterprise_context.model_dump(),
-            "inference_model": state.inference_model.model_dump() if state.inference_model else None}
+            "inference_model": state.inference_model.model_dump() if state.inference_model else None,
+            **({"interview": interview_response(state)} if req.document else {})}
 
 
 @router.post("/chat")
 def chat_interaction(req: ChatRequest):
+    report_stage("Reviewing the diagnostic response and checking required facts")
     if req.demo_scenario is not None and not demo_mode():
         raise HTTPException(status_code=422, detail="Demo fixtures cannot be selected in live mode.")
     state = db_client.get_workflow_state(req.session_id, create_if_missing=True)
@@ -439,8 +534,12 @@ def chat_interaction(req: ChatRequest):
 @router.post("/analyze/{session_id}")
 def analyze_workflow(session_id: SessionId, req: AnalyzeRequest | None = None):
     db_client._authorize(db_client.get_workflow_state(session_id), "write")
-    s = (run_orchestration(session_id, roi_assumptions=req.roi_assumptions)
-         if req and req.roi_assumptions is not None else run_orchestration(session_id))
+    if req and req.version is not None:
+        s = run_orchestration(session_id, roi_assumptions=req.roi_assumptions, expected_version=req.version)
+    elif req and req.roi_assumptions is not None:
+        s = run_orchestration(session_id, roi_assumptions=req.roi_assumptions)
+    else:
+        s = run_orchestration(session_id)
     return redact_data({
         "status": s.status,
         "score": s.suitability_score.model_dump() if s.suitability_score else None,
@@ -484,6 +583,7 @@ def get_blueprint(session_id: SessionId):
     res["enterprise_context"] = state.enterprise_context.model_dump()
     res["cloud_mapping"] = state.cloud_mapping or state.azure_mapping
     res["evidence_report"] = state.evidence_report
+    res["document_intake"] = state.document_intake.model_dump(mode="json") if state.document_intake else None
     res["readiness_report"] = state.readiness_report
     res["runtime_decision"] = state.runtime_decision.model_dump() if state.runtime_decision else None
     res["executive_brief"] = state.executive_brief.model_dump() if state.executive_brief else None
