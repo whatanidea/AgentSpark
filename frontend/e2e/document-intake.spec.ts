@@ -73,6 +73,35 @@ test("document intake PDF review preserves unknowns, requires approval and asks 
   expect(saved.document_intake.verification).toBe("human_reviewed_unverified");
 });
 
+test("document intake full-width layout and Select file button work on desktop and mobile", async ({ page }) => {
+  await start(page);
+  const documentCard = page.locator(".surface-card").filter({
+    has: page.getByRole("heading", { name: "Start from a document", exact: true }),
+  });
+  const workflowCard = page.locator(".surface-card").filter({
+    has: page.getByRole("heading", { name: "Workflow details", exact: true }),
+  });
+  for (const width of [1440, 1280, 768, 390, 320]) {
+    await page.setViewportSize({ width, height: 956 });
+    const documentBox = await documentCard.boundingBox();
+    const workflowBox = await workflowCard.boundingBox();
+    const domainBox = await page.getByRole("textbox", { name: "Business Domain", exact: true }).boundingBox();
+    if (!documentBox || !workflowBox || !domainBox) throw new Error("Intake layout is not visible.");
+    expect(Math.abs(documentBox.x - workflowBox.x)).toBeLessThan(1);
+    expect(Math.abs(documentBox.width - workflowBox.width)).toBeLessThan(1);
+    expect(workflowBox.y).toBeGreaterThanOrEqual(documentBox.y + documentBox.height + 20);
+    if (width >= 1280) expect(domainBox.width).toBeGreaterThanOrEqual(250);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  }
+  const buffer = fixture("pdf", "partial");
+  const choosing = page.waitForEvent("filechooser");
+  await page.getByRole("button", { name: "Select file", exact: true }).click();
+  await (await choosing).setFiles({ name: "fictional-layout.pdf", mimeType: "application/pdf", buffer });
+  await expect(page.getByRole("heading", { name: "Review: fictional-layout.pdf", exact: true })).toBeVisible();
+  await expect(page.getByText("fictional-layout.pdf", { exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "Approve context and continue", exact: true })).toBeDisabled();
+});
+
 test("document intake DOCX tables continue once to blueprint and retain unverified readiness on mobile", async ({ page }) => {
   await start(page);
   let analyses = 0;
