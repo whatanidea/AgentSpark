@@ -38,7 +38,7 @@ saved; existing assessments must use their pinned model.
   invalid-source-reference failures are terminal errors with no saved subset.
   Automatically captured fields identify the `document_lookup` actor; they do
   not claim that a human reviewed each answer.
-- Narrative extraction checks each quotation against its source and validates
+- Initial document-preview extraction checks each quotation against its source and validates
   field formats, explicit counts and literal catalogue options. If proposals fail
   these checks, one source-correction request receives the rejected proposals and
   specific validation feedback. Already supported facts are preserved; the
@@ -47,7 +47,9 @@ saved; existing assessments must use their pinned model.
   fields remain unresolved, with a review warning and the usual missing-fact
   questions. Ratings, team-size ranges and readiness are not inferred.
   If correction still returns invalid proposals or the provider fails, the
-  request fails explicitly without saving context or returning a partial result.
+  preview fails explicitly without saving context or returning a partial result.
+  Later question-level lookup uses the `needs_confirmation` behavior above for
+  unsupported answers with valid source references.
 - New document intake does not silently confirm the manual form's default
   team size or compliance rating. Blank values remain unknown.
 - Review the context acknowledgement, select the target cloud, then choose
