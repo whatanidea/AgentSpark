@@ -60,6 +60,16 @@ class ArchiveFixture:
         return self.database.get_decision(state.session_id, state.analysis_id)
 
 class DecisionArchiveTests(ArchiveFixture, unittest.TestCase):
+    def test_connected_overview_is_retained_without_refreshing_old_snapshots(self):
+        state = self.pending()
+        state.blueprint = {"architecture_view": {"version": "architecture-view-v1", "outcome": "Fictional proposed outcome"}}
+        record = self.decide(state)
+        self.assertEqual(record.details["architecture_view"], state.blueprint["architecture_view"])
+        state.blueprint["architecture_view"]["outcome"] = "Later change"
+        self.database.save_workflow_state(state)
+        self.assertEqual(self.database.get_decision(state.session_id, state.analysis_id).details["architecture_view"],
+                         record.details["architecture_view"])
+
     def test_decision_survives_a_real_process_restart_without_full_chat(self):
         state = self.pending()
         record = self.decide(state)

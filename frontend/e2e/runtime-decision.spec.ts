@@ -74,6 +74,7 @@ test("structured runtime requirements persist the same advisory decision in anal
     const blueprintResponse = await fetched;
     expect(blueprintResponse.ok()).toBe(true);
     expect((await blueprintResponse.json()).runtime_decision).toEqual(decision);
+    await page.getByText("Evidence, readiness and delivery rationale", { exact: true }).click();
     await expect(runtime.getByRole("heading", { name: `Reasoning layer: ${decision.reasoning.label}`, exact: true })).toBeVisible();
     await expect(runtime.getByRole("heading", { name: `Durable execution layer: ${decision.durable_execution.label}`, exact: true })).toBeVisible();
     const downloading = page.waitForEvent("download");

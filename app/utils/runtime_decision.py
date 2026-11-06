@@ -161,7 +161,10 @@ def recommend_runtime(requirements: RuntimeRequirements, sources: dict[str, Fact
         tasks.append("Review supplied platform, deployment and residency constraints against each candidate; text constraints are not automatically verified.")
     reasoning_options = [
         _option("none", r.reasoning == "deterministic" or conventional,
-                "Application code suffices for deterministic processing; it cannot substitute for required dynamic reasoning.",
+                "Application code suffices for deterministic processing." if r.reasoning == "deterministic" or conventional
+                else "A bounded AI task still needs a model handler." if r.reasoning == "bounded"
+                else "Confirm the reasoning requirement before selecting application code." if r.reasoning == "unknown"
+                else "Application code alone cannot substitute for required dynamic reasoning.",
                 reasoning=True),
         _option("bounded_handler", r.reasoning == "bounded" or (r.reasoning == "dynamic" and not allowed_dynamic),
                 "Suitable for a bounded AI task without an agent coordination graph."),
@@ -174,9 +177,15 @@ def recommend_runtime(requirements: RuntimeRequirements, sources: dict[str, Fact
         _option("temporal", durable_needed,
                 "Cross-cloud candidate; hosting, ownership and residency must be assessed, not assumed."),
         _option("azure_durable_functions", durable_needed and context.target_cloud == "azure",
-                "Azure candidate; not eligible as the hosting runtime for an AWS target."),
+                "Not a hosting candidate for the selected AWS target." if context.target_cloud == "aws"
+                else "Confirm durable execution requirements before selecting this Azure candidate." if durable_unknown
+                else "The supplied requirements do not need a separate durable engine." if not durable_needed
+                else "Azure candidate for the stated durable execution requirements."),
         _option("aws_step_functions", durable_needed and context.target_cloud == "aws",
-                "AWS candidate; not eligible as the hosting runtime for an Azure target."),
+                "Not a hosting candidate for the selected Azure target." if context.target_cloud == "azure"
+                else "Confirm durable execution requirements before selecting this AWS candidate." if durable_unknown
+                else "The supplied requirements do not need a separate durable engine." if not durable_needed
+                else "AWS candidate for the stated durable execution requirements."),
     ]
     # A validated deterministic/simple case can be recommended without claiming scale validation.
     blocking_tasks = [task for task in tasks if not task.startswith(("Validate workload", "Validate the supplied scale"))]

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api";
 import { Card, Button, Spinner } from "./ui";
 import Markdown from "./Markdown";
-import ArchitectureDiagram from "./ArchitectureDiagram";
+import ArchitectureDiagram, { architectureViewMarkdown } from "./ArchitectureDiagram";
 import AnalysisEvidence from "./AnalysisEvidence";
 import { EvidenceSummary, evidenceMarkdown } from "./EvidenceRegister";
 import { ReadinessSummary, readinessMarkdown } from "./ImplementationReadiness";
@@ -96,6 +96,7 @@ export default function Blueprint({ sessionId, active, canReview, secureReview, 
 ${bp.human_review ? `**Human review:** ${bp.human_review.decision} by ${bp.human_review.reviewer} at ${bp.human_review.reviewed_at}\n**Review note:** ${bp.human_review.note}` : ""}
 
 Advisory recommendation only; approval does not execute or deploy a business workflow.
+${bp.status !== "rejected" ? architectureViewMarkdown(bp.architecture_view, bp.cloud_mapping) : ""}
 ${bp.assessment_limitations || "Region availability, model access, residency and prices are unverified. AgentSpark remains Azure-hosted."}
 ${bp.demo_scenario ? `Fictional demo fixture: ${bp.demo_scenario}; not extracted customer facts.` : ""}
 
@@ -177,7 +178,7 @@ ${bp.code_scaffold || ""}
         <div>
           <div className="eyebrow mb-2">Step 04 / Review & decide</div>
           <h1>Implementation Blueprint</h1>
-          <p className="mt-2">Architecture, cost, roadmap and starter code — generated from the analysis.</p>
+          <p className="mt-2">The proposed outcome, connected workflow and decisions to validate before delivery.</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button onClick={load} disabled={!sessionId || busy}>Generate / Fetch</Button>
@@ -190,9 +191,19 @@ ${bp.code_scaffold || ""}
       {busy && <Card><Spinner label="Fetching blueprint…" /></Card>}
       {err && <Card><p role="alert" className="text-rose-700 text-sm">❌ {err}</p></Card>}
       {bp && !bp.analysis_id && <Card><p className="text-amber-800 text-sm">PDF export requires a versioned analysis. Rerun Workflow Analysis first.</p></Card>}
-      {bp && <EvidenceSummary report={bp.evidence_report} />}
-      {bp && <ReadinessSummary report={bp.readiness_report} />}
       {bp && <ExecutiveBriefSummary brief={bp.executive_brief} sessionId={sessionId} />}
+      {bp && bp.status !== "rejected" && <ArchitectureDiagram key={bp.analysis_id} bp={bp} />}
+      {bp && <Card title="Recorded pilot targets and readiness">
+        <p className="text-sm"><b>Readiness:</b> {bp.readiness_report?.decision?.replaceAll("_", " ") || "Not assessed"}.
+          {" "}{bp.readiness_report?.rationale || "No delivery-readiness snapshot was recorded."}</p>
+        <p className="text-sm mt-2"><b>Success targets:</b> {bp.readiness_report?.pilot?.success_metrics || "No pilot targets recorded. Agree measurable acceptance criteria before testing."}</p>
+        <p className="text-xs text-zinc-500 mt-2">Targets are proposed, not achieved results. Advisory approval is not pilot authorization.</p>
+      </Card>}
+      {bp && <details className="rounded border border-zinc-200 bg-white p-5">
+      <summary className="cursor-pointer font-semibold text-brand-800">Evidence, readiness and delivery rationale</summary>
+      <div className="space-y-5 mt-5">
+      <EvidenceSummary report={bp.evidence_report} />
+      <ReadinessSummary report={bp.readiness_report} />
       {bp && <AgenticAdoption adoption={bp.suitability_score?.adoption} readiness={bp.readiness_report} />}
       {bp && <RuntimeDecisionSummary decision={bp.runtime_decision} />}
       {bp && <Card title="Assessment deployment target">
@@ -208,6 +219,7 @@ ${bp.code_scaffold || ""}
       </Card>}
       {bp && !bp.diagnosis && <Card><p className="text-amber-800 text-sm">Legacy analysis has no fact provenance. Rerun analysis before reviewing it.</p></Card>}
       <AnalysisEvidence diagnosis={bp?.diagnosis} scenario={bp?.demo_scenario} />
+      </div></details>}
       {bp?.roi && <Card title="Business value and pilot measures"><ROIReport roi={bp.roi} /></Card>}
 
       {bp && (
@@ -249,7 +261,9 @@ ${bp.code_scaffold || ""}
       )}
 
       {bp && bp.status !== "rejected" && (
-        <>
+        <details className="rounded border border-zinc-200 bg-white p-5">
+          <summary className="cursor-pointer font-semibold text-brand-800">Technical architecture and implementation detail</summary>
+          <div className="space-y-5 mt-5">
           {bp.token_usage && (
             <div className="flex gap-4">
               <div className="flex-1 bg-brand-50 border border-brand-200 rounded p-5 flex items-center justify-between flex-wrap gap-4">
@@ -268,7 +282,6 @@ ${bp.code_scaffold || ""}
               </div>
             </div>
           )}
-          <ArchitectureDiagram bp={bp} />
           <Card title="Architecture Document"><Markdown>{bp.architecture_doc || ""}</Markdown></Card>
           
           {bp.governance && (
@@ -301,7 +314,8 @@ ${bp.code_scaffold || ""}
               <pre className="text-xs text-brand-900 bg-zinc-50 border border-zinc-200 rounded p-4 overflow-x-auto mt-4">{bp.mermaid_diagram}</pre>
             </details>
           )}
-        </>
+          </div>
+        </details>
       )}
     </div>
   );

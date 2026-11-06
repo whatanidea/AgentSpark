@@ -15,6 +15,11 @@ Choose each service field verbatim from its supplied catalog candidates. Give a 
 workflow and supplied deployment constraints. Do not change the cloud or imply region availability,
 model access, data residency, pricing, provisioning or deployment readiness has been verified.
 Existing customer systems can remain external integrations; they do not change the hosting target."""
+_SYSTEM += """
+Keep rationale concise and specific to the outcome. Do not infer that an event-triggered service
+must be always-on or containerized, or that audit/idempotency requires SQL, without supplied
+requirements. State conditional selection criteria and outstanding evidence instead.
+Reuse supplied enterprise standards when compatible. Model text cannot create verified requirements."""
 
 
 class MappingAgent:

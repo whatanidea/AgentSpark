@@ -32,6 +32,64 @@ async function analyze(page: Page) {
   return result;
 }
 
+test("visual blueprint connects handoffs services outcomes and expandable detail", async ({ page }, testInfo) => {
+  await intake(page, "🧾 Invoice Approval (Finance)");
+  await analyze(page);
+  const fetched = page.waitForResponse(response => response.url().includes("/blueprint/") && !response.url().includes("/pdf"));
+  await page.getByRole("button", { name: "4 · Blueprint & Review", exact: true }).click();
+  const response = await fetched;
+  expect(response.ok()).toBe(true);
+  const snapshot = await response.json();
+  const overview = page.getByRole("region", { name: "Proposed architecture overview" });
+  await expect(overview).toBeVisible();
+  await expect(overview).toContainText(snapshot.architecture_view.outcome);
+  const steps = overview.getByRole("list", { name: "Proposed workflow steps" });
+  await expect(steps.getByRole("button")).toHaveCount(snapshot.architecture_view.flow.length);
+  await expect(page.getByRole("heading", { name: "Architecture Document", exact: true })).toBeHidden();
+  for (const [index, step] of snapshot.architecture_view.flow.entries()) {
+    const button = steps.getByRole("button", { name: `Inspect step ${index + 1}: ${step.title}`, exact: true });
+    await button.click();
+    await expect(button).toHaveAttribute("aria-pressed", "true");
+    const panel = overview.getByLabel("Selected workflow step", { exact: true });
+    await expect(panel).toContainText(step.receives);
+    await expect(panel).toContainText(step.produces);
+    await expect(panel).toContainText(step.control);
+    for (const component of step.components) {
+      await expect(panel).toContainText(component === "systems"
+        ? snapshot.workflow_intelligence.systems.join(", ") : snapshot.cloud_mapping[component]);
+    }
+  }
+  await expect(overview).toContainText("Gate 1 / not completed");
+  await expect(overview).toContainText(/compute decision/i);
+  await expect(page.getByRole("heading", { name: "Recorded pilot targets and readiness", exact: true })).toBeVisible();
+  await expect(page.getByText("Evidence, readiness and delivery rationale", { exact: true })).toBeVisible();
+  await page.getByText("Technical architecture and implementation detail", { exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Architecture Document", exact: true })).toBeVisible();
+  await page.getByText("Technical architecture and implementation detail", { exact: true }).click();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(
+    await page.evaluate(() => window.innerWidth + 1));
+  await page.screenshot({ path: testInfo.outputPath("blueprint.png"), fullPage: true });
+
+  const downloading = page.waitForEvent("download");
+  await page.getByRole("button", { name: "⬇ Export .md", exact: true }).click();
+  const stream = await (await downloading).createReadStream();
+  if (!stream) throw new Error("Blueprint export stream unavailable");
+  let markdown = "";
+  for await (const chunk of stream) markdown += chunk.toString();
+  expect(markdown).toContain("## Connected responsibility flow");
+  expect(markdown).toContain("## Acceptance-based delivery milestones (not completed)");
+  expect(markdown.indexOf("## Connected responsibility flow")).toBeLessThan(markdown.indexOf("## Evidence and provenance"));
+
+  await page.route(response.url(), async route => {
+    const legacy = { ...snapshot };
+    delete legacy.architecture_view;
+    await route.fulfill({ json: legacy });
+  });
+  await page.getByRole("button", { name: "Generate / Fetch", exact: true }).click();
+  await expect(page.getByText("No workflow-specific overview was recorded in this historical assessment.", { exact: false })).toBeVisible();
+  await expect(page.getByRole("list", { name: "Proposed workflow steps" })).toHaveCount(0);
+});
+
 test.afterEach(async ({ page }) => {
   // Each test owns one isolated browser tab and deletes its own fictional server document.
   const pointer = await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1"));
@@ -109,6 +167,7 @@ test("agentic adoption separates opportunity permissions and readiness across re
   await page.reload();
   await expect(card).toContainText("Hybrid Workflow with Supervised Investigation Agent");
   await page.getByRole("button", { name: "4 · Blueprint & Review", exact: true }).click();
+  await page.getByText("Evidence, readiness and delivery rationale", { exact: true }).click();
   await expect(card).toContainText("Hybrid Workflow with Supervised Investigation Agent");
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "⬇ Export .md", exact: true }).click();
@@ -430,6 +489,7 @@ test("implementation readiness persists blockers, exports and retains the review
   expect(analysis.readiness_report.actions[0].priority).toBe("P0");
   await expect(page.getByRole("heading", { name: "Implementation Readiness Report", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "4 · Blueprint & Review", exact: true }).click();
+  await page.getByText("Evidence, readiness and delivery rationale", { exact: true }).click();
   await expect(page.getByRole("heading", { name: "Implementation Readiness Report", exact: true })).toBeVisible();
   await page.getByLabel("Reviewer", { exact: true }).fill("Fictional readiness reviewer");
   await page.getByLabel("Review rationale", { exact: true }).fill("Architecture only; resolve pilot blockers before implementation");
@@ -890,6 +950,7 @@ test("AWS assessment restores, exports, archives and invalidates approval when c
   expect(result.cloud_mapping.target_cloud).toBe("aws");
   expect(result.cloud_mapping.ai).toBe("Amazon Bedrock");
   await page.getByRole("button", { name: "4 · Blueprint & Review", exact: true }).click();
+  await page.getByText("Evidence, readiness and delivery rationale", { exact: true }).click();
   await expect(page.locator("dd").filter({ hasText: /^Amazon Bedrock$/ })).toBeVisible();
   await page.getByLabel("Reviewer", { exact: true }).fill("Fictional AWS reviewer");
   await page.getByLabel("Review rationale", { exact: true }).fill("Reviewed AWS assessment and human gates.");
