@@ -12,7 +12,10 @@ from app.api import routes
 from app.security import auth
 
 key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-settings = auth.AuthSettings("oidc", "https://discovery-fixture.example", "discovery-browser", "https://discovery-fixture.example/keys")
+approved = tuple(hashlib.sha256(f"https://discovery-fixture.example\0{subject}".encode()).hexdigest()
+                 for subject in ("owner", "operator", "reviewer"))
+settings = auth.AuthSettings("oidc", "https://discovery-fixture.example", "discovery-browser", "https://discovery-fixture.example/keys",
+                             platform_admin_ids=approved)
 auth.auth_settings = routes.auth_settings = settings
 auth.key_client = lambda _: SimpleNamespace(get_signing_key_from_jwt=lambda token: SimpleNamespace(key=key.public_key()))
 app = FastAPI()

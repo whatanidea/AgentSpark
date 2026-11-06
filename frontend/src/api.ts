@@ -109,6 +109,7 @@ export type DiscoveryRecord = {
     model: InferenceModel; assessment_expires_at: string; status: "pending" | "completed" }[];
 };
 export type RuntimeRequirements = {
+  specialist_roles?: string;
   reasoning: "unknown" | "deterministic" | "bounded" | "dynamic";
   duration: "unknown" | "request_bound" | "long_running";
   external_waits: "unknown" | "no" | "yes";
@@ -130,7 +131,7 @@ export type RuntimeDecision = {
   requirements: RuntimeRequirements;
   provenance: Record<string, {
     status: "supplied" | "inferred" | "missing";
-    source: "interview" | "checklist" | "intake" | "none" | "demo_fixture"; quote: string;
+    source: "interview" | "checklist" | "intake" | "none" | "demo_fixture" | "document"; quote: string;
   }>;
   reasoning: RuntimeDecisionLayer; durable_execution: RuntimeDecisionLayer;
   validation_tasks: string[]; boundaries: string[]; limitations: string;
@@ -168,7 +169,11 @@ export type Invite = {
 };
 export type InviteRedemption = {
   organization_id: string; name: string; role: Organization["role"]; team_id: string | null;
-  status: "joined" | "already_member";
+  status: "joined" | "already_member"; workspace: WorkspaceSelection | null;
+};
+export type InvitePreview = {
+  organization_name: string; team_name: string | null; role: "admin" | "member";
+  team_roles: TeamRole[]; expires_at: string;
 };
 /** Accepts a full invite link (…#invite=CODE) or a bare code. */
 export function parseInviteCode(value: string): string {
@@ -177,7 +182,7 @@ export function parseInviteCode(value: string): string {
   return match ? match[1] : text;
 }
 export function inviteLink(code: string): string {
-  return `${window.location.origin}${window.location.pathname}#invite=${code}`;
+  return `${window.location.origin}/workspace#invite=${code}`;
 }
 export type SignInConfig = { client_id: string; authority: string; scope: string };
 export type AuthConfig = {
@@ -191,6 +196,16 @@ export type HomeItem = {
   updated_at: string; expires_at: string; sort_key: string; legacy: boolean;
 };
 export type HomePage = { items: HomeItem[]; next_cursor: string | null; archive_retention_days: number };
+export type AdoptionAssessment = {
+  rules_version: "adoption-rules-v1";
+  opportunity: "supported" | "potential" | "not_indicated";
+  design_family: "supervisor_worker" | "rag_copilot" | "rpa_triage" | "standard_software" | "tool_agent" | "hybrid_agentic";
+  design_label: string; decision_basis: string; current_approach: string; rationale: string[];
+  evidence: { field_id: string; value: string; source: string; quote: string; reference?: string }[];
+  deterministic_responsibilities: string[]; proposed_agent_responsibilities: string[];
+  human_boundaries: string[]; questions: string[]; pilot_scope: string; success_criteria: string[];
+  stop_conditions: string[]; expansion_conditions: string[]; readiness_basis: string;
+};
 export type ArchivedDecision = {
   summary: HomeItem;
   details: {
@@ -203,7 +218,7 @@ export type ArchivedDecision = {
     executive_brief?: ExecutiveBrief | null;
     discovery_origin?: DiscoveryOrigin | null;
     workflow_intelligence: { summary: string; systems: string[] } | null;
-    suitability_score: { agent_score: number; recommended_pattern: string; explanation: string } | null;
+    suitability_score: { agent_score: number; recommended_pattern: string; explanation: string; adoption?: AdoptionAssessment | null } | null;
     human_review: { decision: "approve" | "reject"; reviewer: string; note: string; reviewed_at: string } | null;
     governance: { decision: string; overall_risk: string; reason: string } | null;
     architecture_doc: string; cost_estimate: string; roadmap: string;
@@ -211,7 +226,7 @@ export type ArchivedDecision = {
     roi: import("./components/ROIReport").ROIResult | null;
   };
 };
-export type Identity = { identity: string; can_review: boolean };
+export type Identity = { identity: string; can_review: boolean; platform_access: boolean };
 export type EvidenceInput = {
   id: string; kind: "client_fact" | "supported_finding" | "assumption" | "open_question";
   statement: string; source_reference: string; reporting_period: string; related_facts: string[];
@@ -309,14 +324,23 @@ export type ReviewRequest = {
 
 export type RuntimeHealth = { status: string; live: boolean; mode: "demo" | "live" };
 export type DemoScenario = "invoice" | "support" | "claims" | "payroll";
-export type ROIAssumptions = {
-  working_days_per_year: number;
-  loaded_hourly_rate: number;
-  minutes_per_step: number;
-  minutes_per_decision: number;
-  implementation_cost_per_agent: number;
-  annual_operating_cost: number | null;
+export type ValueEvidence = { basis: "assumed" | "measured" | "finance_approved"; reference: string };
+export type RoleEffort = {
+  role: string; manual_minutes_per_item: number | null; effort_reduction_percent: number | null;
+  loaded_hourly_rate: number | null; evidence: Partial<Record<"manual_minutes_per_item" | "effort_reduction_percent" | "loaded_hourly_rate", ValueEvidence>>;
 };
+export type ROIAssumptions = {
+  mode: "deferred" | "estimate";
+  working_days_per_year: number | null; manual_minutes_per_item: number | null;
+  effort_reduction_percent: number | null; loaded_hourly_rate: number | null;
+  productive_hours_per_fte: number | null; implementation_cost: number | null;
+  annual_operating_cost: number | null; annual_cash_savings: number | null;
+  annual_avoided_hiring_value: number | null; service_improvements: string;
+  evidence: Partial<Record<ValueField, ValueEvidence>>; roles: RoleEffort[];
+  minutes_per_step?: number | null; implementation_cost_per_agent?: number | null;
+};
+export type ValueField = Exclude<keyof ROIAssumptions,
+  "mode" | "roles" | "evidence" | "minutes_per_step" | "implementation_cost_per_agent">;
 export type Diagnosis = {
   intelligence: Record<string, unknown> | null;
   evidence: Record<string, { status: "supplied" | "inferred" | "missing"; source: string; quote: string; reference?: string }>;
@@ -450,7 +474,8 @@ async function requestResponse(path: string, method = "GET", body?: unknown, fil
   try {
   const token = tokenProvider ? (await tokenProvider().catch(() => "")) || accessToken : accessToken;
   if (track) processing({ id, label, phase: "stage", stage: file ? "Uploading the document" : "Sending the request" });
-  let r = await fetch(`${BASE}${path}`, {
+  const readiness = path === "/ready";
+  let r = await fetch(`${readiness ? "" : BASE}${path}`, {
     method, cache: "no-store",
     headers: { ...(file ? { "Content-Type": file.type || "application/octet-stream" }
       : body === undefined ? {} : { "Content-Type": "application/json" }),
@@ -459,12 +484,15 @@ async function requestResponse(path: string, method = "GET", body?: unknown, fil
       ...(token ? { Authorization: "Bearer " + token } : {}) },
     body: file || (body === undefined ? undefined : JSON.stringify(body)),
   });
-  if (!r.ok) {
+  if (!r.ok && !(readiness && r.status === 503)) {
     const error = await r.json().catch(() => null);
     const detail = typeof error?.detail === "string" ? error.detail
       : Array.isArray(error?.detail) ? error.detail.map((e: any) => `${e.loc?.slice(1).join(".")}: ${e.msg}`).join("; ")
       : "Request failed. Please retry.";
     if (r.status === 401) window.dispatchEvent(new Event("agentsense-auth-expired"));
+    if (r.status === 403 && error?.code === "invitation_required") {
+      window.dispatchEvent(new Event("agentspark-invitation-required"));
+    }
     throw new ApiError(r.status, `${r.status}: ${detail}`);
   }
   if (stream && r.headers.get("content-type")?.includes("application/x-ndjson")) {
@@ -495,6 +523,7 @@ export const api = {
   organizations: (cursor = ""): Promise<DirectoryPage<Organization>> =>
     get(`/organizations?${new URLSearchParams({ cursor })}`),
   createOrganization: (name: string): Promise<Organization> => post("/organizations", { name }),
+  organization: (organization: string): Promise<Organization> => get(`/organizations/${organization}`),
   teams: (organization: string, cursor = ""): Promise<DirectoryPage<Team>> =>
     get(`/organizations/${encodeURIComponent(organization)}/teams?${new URLSearchParams({ cursor })}`),
   createTeam: (organization: string, name: string): Promise<Pick<Team, "team_id" | "name">> =>
@@ -515,6 +544,7 @@ export const api = {
   revokeInvite: (organization: string, invite: string) =>
     request(`/organizations/${encodeURIComponent(organization)}/invites/${encodeURIComponent(invite)}`, "DELETE"),
   redeemInvite: (code: string): Promise<InviteRedemption> => post("/invites/redeem", { code }),
+  previewInvite: (code: string): Promise<InvitePreview> => post("/invites/preview", { code }),
   authConfig: (): Promise<AuthConfig> => get("/auth/config"),
   me: (): Promise<Identity> => get("/auth/me"),
   session: (id: string): Promise<SessionSnapshot> => get(`/sessions/${encodeURIComponent(id)}`),
@@ -590,9 +620,7 @@ export const api = {
     return response.json();
   },
   readiness: async (): Promise<Readiness> => {
-    const response = await fetch("/ready");
-    if (!response.ok && response.status !== 503) throw new Error(`Readiness check failed (${response.status})`);
-    return response.json();
+    return (await requestResponse("/ready")).json();
   },
   intake: (body: any) => post("/intake", body),
   chat: (session_id: string, message: string, version: string, question_ids: string[],

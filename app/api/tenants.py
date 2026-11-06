@@ -75,7 +75,7 @@ def create_organization(req: NameRequest):
                              document_type="organization", name=redact_pii(req.name))
     member = DirectoryRecord(id=f"member-{principal_context.get().owner_id}", organization_id=organization,
                              document_type="org_member", identity_id=principal_context.get().owner_id,
-                             role="owner", generation=str(uuid4()))
+                             role="owner", generation=str(uuid4()), platform_admitted=True)
     tenant_directory.write([record, member])
     return {"organization_id": organization, "name": record.name, "role": "owner"}
 
@@ -110,6 +110,15 @@ def teams(organization_id: SessionId, cursor: Cursor = "", limit: Limit = 50):
     return {"items": items, "next_cursor": next_cursor}
 
 
+@router.get("/organizations/{organization_id}")
+def organization(organization_id: SessionId):
+    member = tenant_directory.membership(organization_id)
+    record = tenant_directory.get(organization_id, "organization")
+    if not record or not record.active:
+        not_found()
+    return {"organization_id": organization_id, "name": record.name, "role": member.role}
+
+
 @router.post("/organizations/{organization_id}/teams", status_code=201)
 def create_team(organization_id: SessionId, req: NameRequest):
     tenant_directory.require_admin(organization_id)
@@ -139,6 +148,7 @@ def set_member(organization_id: SessionId, identity_id: IdentityId, req: MemberR
     record = DirectoryRecord(
         id=f"member-{identity_id}", organization_id=organization_id, document_type="org_member",
         identity_id=identity_id, role=req.role, active=req.active, version=req.version or "",
+        platform_admitted=True,
         generation=current.generation if current and current.active else str(uuid4()))
     tenant_directory.write([record])
     return {"status": "updated"}
@@ -236,9 +246,8 @@ def revoke_invite(organization_id: SessionId, invite_id: InviteId):
     return {"status": "revoked"}
 
 
-@router.post("/invites/redeem")
-def redeem_invite(req: RedeemRequest):
-    match = INVITE_CODE.fullmatch(req.code)
+def resolve_invite(code: str):
+    match = INVITE_CODE.fullmatch(code)
     if not match:
         invalid_invite()
     organization_id, secret = match.groups()
@@ -247,39 +256,64 @@ def redeem_invite(req: RedeemRequest):
     if not invite or invite_status(invite, datetime.now(timezone.utc)) != "active" \
             or not organization or not organization.active:
         invalid_invite()
+    team = tenant_directory.get(organization_id, f"team-{invite.team_id}") if invite.team_id else None
+    if invite.team_id and (not team or not team.active):
+        invalid_invite()
+    return invite, organization, team
+
+
+@router.post("/invites/preview")
+def preview_invite(req: RedeemRequest):
+    invite, organization, team = resolve_invite(req.code)
+    return {"organization_name": organization.name, "team_name": team.name if team else None,
+            "role": invite.role, "team_roles": invite.roles, "expires_at": invite.expires_at}
+
+
+@router.post("/invites/redeem")
+def redeem_invite(req: RedeemRequest):
+    invite, organization, team = resolve_invite(req.code)
+    organization_id = invite.organization_id
 
     identity = principal_context.get().owner_id
     current = tenant_directory.get(organization_id, f"member-{identity}")
     changes: list[DirectoryRecord] = []
     if current and current.active:
         member = current
-        if ROLE_RANK[invite.role] > ROLE_RANK[current.role]:
-            member = current.model_copy(update={"role": invite.role})
+        if ROLE_RANK[invite.role] > ROLE_RANK[current.role] or not current.platform_admitted:
+            member = current.model_copy(update={
+                "role": invite.role if ROLE_RANK[invite.role] > ROLE_RANK[current.role] else current.role,
+                "platform_admitted": True,
+            })
             changes.append(member)
     else:
         # New or previously revoked members get a fresh generation, so stale team grants stay inactive.
         member = DirectoryRecord(
             id=f"member-{identity}", organization_id=organization_id, document_type="org_member",
             identity_id=identity, role=invite.role, generation=str(uuid4()),
-            version=current.version if current else "")
+            version=current.version if current else "", platform_admitted=True)
         changes.append(member)
 
     team_id = None
-    if invite.team_id:
-        team = tenant_directory.get(organization_id, f"team-{invite.team_id}")
-        if team and team.active:
-            team_id = invite.team_id
-            grant = tenant_directory.get(organization_id, f"grant-{team_id}-{identity}")
-            effective = bool(grant and grant.active and grant.generation == member.generation)
-            existing = set(grant.roles) if effective else set()
-            roles = existing | set(invite.roles)
-            if roles != existing:
-                changes.append(DirectoryRecord(
-                    id=f"grant-{team_id}-{identity}", organization_id=organization_id, team_id=team_id,
-                    document_type="team_member", identity_id=identity, roles=sorted(roles),
-                    generation=member.generation, version=grant.version if grant else ""))
+    workspace = None
+    if team:
+        team_id = invite.team_id
+        grant = tenant_directory.get(organization_id, f"grant-{team_id}-{identity}")
+        effective = bool(grant and grant.active and grant.generation == member.generation)
+        existing = set(grant.roles) if effective else set()
+        roles = existing | set(invite.roles)
+        if roles != existing:
+            grant = DirectoryRecord(
+                id=f"grant-{team_id}-{identity}", organization_id=organization_id, team_id=team_id,
+                document_type="team_member", identity_id=identity, roles=sorted(roles),
+                generation=member.generation, version=grant.version if grant else "")
+            changes.append(grant)
+        permissions = tenant_directory.member_permissions(member, grant)
+        workspace = {"organization_id": organization_id, "team_id": team_id,
+                     "organization_name": organization.name, "team_name": team.name,
+                     "permissions": {action: action in permissions for action in ("read", "write", "review", "delete")}}
 
-    result = {"organization_id": organization_id, "name": organization.name, "role": member.role, "team_id": team_id}
+    result = {"organization_id": organization_id, "name": organization.name, "role": member.role,
+              "team_id": team_id, "workspace": workspace}
     if not changes:
         return {**result, "status": "already_member"}
     # Consuming the invite uses its version, so concurrent redemptions cannot exceed max_uses.

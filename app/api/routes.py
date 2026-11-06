@@ -53,8 +53,10 @@ def auth_config():
 @router.get("/auth/me")
 def auth_me():
     principal = principal_context.get()
+    admitted = tenant_directory.has_platform_access(principal)
     return {"identity": principal.owner_id,
-            "can_review": auth_settings.mode == "local-demo" or auth_settings.reviewer_role in principal.roles}
+            "platform_access": admitted,
+            "can_review": admitted and (auth_settings.mode == "local-demo" or auth_settings.reviewer_role in principal.roles)}
 
 
 @router.get("/sessions/{session_id}")
@@ -145,6 +147,18 @@ class ChatRequest(RequestModel):
 class AnalyzeRequest(RequestModel):
     roi_assumptions: ROIAssumptions | None = None
     version: str | None = Field(default=None, min_length=1, max_length=1000)
+
+    @model_validator(mode="after")
+    def safe_value_context(self):
+        if self.roi_assumptions is not None:
+            inputs = self.roi_assumptions
+            texts = [inputs.service_improvements, *[item.reference for item in inputs.evidence.values()]]
+            for role in inputs.roles:
+                texts.extend([role.role, *[item.reference for item in role.evidence.values()]])
+            if any(not scan_input(text).safe for text in texts):
+                raise ValueError("Business-value inputs contain instruction-override content.")
+            self.roi_assumptions = ROIAssumptions.model_validate(redact_data(inputs.model_dump()))
+        return self
 
 
 class ReviewRequest(RequestModel):
@@ -739,6 +753,7 @@ def get_review(session_id: SessionId):
         "analysis_id": state.analysis_id,
         "status": state.status,
         "governance": state.governance,
+        "suitability_score": state.suitability_score.model_dump() if state.suitability_score else None,
         "human_review": state.human_review.model_dump(mode="json") if state.human_review else None,
         "evidence_report": state.evidence_report,
         "readiness_report": state.readiness_report,

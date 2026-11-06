@@ -1,5 +1,6 @@
 # Ordered policies: every condition in a policy must match; first policy wins.
-# first_year_net_savings = annual gross labor savings - one-time build cost.
+# Financial value is advisory and separate from technical approval.
+# Custom financial conditions only match known cash savings minus operations and build.
 policies:
   - id: REJECT_HIGH_RISK_AUTONOMY
     conditions:
@@ -11,20 +12,15 @@ policies:
   - id: REJECT_NOT_SUITABLE
     conditions:
       - {field: classification, operator: eq, value: Not Suitable}
+      - {field: agentic_opportunity, operator: eq, value: not_indicated}
     decision: REJECT
-    reason: "Readiness is too low for an agentic solution; use standard software."
+    reason: "Available facts do not justify an agentic solution; validate a standard-software alternative."
 
   - id: REJECT_UNSAFE
     conditions:
       - {field: security, operator: eq, value: FAIL}
     decision: REJECT
     reason: "The limited architecture policy check failed."
-
-  - id: REJECT_POOR_ROI
-    conditions:
-      - {field: first_year_net_savings, operator: lt, value: 0}
-    decision: REJECT
-    reason: "First-year gross labor savings do not cover the one-time implementation cost."
 
   - id: HITL_HIGH_COMPLIANCE
     conditions:
@@ -36,7 +32,7 @@ policies:
     conditions:
       - {field: requires_hitl, operator: eq, value: true}
     decision: HUMAN_REVIEW_REQUIRED
-    reason: "The readiness assessment requires human oversight."
+    reason: "The proposed design requires human oversight; a pilot is not authorization for autonomous action."
 
   - id: HITL_RESTRICTED_DATA
     conditions:
@@ -55,9 +51,8 @@ policies:
       - {field: confidence, operator: gt, value: 90}
       - {field: compliance, operator: eq, value: LOW}
       - {field: security, operator: eq, value: PASS}
-      - {field: first_year_net_savings, operator: gt, value: 0}
       - {field: operational_risk, operator: eq, value: LOW}
     decision: AUTO_APPROVE
-    reason: "Workflow is low risk, sufficiently complete, and covers build cost in year one."
+    reason: "Workflow is low risk and sufficiently complete for an advisory technical recommendation; budget approval is separate."
 
 default_decision: HUMAN_REVIEW_REQUIRED

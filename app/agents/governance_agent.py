@@ -111,16 +111,16 @@ class GovernanceAgent:
 
         # 7. Cost Governance
         first_year_net_savings = roi.first_year_balance
-        cost_status = "PASS" if first_year_net_savings >= 0 else "FAIL"
+        cost_status = "NOT_ASSESSED" if first_year_net_savings is None else (
+            "PASS" if first_year_net_savings >= 0 else "REVIEW")
         assessments["Cost Governance"] = GovernanceAssessment(
-            score=cost_status, status="pass" if cost_status == "PASS" else "fail",
-            risk_level="Low" if cost_status == "PASS" else "High",
-            reason=f"First-year gross labor savings ${roi.cost_saved_per_year:,} versus "
-                   f"one-time build cost ${roi.implementation_cost:,}; "
-                   f"balance ${first_year_net_savings:,}; "
-                   + (f"annual operating costs ${roi.assumption_inputs.annual_operating_cost:,} included."
-                      if roi.operating_costs_included else "operating costs excluded, net savings unknown."),
-            recommendation="Validate labor assumptions and budget operating costs separately."
+            score=cost_status, status="pass" if cost_status == "PASS" else "warn",
+            risk_level="Medium" if cost_status == "REVIEW" else "Low",
+            reason=("Business value deferred or cash inputs incomplete; no financial conclusion. "
+                    "Technical suitability is assessed independently." if first_year_net_savings is None else
+                    f"Supplied cash savings minus operating and implementation costs: ${first_year_net_savings:,.2f} in year one. "
+                    "Capacity value and avoided hiring are excluded from cash savings."),
+            recommendation="Validate capacity during the pilot and seek separate budget approval; no payroll reduction is assumed."
         )
 
         # 8. Explainability
@@ -140,6 +140,7 @@ class GovernanceAgent:
 
         # Evaluate rules in order
         inputs = GovernanceInputs(
+            agentic_opportunity=score.adoption.opportunity if score.adoption else "not_indicated",
             autonomy_level=score.autonomy_level,
             requires_hitl=score.requires_hitl or comp_level == "HIGH" or op_risk == "HIGH",
             classification=score.classification,
@@ -169,7 +170,7 @@ class GovernanceAgent:
         if decision == "HUMAN_REVIEW_REQUIRED":
             result.human_review_package = {
                 "summary": "Enterprise Governance identified high-risk factors requiring human validation.",
-                "questions": ["Are the workflow assumptions and estimated savings credible?",
+                "questions": ["Are the workflow facts and proposed pilot outcomes credible?",
                               "Are the proposed oversight controls sufficient?"]
             }
         elif decision == "REJECT":

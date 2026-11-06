@@ -4,9 +4,9 @@ import { Button, Card, Pill } from "./ui";
 
 const empty = <T,>(): DirectoryPage<T> => ({ items: [], next_cursor: null });
 
-export default function Workspaces({ identity, demo, onSelect, onBusyChange, inviteCode = "", onInviteHandled }: {
+export default function Workspaces({ identity, demo, onSelect, onBusyChange, inviteCode = "", onInviteHandled, initialOrganizationId = "" }: {
   identity: string; demo: boolean; onSelect: (value: WorkspaceSelection | null) => void;
-  onBusyChange: (busy: boolean) => void; inviteCode?: string; onInviteHandled?: () => void;
+  onBusyChange: (busy: boolean) => void; inviteCode?: string; onInviteHandled?: () => void; initialOrganizationId?: string;
 }) {
   const [organizations, setOrganizations] = useState(empty<Organization>);
   const [organization, setOrganization] = useState("");
@@ -60,12 +60,16 @@ export default function Workspaces({ identity, demo, onSelect, onBusyChange, inv
 
   useEffect(() => {
     void run(async () => {
-      const result = await api.organizations();
+      const [page, initial] = await Promise.all([
+        api.organizations(), initialOrganizationId ? api.organization(initialOrganizationId) : Promise.resolve(null),
+      ]);
+      const result = initial && !page.items.some(item => item.organization_id === initial.organization_id)
+        ? { ...page, items: [initial, ...page.items] } : page;
       setOrganizations(result);
-      if (result.items[0]) await scope(result.items[0].organization_id, result.items);
+      if (initial || result.items[0]) await scope(initial?.organization_id || result.items[0].organization_id, result.items);
     });
     return () => onBusyChange(false);
-  }, [onBusyChange]);
+  }, [onBusyChange, initialOrganizationId]);
 
   async function refresh() {
     const result = await api.organizations();
@@ -142,7 +146,8 @@ export default function Workspaces({ identity, demo, onSelect, onBusyChange, inv
       </label>}
       {organizations.next_cursor && <Button variant="ghost" disabled={busy} className="mt-3" onClick={() => void run(async () => {
         const next = await api.organizations(organizations.next_cursor!);
-        setOrganizations({ ...next, items: [...organizations.items, ...next.items] });
+        const fresh = next.items.filter(item => !organizations.items.some(current => current.organization_id === item.organization_id));
+        setOrganizations({ ...next, items: [...organizations.items, ...fresh] });
       })}>Load more organizations</Button>}
     </Card>
     {selected && <>

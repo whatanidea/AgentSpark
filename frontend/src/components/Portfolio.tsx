@@ -21,7 +21,7 @@ export default function Portfolio() {
         <div>
           <div className="eyebrow mb-2">Explore / Prioritize opportunities</div>
           <h1>Portfolio Planner</h1>
-          <p className="mt-2">Compare sample workflows so you know <b>what to build first</b>. Every score uses the same 12-criteria engine.</p>
+          <p className="mt-2">Compare sample profiles, conditional agentic opportunities, and governance. Validate evidence before prioritizing delivery.</p>
         </div>
         <Button onClick={load} disabled={busy}>Score Backlog</Button>
       </header>
@@ -39,7 +39,7 @@ export default function Portfolio() {
         </Card>
       )}
       {rows.length > 0 && (
-        <Card title="Sample workflow comparison" description="Fictional workflows, ranked by readiness. Review policy outcomes alongside each score.">
+        <Card title="Sample workflow comparison" description="Fictional workflows, sorted by descriptive profile, not agentic opportunity, delivery readiness or financial return.">
           <div className="space-y-6">
             {rows.map((r) => (
               <div key={r.workflow_name}>
@@ -59,10 +59,11 @@ export default function Portfolio() {
                 </div>
                 <Bar pct={r.agent_score} color={classColor(r.classification)} />
                 <p className="text-[11px] text-zinc-500 mt-1">→ {r.recommended_pattern}</p>
+                {r.adoption && <p className="text-xs text-zinc-600 mt-1">Opportunity: {r.adoption.opportunity.replace(/_/g, " ")}. {r.adoption.decision_basis}</p>}
               </div>
             ))}
           </div>
-          <p className="text-xs text-zinc-500 mt-4">Sequence top-down: highest readiness delivers value soonest.</p>
+          <p className="text-xs text-zinc-500 mt-4">A higher profile score does not prove earlier value. Validate reasoning, pilot evidence and readiness before prioritizing delivery.</p>
         </Card>
       )}
     </div>

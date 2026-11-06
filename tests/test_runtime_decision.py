@@ -22,7 +22,7 @@ from app.utils.models import (
     InterviewAnswer, InterviewDiagnosis,
 )
 from app.utils.errors import InvalidDependencyResponse
-from app.utils.runtime_decision import recommend_runtime
+from app.utils.runtime_decision import recommend_runtime, RULES_VERSION
 
 
 def score(classification="High"):
@@ -126,11 +126,13 @@ class RuntimeRuleTests(unittest.TestCase):
             result = self.decide(requirements(side_effects="consequential", side_effect_safety=safety))
             self.assertEqual(result.status, "insufficient_information")
 
-    def test_runtime_never_escalates_prescribed_design(self):
-        for classification in ("Medium", "Low", "Not Suitable"):
+    def test_dynamic_reasoning_is_not_blocked_by_a_lower_profile_band(self):
+        for classification in ("Medium", "Low"):
             result = self.decide(requirements(reasoning="dynamic"), classification=classification)
-            self.assertNotEqual(result.reasoning.selected, "langgraph")
-            self.assertEqual(result.status, "provisional")
+            self.assertEqual(result.reasoning.selected, "langgraph")
+        result = self.decide(requirements(reasoning="dynamic"), classification="Not Suitable")
+        self.assertEqual(result.reasoning.selected, "none")
+        self.assertEqual(result.status, "provisional")
 
     def test_text_constraints_are_review_tasks_not_automatically_validated(self):
         result = self.decide(requirements(platform_constraints="EU only, private networking"))
@@ -287,7 +289,7 @@ class RuntimeDecisionAPITests(unittest.TestCase):
         text = "\n".join(page.extract_text() for page in PdfReader(BytesIO(pdf.content)).pages)
         self.assertIn("Architecture Runtime Decision", text)
         self.assertIn("Temporal", text)
-        self.assertIn("runtime-rules-v1", text)
+        self.assertIn(RULES_VERSION, text)
 
     def test_edit_invalidates_analysis_approval_but_preserves_archive(self):
         self.assertEqual(self.save(requirements().model_dump()).status_code, 200)

@@ -74,27 +74,27 @@ class GovernanceTests(unittest.TestCase):
         self.score = self.score.model_copy(update={"classification": "Not Suitable", "autonomy_level": "Manual"})
         self.assertEqual(self.evaluate().triggered_rules, ["REJECT_NOT_SUITABLE"])
 
-    def test_cost_governance_uses_actual_first_year_savings(self):
-        self.roi = ROIEstimate(cost_saved_per_year=1000, implementation_cost=1001)
+    def test_cost_governance_uses_cash_not_capacity_and_is_advisory(self):
+        self.roi = ROIEstimate(annual_net_cash_benefit=1000, implementation_cost=1001)
         result = self.evaluate()
-        self.assertEqual(result.triggered_rules, ["REJECT_POOR_ROI"])
-        self.assertEqual(result.assessments["Cost Governance"].status, "fail")
-        self.assertIn("$1,000", result.assessments["Cost Governance"].reason)
-        self.roi = ROIEstimate(cost_saved_per_year=1002, implementation_cost=1001)
+        self.assertEqual(result.decision, "AUTO_APPROVE")
+        self.assertEqual(result.assessments["Cost Governance"].status, "warn")
+        self.assertIn("$-1.00", result.assessments["Cost Governance"].reason)
+        self.roi = ROIEstimate(annual_net_cash_benefit=1002, implementation_cost=1001)
         self.assertEqual(self.evaluate().decision, "AUTO_APPROVE")
 
     def test_break_even_does_not_trigger_negative_roi_rule(self):
-        self.roi = ROIEstimate(cost_saved_per_year=1000, implementation_cost=1000)
+        self.roi = ROIEstimate(annual_net_cash_benefit=1000, implementation_cost=1000)
         result = self.evaluate()
-        self.assertEqual(result.decision, "HUMAN_REVIEW_REQUIRED")
-        self.assertEqual(result.triggered_rules, [])
+        self.assertEqual(result.decision, "AUTO_APPROVE")
+        self.assertEqual(result.triggered_rules, ["AUTO_APPROVE_SAFE"])
         self.assertEqual(result.assessments["Cost Governance"].status, "pass")
 
-    def test_policy_order_rejects_before_requesting_review(self):
+    def test_negative_cash_does_not_override_required_compliance_review(self):
         self.intel.compliance_sensitivity = "High"
         self.score = scoring_engine.evaluate(self.intel)
-        self.roi = ROIEstimate(cost_saved_per_year=1, implementation_cost=1000)
-        self.assertEqual(self.evaluate().triggered_rules, ["REJECT_POOR_ROI"])
+        self.roi = ROIEstimate(annual_net_cash_benefit=1, implementation_cost=1000)
+        self.assertEqual(self.evaluate().triggered_rules, ["HITL_HIGH_COMPLIANCE"])
 
     def test_low_confidence_means_high_risk_not_low_risk(self):
         self.recommendation["confidence"] = 0.69
@@ -125,16 +125,28 @@ class GovernanceTests(unittest.TestCase):
                 self.assertEqual(result.decision, decision)
                 self.assertEqual(result.triggered_rules, [])
 
+    def test_custom_financial_policy_does_not_match_unknown_or_legacy_capacity(self):
+        self.agent.rules = GovernancePolicies.model_validate({
+            "policies": [{"id": "CUSTOM_CASH", "conditions": [
+                {"field": "first_year_net_savings", "operator": "lt", "value": 0}],
+                "decision": "REJECT", "reason": "Custom cash-budget policy."}],
+            "default_decision": "HUMAN_REVIEW_REQUIRED",
+        })
+        self.roi = ROIEstimate(cost_saved_per_year=1, implementation_cost=1000)
+        self.assertEqual(self.evaluate().triggered_rules, [])
+        self.roi = ROIEstimate(annual_net_cash_benefit=1, implementation_cost=1000)
+        self.assertEqual(self.evaluate().triggered_rules, ["CUSTOM_CASH"])
+
     def test_security_policy_precedes_compliance_review(self):
         self.intel.compliance_sensitivity = "High"
         self.score = scoring_engine.evaluate(self.intel)
         self.recommendation["architecture_doc"] = "Restricted data connected to the internet"
         self.assertEqual(self.evaluate().triggered_rules, ["REJECT_UNSAFE"])
 
-    def test_portfolio_passes_real_roi_to_governance(self):
+    def test_low_volume_portfolio_does_not_invent_a_negative_business_case(self):
         self.intel.volume_per_day = 1
         row = score_backlog([self.intel])[0]
-        self.assertEqual(row.governance_decision, "REJECT")
+        self.assertEqual(row.governance_decision, "HUMAN_REVIEW_REQUIRED")
 
     def test_legacy_autonomy_vocabulary_is_not_accepted(self):
         payload = self.score.model_dump()

@@ -256,9 +256,13 @@ class RuntimeTests(unittest.TestCase):
 import json
 from fastapi.testclient import TestClient
 from app.main import app
+from app.security.auth import Principal
+from unittest.mock import patch
 client = TestClient(app)
 health = client.get('/health')
-ready = client.get('/ready')
+with patch('app.api.middleware.authenticate', return_value=Principal('verified-readiness-fixture')), \
+        patch('app.database.tenant_directory.tenant_directory.has_platform_access', return_value=True):
+    ready = client.get('/ready')
 chat = client.post('/api/v1/chat', json={'session_id': 'live-check', 'message': 'Describe a workflow'})
 print(json.dumps({'health': health.json(), 'ready': ready.json(),
                   'ready_status': ready.status_code, 'chat_status': chat.status_code}))

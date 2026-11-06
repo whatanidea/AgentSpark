@@ -9,6 +9,7 @@ def build_executive_brief(state: WorkflowState) -> ExecutiveBrief:
     diagnosis = state.diagnosis or effective_diagnosis(state)
     intel = state.workflow_intelligence or diagnosis.intelligence
     score = state.suitability_score
+    adoption = score.adoption if score else None
     readiness = state.readiness_report or {}
     sources = []
     claims = []
@@ -28,15 +29,32 @@ def build_executive_brief(state: WorkflowState) -> ExecutiveBrief:
         fact_claim("Affected teams", "departments", ", ".join(intel.departments) or "None reported")
         fact_claim("Reported daily volume", "volume_per_day", f"{intel.volume_per_day:,} items per day")
     roi = state.roi or {}
-    scenarios = roi.get("scenarios") or []
-    if scenarios:
-        low = min(item["cost_saved_per_year"] for item in scenarios)
-        high = max(item["cost_saved_per_year"] for item in scenarios)
-        claim("Illustrative annual capacity value", f"${low:,.0f} - ${high:,.0f}; not realized cash savings",
-              "roi.assumptions", (roi.get("assumptions") or "") + "\nInputs: "
+    if roi:
+        if roi.get("schema_version") != 2:
+            value = "Historical illustrative estimate; rerun analysis. Capacity value is not realized cash savings."
+        elif roi.get("status") == "deferred":
+            value = "Business value deferred; validate during the pilot. Capacity value is not realized cash savings."
+        else:
+            hours = roi.get("hours_saved_per_year")
+            value = (f"Capacity released: {hours:,.2f} hours/year." if hours is not None else
+                     "Capacity not established; inputs remain incomplete.")
+            capacity = roi.get("capacity_value_per_year")
+            if capacity is not None:
+                value += f" Capacity value ${capacity:,.2f}/year; not realized cash savings."
+            for key, label in (("annual_cash_savings", "Supplied cash savings"),
+                               ("annual_avoided_hiring_value", "Separate avoided-hiring value")):
+                if roi.get(key) is not None:
+                    value += f" {label}: ${roi[key]:,.2f}/year."
+        claim("Business value", value, "roi.assumptions", (roi.get("assumptions") or "") + "\nInputs: "
               + json.dumps(roi.get("assumption_inputs") or {}, sort_keys=True))
 
     gaps = [f"Workflow fact unresolved: {key.replace('_', ' ')}" for key in diagnosis.missing_facts]
+    if adoption:
+        claim("Agentic adoption candidate", adoption.design_label, "assessment.adoption",
+              adoption.decision_basis + "\n" + "\n".join(adoption.rationale))
+        claim("Permitted autonomy", "\n".join(adoption.human_boundaries), "assessment.permissions",
+              "Advisory permission boundaries; no production authority is granted.")
+        gaps.extend(adoption.questions)
     gaps.extend(f"{item['title']}: {item['status']}" for item in readiness.get("checks", [])
                 if item["status"] != "ready")
     gaps.extend(f"Pilot definition missing: {key.replace('_', ' ')}"
@@ -53,10 +71,14 @@ def build_executive_brief(state: WorkflowState) -> ExecutiveBrief:
         decision, label = "investigate_further", "Investigate further"
         rationale = "Essential workflow evidence is incomplete; suitability and benefits cannot be concluded."
         next_action = "Ask the assigned business or process owner to resolve the outstanding workflow facts."
-    elif score.classification in ("Low", "Not Suitable"):
+    elif (adoption.design_family == "standard_software" if adoption else score.classification in ("Low", "Not Suitable")):
         decision, label = "conventional_automation", "Prefer conventional automation"
         rationale = score.explanation
         next_action = "Validate a deterministic or human-controlled solution before investing in agentic complexity."
+    elif adoption and adoption.opportunity == "potential":
+        decision, label = "investigate_further", "Validate the agentic opportunity before authorizing a pilot"
+        rationale = adoption.decision_basis
+        next_action = adoption.questions[0] if adoption.questions else "Validate the proposed reasoning scope against the baseline."
     elif readiness.get("decision") != "ready":
         decision, label = "investigate_further", "Investigate further before authorizing a pilot"
         rationale = readiness.get("rationale") or "Implementation readiness has not been established."

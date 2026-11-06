@@ -93,13 +93,14 @@ class GovernanceFlowTests(unittest.TestCase):
         self.assertEqual(self.submit(analysis["analysis_id"]).status_code, 409)
 
     def test_policy_rejection_skips_blueprint_agent(self):
-        with patch.object(flow, "estimate_roi", return_value=ROIEstimate(
-                cost_saved_per_year=1, implementation_cost=1000)), \
-                patch.object(flow.blueprint_agent, "generate_blueprint") as generate:
+        state = db_client.get_workflow_state(self.session_id)
+        state.demo_scenario = "payroll"
+        db_client.save_workflow_state(state)
+        with patch.object(flow.blueprint_agent, "generate_blueprint") as generate:
             result = self.analyze()
         generate.assert_not_called()
         self.assertEqual(result["status"], "rejected")
-        self.assertEqual(result["governance"]["triggered_rules"], ["REJECT_POOR_ROI"])
+        self.assertEqual(result["governance"]["triggered_rules"], ["REJECT_NOT_SUITABLE"])
         self.assertEqual(result["trace"][-1]["agent"], "Governance Outcome")
         self.assertEqual(result["trace"][-1]["status"], "warn")
         blueprint = self.blueprint()
@@ -114,10 +115,13 @@ class GovernanceFlowTests(unittest.TestCase):
             exceptions_per_week=40, volume_per_day=800,
             compliance_sensitivity="Low", error_cost="Low",
             data_availability="High", rule_stability="Volatile",
-            unstructured_content="High",
+            unstructured_content="Low", human_judgment="Low",
         )
         diagnosis = demo_diagnosis("support")
         diagnosis.intelligence = intelligence
+        state = db_client.get_workflow_state(self.session_id)
+        state.runtime_requirements.reasoning = "deterministic"
+        db_client.save_workflow_state(state)
         with patch.object(flow.diagnostic_agent, "analyze_chat_history", return_value=diagnosis):
             result = self.analyze()
         self.assertEqual(result["status"], "completed")
@@ -138,9 +142,10 @@ class GovernanceFlowTests(unittest.TestCase):
     def test_rejected_run_does_not_reuse_previous_blueprint_or_approval(self):
         first = self.analyze()
         self.assertEqual(self.submit(first["analysis_id"]).status_code, 200)
-        with patch.object(flow, "estimate_roi", return_value=ROIEstimate(
-                cost_saved_per_year=0, implementation_cost=1000)):
-            second = self.analyze()
+        state = db_client.get_workflow_state(self.session_id)
+        state.demo_scenario = "payroll"
+        db_client.save_workflow_state(state)
+        second = self.analyze()
         self.assertEqual(second["status"], "rejected")
         self.assertIsNone(self.blueprint()["human_review"])
         self.assertNotIn("code_scaffold", self.blueprint())

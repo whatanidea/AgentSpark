@@ -17,9 +17,9 @@ export async function initSignIn(config: SignInConfig) {
 }
 
 /** Opens Microsoft sign-in in a popup and returns an API access token. */
-export async function signInWithPopup(): Promise<string> {
+export async function signInWithPopup(email?: string): Promise<string> {
   if (!client) throw new Error("Microsoft sign-in is not configured.");
-  const result = await client.loginPopup({ scopes: [scope], prompt: "select_account" });
+  const result = await client.loginPopup({ scopes: [scope], prompt: "select_account", ...(email ? { loginHint: email } : {}) });
   account = result.account;
   return result.accessToken;
 }
@@ -36,3 +36,5 @@ export async function currentToken(): Promise<string> {
 }
 
 export function signOutLocally() { account = null; }
+
+export function accountLabel() { return account?.username || account?.name || ""; }

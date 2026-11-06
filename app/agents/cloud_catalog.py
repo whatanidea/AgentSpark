@@ -35,6 +35,8 @@ AWS_REFERENCES = [
      "url": "https://docs.aws.amazon.com/step-functions/latest/dg/connect-to-resource.html"},
 ]
 AWS_PATTERN_SERVICES = {
+    "p01": ["Amazon Bedrock", "AWS IAM roles"],
+    "p06": ["Amazon Bedrock", "AWS Lambda", "AWS IAM roles"],
     "p02": ["Amazon Bedrock", "LangGraph on Amazon ECS"],
     "p04": ["AWS Step Functions Standard Workflows", "AWS IAM roles"],
     "p05": ["Amazon Bedrock", "Amazon Bedrock Knowledge Bases"],

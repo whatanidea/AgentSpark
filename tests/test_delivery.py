@@ -9,7 +9,7 @@ import yaml
 
 from scripts.check import offline_environment
 from scripts.lock import strong_hashes
-from scripts.smoke import Assets, smoke, validate_url
+from scripts.smoke import Assets, request as smoke_request, smoke, validate_url
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -41,11 +41,15 @@ class DependencyLockTests(unittest.TestCase):
     def test_check_runner_does_not_pass_cloud_credentials_to_offline_tests(self):
         with patch.dict(os.environ, {"AZURE_OPENAI_API_KEY": "fixture", "AZURE_SEARCH_KEY": "fixture",
                                      "COSMOS_DB_KEY": "fixture", "AUTH_ISSUER": "https://example.org",
-                                     "ENVIRONMENT": "production", "SESSION_RETENTION_HOURS": "720"}):
+                                     "ENVIRONMENT": "production", "SESSION_RETENTION_HOURS": "720",
+                                     "PLATFORM_ADMIN_IDENTITIES": "untrusted-fixture",
+                                     "AGENTSPARK_SMOKE_TOKEN": "fixture-token"}):
             env = offline_environment()
         self.assertNotIn("AZURE_OPENAI_API_KEY", env)
         self.assertNotIn("COSMOS_DB_KEY", env)
         self.assertNotIn("AUTH_ISSUER", env)
+        self.assertNotIn("PLATFORM_ADMIN_IDENTITIES", env)
+        self.assertNotIn("AGENTSPARK_SMOKE_TOKEN", env)
         self.assertEqual(env["AGENTSENSE_AUTH_MODE"], "local-demo")
         self.assertEqual(env["SESSION_RETENTION_HOURS"], "24")
 
@@ -80,6 +84,23 @@ class SmokeTests(unittest.TestCase):
             smoke("http://127.0.0.1:8000", "demo")
         self.assertEqual(request.call_count, 5)
         self.assertTrue(all(len(call.args) == 2 for call in request.call_args_list))
+
+    def test_authenticated_smoke_sends_the_token_only_to_readiness(self):
+        with patch("scripts.smoke.request", side_effect=lambda origin, path, **kwargs: self.responses(path)) as request:
+            smoke("https://example.org", "demo", access_token="fixture-token")
+        for call in request.call_args_list:
+            self.assertEqual(call.kwargs, {"access_token": "fixture-token"} if call.args[1] == "/ready" else {})
+
+    def test_smoke_authorization_header_is_never_copied_to_redirects(self):
+        with patch("scripts.smoke.urlopen") as opened:
+            response = opened.return_value.__enter__.return_value
+            response.headers = {"Content-Type": "application/json"}
+            response.read.return_value = b'{"ready":true}'
+            self.assertEqual(smoke_request("https://example.org", "/ready", access_token="fixture-token"),
+                             {"ready": True})
+        outgoing = opened.call_args.args[0]
+        self.assertEqual(outgoing.unredirected_hdrs["Authorization"], "Bearer fixture-token")
+        self.assertNotIn("Authorization", outgoing.headers)
 
     def test_wrong_mode_or_unready_release_cannot_pass(self):
         for path, value in (("/health", {"status": "ok", "mode": "live"}),

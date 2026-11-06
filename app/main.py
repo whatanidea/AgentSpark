@@ -12,8 +12,8 @@ load_dotenv()  # Load variables from .env if present
 from app.api.routes import router
 from app.api.tenants import router as tenant_router
 from app.api.discovery import router as discovery_router
-from app.api.middleware import RequestSizeLimit, SecurityBoundary
-from app.utils.errors import ConcurrentUpdate, DependencyUnavailable, InvalidDependencyResponse, WorkflowNotFound
+from app.api.middleware import RequestSizeLimit, SecurityBoundary, dependency_response
+from app.utils.errors import ConcurrentUpdate, DependencyUnavailable, WorkflowNotFound
 from app.utils.health import readiness
 from app.utils.runtime import settings
 
@@ -41,12 +41,7 @@ async def invalid_request(request: Request, exc: RequestValidationError):
 
 @app.exception_handler(DependencyUnavailable)
 async def dependency_error(request: Request, exc: DependencyUnavailable):
-    invalid = isinstance(exc, InvalidDependencyResponse)
-    return JSONResponse(status_code=502 if invalid else 503, content={
-        "detail": str(exc),
-        "code": "invalid_dependency_response" if invalid else "dependency_unavailable",
-        "dependency": exc.dependency,
-    })
+    return dependency_response(exc)
 
 
 @app.exception_handler(ConcurrentUpdate)

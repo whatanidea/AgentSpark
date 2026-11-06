@@ -14,7 +14,8 @@ from fastapi import HTTPException
 from pydantic import BaseModel, Field, ValidationError, computed_field, model_validator
 
 from app.database.decision_archive import LocalDecisionArchive
-from app.security.auth import principal_context
+from app.security import auth
+from app.security.auth import Principal, principal_context
 from app.utils.errors import ConcurrentUpdate, DependencyUnavailable, InvalidDependencyResponse
 from app.utils.models import SessionId
 from app.utils.runtime import demo_mode
@@ -43,6 +44,7 @@ class DirectoryRecord(BaseModel):
     role: Literal["owner", "admin", "member"] = "member"
     roles: list[TeamRole] = Field(default_factory=list)
     active: bool = True
+    platform_admitted: bool = False
     generation: str = ""
     invite_id: str = ""
     expires_at: str = ""
@@ -223,6 +225,21 @@ class TenantDirectory:
         return records[:limit], (
             f"{records[limit - 1].organization_id}:{records[limit - 1].id}" if len(records) > limit else None)
 
+    def has_platform_access(self, principal: Principal) -> bool:
+        if auth.auth_settings.mode == "local-demo" or principal.owner_id in auth.auth_settings.platform_admin_ids:
+            return True
+        cursor = ""
+        while True:
+            memberships, next_cursor = self.page("org_member", identity=principal.owner_id, cursor=cursor, limit=100)
+            for member in memberships:
+                if member.active and member.platform_admitted:
+                    organization = self.get(member.organization_id, "organization")
+                    if organization and organization.active:
+                        return True
+            if not next_cursor:
+                return False
+            cursor = next_cursor
+
     def membership(self, organization: str) -> DirectoryRecord:
         member = self.get(organization, f"member-{principal_context.get().owner_id}")
         if not member or not member.active:
@@ -241,6 +258,13 @@ class TenantDirectory:
         if not team_record or not team_record.active:
             not_found()
         grant = self.get(organization, f"grant-{team}-{member.identity_id}")
+        permissions = self.member_permissions(member, grant)
+        if not permissions:
+            not_found()
+        return permissions
+
+    @staticmethod
+    def member_permissions(member: DirectoryRecord, grant: DirectoryRecord | None) -> set[str]:
         roles = set(grant.roles) if grant and grant.active and grant.generation == member.generation else set()
         permissions = {"read", "write", "delete"} if member.role in ("owner", "admin") else set()
         if roles:
@@ -249,8 +273,6 @@ class TenantDirectory:
             permissions.add("write")
         if "reviewer" in roles:
             permissions.add("review")
-        if not permissions:
-            not_found()
         return permissions
 
     def require(self, organization: str, team: str, action: Action):

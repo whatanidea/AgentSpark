@@ -6,7 +6,8 @@ from app.utils.document_models import ApprovedDocument, RetainedDocumentSource
 
 
 AutonomyLevel = Literal["Autonomous", "Supervised", "Assisted", "Manual"]
-DesignFamily = Literal["supervisor_worker", "rag_copilot", "rpa_triage", "standard_software"]
+DesignFamily = Literal["supervisor_worker", "rag_copilot", "rpa_triage", "standard_software",
+                       "tool_agent", "hybrid_agentic"]
 GovernanceDecision = Literal["AUTO_APPROVE", "HUMAN_REVIEW_REQUIRED", "REJECT"]
 RiskLevel = Literal["Low", "Medium", "High", "Critical"]
 WorkflowStatus = Literal["init", "processing", "needs_clarification", "awaiting_human_review", "completed", "rejected"]
@@ -122,6 +123,34 @@ class CriterionScore(BaseModel):
     rationale: str = Field(default="", description="Why this score was assigned")
 
 
+class AdoptionEvidence(BaseModel):
+    field_id: str
+    value: str
+    source: str
+    quote: str = ""
+    reference: str = ""
+
+
+class AdoptionAssessment(BaseModel):
+    rules_version: Literal["adoption-rules-v1"] = "adoption-rules-v1"
+    opportunity: Literal["supported", "potential", "not_indicated"]
+    design_family: DesignFamily
+    design_label: str
+    decision_basis: str
+    current_approach: str
+    rationale: List[str]
+    evidence: List[AdoptionEvidence]
+    deterministic_responsibilities: List[str]
+    proposed_agent_responsibilities: List[str]
+    human_boundaries: List[str]
+    questions: List[str]
+    pilot_scope: str
+    success_criteria: List[str]
+    stop_conditions: List[str]
+    expansion_conditions: List[str]
+    readiness_basis: str = "Delivery readiness is assessed separately; opportunity is not permission to deploy."
+
+
 class AgentSuitabilityScore(BaseModel):
     agent_score: int = Field(..., ge=0, le=100, description="Agentification Readiness Index, 0 to 100")
     classification: Literal["High", "Medium", "Low", "Not Suitable"]
@@ -130,6 +159,7 @@ class AgentSuitabilityScore(BaseModel):
     requires_hitl: bool = Field(default=True, description="Whether a human-in-the-loop gate is required")
     explanation: str = Field(default="", description="Narrative explanation of the score")
     criteria: List[CriterionScore] = Field(default_factory=list, description="Per-criterion breakdown")
+    adoption: Optional[AdoptionAssessment] = None
 
 
 # ──────────────────────────────────────────────────────────────
@@ -187,14 +217,67 @@ class GovernanceResult(BaseModel):
     rejection_package: Optional[Dict[str, Any]] = None
 
 
+ValueBasis = Literal["assumed", "measured", "finance_approved"]
+ValueField = Literal[
+    "working_days_per_year", "manual_minutes_per_item", "effort_reduction_percent",
+    "loaded_hourly_rate", "productive_hours_per_fte", "implementation_cost",
+    "annual_operating_cost", "annual_cash_savings", "annual_avoided_hiring_value",
+    "service_improvements",
+]
+
+
+class ValueEvidence(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    basis: ValueBasis = "assumed"
+    reference: str = Field(default="", max_length=500)
+
+
+class RoleEffort(BaseModel):
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
+    role: str = Field(min_length=1, max_length=100)
+    manual_minutes_per_item: Optional[float] = Field(default=None, ge=0, le=1440, allow_inf_nan=False, strict=True)
+    effort_reduction_percent: Optional[float] = Field(default=None, ge=0, le=100, allow_inf_nan=False, strict=True)
+    loaded_hourly_rate: Optional[float] = Field(default=None, gt=0, le=10000, allow_inf_nan=False, strict=True)
+    evidence: Dict[Literal["manual_minutes_per_item", "effort_reduction_percent", "loaded_hourly_rate"],
+                   ValueEvidence] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def label_supplied_inputs(self):
+        for key in ("manual_minutes_per_item", "effort_reduction_percent", "loaded_hourly_rate"):
+            if getattr(self, key) is not None:
+                self.evidence.setdefault(key, ValueEvidence())
+        return self
+
+
 class ROIAssumptions(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    working_days_per_year: int = Field(default=250, ge=1, le=366, strict=True)
-    loaded_hourly_rate: float = Field(default=45, ge=1, le=1000, allow_inf_nan=False, strict=True)
-    minutes_per_step: float = Field(default=1.5, ge=0, le=60, allow_inf_nan=False, strict=True)
-    minutes_per_decision: float = Field(default=2, ge=0, le=240, allow_inf_nan=False, strict=True)
-    implementation_cost_per_agent: int = Field(default=12000, ge=1, le=1000000, strict=True)
-    annual_operating_cost: Optional[int] = Field(default=None, ge=0, le=1000000000, strict=True)
+    mode: Literal["deferred", "estimate"] = "deferred"
+    working_days_per_year: Optional[int] = Field(default=None, ge=1, le=366, strict=True)
+    manual_minutes_per_item: Optional[float] = Field(default=None, ge=0, le=1440, allow_inf_nan=False, strict=True)
+    effort_reduction_percent: Optional[float] = Field(default=None, ge=0, le=100, allow_inf_nan=False, strict=True)
+    loaded_hourly_rate: Optional[float] = Field(default=None, gt=0, le=10000, allow_inf_nan=False, strict=True)
+    productive_hours_per_fte: Optional[float] = Field(default=None, gt=0, le=8784, allow_inf_nan=False, strict=True)
+    implementation_cost: Optional[float] = Field(default=None, ge=0, le=1000000000, allow_inf_nan=False, strict=True)
+    annual_operating_cost: Optional[float] = Field(default=None, ge=0, le=1000000000, allow_inf_nan=False, strict=True)
+    annual_cash_savings: Optional[float] = Field(default=None, ge=0, le=1000000000, allow_inf_nan=False, strict=True)
+    annual_avoided_hiring_value: Optional[float] = Field(default=None, ge=0, le=1000000000, allow_inf_nan=False, strict=True)
+    service_improvements: str = Field(default="", max_length=2000)
+    evidence: Dict[ValueField, ValueEvidence] = Field(default_factory=dict)
+    roles: List[RoleEffort] = Field(default_factory=list, max_length=20)
+    # Historical inputs remain readable but never drive new estimates.
+    minutes_per_step: Optional[float] = Field(default=None, ge=0, le=60, allow_inf_nan=False, strict=True)
+    minutes_per_decision: Optional[float] = Field(default=None, ge=0, le=240, allow_inf_nan=False, strict=True)
+    implementation_cost_per_agent: Optional[int] = Field(default=None, ge=1, le=1000000, strict=True)
+
+    @model_validator(mode="after")
+    def label_supplied_inputs(self):
+        for key in ("working_days_per_year", "manual_minutes_per_item", "effort_reduction_percent",
+                    "loaded_hourly_rate", "productive_hours_per_fte", "implementation_cost",
+                    "annual_operating_cost", "annual_cash_savings", "annual_avoided_hiring_value",
+                    "service_improvements"):
+            if getattr(self, key) is not None and getattr(self, key) != "":
+                self.evidence.setdefault(key, ValueEvidence())
+        return self
 
 
 class ROIScenario(BaseModel):
@@ -210,26 +293,37 @@ class ROIScenario(BaseModel):
 
 
 class ROIEstimate(BaseModel):
-    automatable_fraction: float = Field(default=0.0, description="Share of effort agents can absorb, 0-1")
-    hours_saved_per_year: int = 0
-    cost_saved_per_year: int = 0
-    implementation_cost: int = 0
+    schema_version: Literal[2] = 2
+    status: Literal["deferred", "incomplete", "estimated"] = "deferred"
+    missing_inputs: List[str] = Field(default_factory=list)
+    capacity_value_per_year: Optional[float] = None
+    fte_capacity: Optional[float] = None
+    annual_cash_savings: Optional[float] = None
+    annual_avoided_hiring_value: Optional[float] = None
+    annual_net_cash_benefit: Optional[float] = None
+    service_improvements: str = ""
+    automatable_fraction: Optional[float] = Field(default=None, description="Historical automation assumption; not inferred for new estimates")
+    hours_saved_per_year: Optional[float] = None
+    cost_saved_per_year: Optional[int] = None
+    implementation_cost: Optional[float] = None
     payback_months: Optional[float] = None
     roi_multiple: Optional[float] = Field(default=None, description="Annual savings ÷ implementation cost")
     assumptions: str = ""
     assumption_inputs: ROIAssumptions = Field(default_factory=ROIAssumptions)
     scenarios: List[ROIScenario] = Field(default_factory=list)
-    estimate_basis: str = "Illustrative gross labor effort; not guaranteed cash savings. Operating costs excluded unless supplied."
+    estimate_basis: str = "Capacity released is not realized cash savings or a headcount reduction. Input labels are stakeholder attestations, not independent verification."
 
     @computed_field
     @property
     def operating_costs_included(self) -> bool:
-        return self.assumption_inputs.annual_operating_cost is not None
+        return self.assumption_inputs.mode == "estimate" and self.assumption_inputs.annual_operating_cost is not None
 
     @computed_field
     @property
-    def first_year_balance(self) -> int:
-        return self.cost_saved_per_year - self.implementation_cost - (self.assumption_inputs.annual_operating_cost or 0)
+    def first_year_balance(self) -> Optional[float]:
+        if self.annual_net_cash_benefit is None or self.implementation_cost is None:
+            return None
+        return round(self.annual_net_cash_benefit - self.implementation_cost, 2)
 
 
 class GuardrailFlag(BaseModel):
@@ -275,6 +369,7 @@ class TokenUsage(BaseModel):
 
 
 class PortfolioEntry(BaseModel):
+    adoption: Optional[AdoptionAssessment] = None
     workflow_name: str
     agent_score: int
     classification: str
@@ -405,6 +500,7 @@ class RuntimeRequirements(BaseModel):
     operational_owner: str = Field(default="", max_length=200)
     scale_constraints: str = Field(default="", max_length=1000)
     platform_constraints: str = Field(default="", max_length=1000)
+    specialist_roles: str = Field(default="", max_length=1000)
 
 
 class RuntimeOption(BaseModel):

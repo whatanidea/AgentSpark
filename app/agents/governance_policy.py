@@ -8,10 +8,11 @@ from app.utils.models import AutonomyLevel, GovernanceDecision
 
 PolicyField = Literal[
     "autonomy_level", "requires_hitl", "classification", "compliance", "security",
-    "data_sensitivity", "confidence", "first_year_net_savings", "operational_risk",
+    "data_sensitivity", "confidence", "first_year_net_savings", "operational_risk", "agentic_opportunity",
 ]
 
 _VALUES = {
+    "agentic_opportunity": {"supported", "potential", "not_indicated"},
     "autonomy_level": {"Autonomous", "Supervised", "Assisted", "Manual"},
     "classification": {"High", "Medium", "Low", "Not Suitable"},
     "compliance": {"HIGH", "MEDIUM", "LOW"},
@@ -23,6 +24,7 @@ _OPERATORS = {"eq": eq, "lt": lt, "gt": gt}
 
 
 class GovernanceInputs(BaseModel):
+    agentic_opportunity: Literal["supported", "potential", "not_indicated"] = "not_indicated"
     autonomy_level: AutonomyLevel
     requires_hitl: bool
     classification: Literal["High", "Medium", "Low", "Not Suitable"]
@@ -30,7 +32,7 @@ class GovernanceInputs(BaseModel):
     security: Literal["PASS", "FAIL"]
     data_sensitivity: Literal["RESTRICTED", "CONFIDENTIAL", "INTERNAL"]
     confidence: int = Field(ge=0, le=100)
-    first_year_net_savings: int
+    first_year_net_savings: float | None
     operational_risk: Literal["HIGH", "MEDIUM", "LOW"]
 
 
@@ -56,7 +58,8 @@ class PolicyCondition(BaseModel):
         return self
 
     def matches(self, inputs: GovernanceInputs) -> bool:
-        return _OPERATORS[self.operator](getattr(inputs, self.field), self.value)
+        value = getattr(inputs, self.field)
+        return value is not None and _OPERATORS[self.operator](value, self.value)
 
 
 class GovernancePolicy(BaseModel):

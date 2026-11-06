@@ -24,7 +24,7 @@ test("structured runtime requirements persist the same advisory decision in anal
       reasoning: "dynamic", duration: "long_running", external_waits: "yes", recovery: "durable",
       side_effects: "consequential", side_effect_safety: "defined", existing_reasoning: "langgraph",
       existing_runtime: "temporal", runtime_hosting: "self_hosted", operational_owner: "Fictional platform team",
-      scale_constraints: "Fictional 100 cases per day", platform_constraints: "",
+      scale_constraints: "Fictional 100 cases per day", platform_constraints: "", specialist_roles: "",
     };
     const answers = Object.fromEntries(Object.entries(requirements).map(([key, value]) => [`runtime.${key}`, value]));
     for (const key of Object.keys(answers)) {

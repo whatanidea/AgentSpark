@@ -191,7 +191,7 @@ class DiscoveryReleaseTests(unittest.TestCase):
         text = pdf.pages[0].extract_text()
         self.assertIn("Executive Decision Brief", text)
         self.assertIn("roi.assumptions", text)
-        self.assertIn("not realized cash savings", text)
+        self.assertIn("not realized cash savings", " ".join(text.split()))
         self.save(role="technical_owner")
         self.call("GET", path, expected=409)
         fresh = self.call("GET", f"/sessions/{self.session}")
@@ -211,13 +211,17 @@ class DiscoveryReleaseTests(unittest.TestCase):
         state.status = "rejected"
         self.assertEqual(build_executive_brief(state).decision, "do_not_proceed")
 
-    def test_ready_brief_is_still_advisory_and_low_suitability_prefers_rules(self):
+    def test_ready_brief_requires_validated_opportunity_not_a_high_profile(self):
         self.call("POST", f"/analyze/{self.session}")
         state = self.database.get_workflow_state(self.session)
         state.readiness_report = {"decision": "ready", "checks": [], "missing_pilot_fields": []}
+        self.assertEqual(build_executive_brief(state).decision, "investigate_further")
+        state.suitability_score.adoption.opportunity = "supported"
         self.assertEqual(build_executive_brief(state).decision, "bounded_ai_pilot")
         self.assertIn("not pilot", build_executive_brief(state).limitations)
         state.suitability_score.classification = "Low"
+        self.assertEqual(build_executive_brief(state).decision, "bounded_ai_pilot")
+        state.suitability_score.adoption.design_family = "standard_software"
         self.assertEqual(build_executive_brief(state).decision, "conventional_automation")
         state.governance = {"decision": "REJECT", "reason": "Fictional policy boundary"}
         self.assertEqual(build_executive_brief(state).decision, "do_not_proceed")

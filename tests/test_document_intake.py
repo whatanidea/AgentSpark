@@ -232,7 +232,7 @@ class DocumentIntakeTests(unittest.TestCase):
         self.assertIsNotNone(result["score"])
         self.assertIsNotNone(self.database.get_workflow_state(self.session).blueprint)
         labels = [event["label"] for event in events if event["kind"] == "stage"]
-        for label in ("Scoring the workflow with deterministic suitability rules",
+        for label in ("Assessing workflow profile, agentic opportunity and human boundaries",
                       "Mapping cloud services and runtime candidates", "Generating the advisory blueprint for review",
                       "Saving the completed assessment and unresolved readiness gaps"):
             self.assertIn(label, labels)
