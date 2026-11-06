@@ -428,53 +428,91 @@ organization membership. Adding members by opaque identity ID remains available;
 AgentSpark does not send invitation emails or provision Entra users itself.
 Do not interpret workspace headers or disabled UI buttons as authorization.
 
-### External email onboarding (Entra administrator prerequisite)
+### Invitation-only platform admission
 
-The application has no Gmail or company-domain allowlist. That does **not** make a
-single-tenant Entra registration accept arbitrary email addresses automatically.
-Keep the configured tenant authority, token issuer, audience and reviewer-role
-checks; do not switch to `common`, accept unsigned tokens or grant reviewer app
-roles to make onboarding work.
+OIDC sign-in proves identity, not platform admission. In OIDC mode all protected
+API operations, including personal assessments, uploads, chat/model operations,
+organization creation, discovery, archives and team work, require explicit
+platform approval. Unapproved authenticated identities receive HTTP 403 with
+`code: invitation_required` before route processing. They can only read their
+own admission status (`GET /api/v1/auth/me`) or redeem an invitation; the minimal
+secret-bound invitation preview remains public and read-only.
 
-For seamless first-time onboarding without an administrator pre-inviting every
-person, an authorized Entra administrator must:
+Approval comes from an active organization membership with the server-owned
+`platform_admitted` flag, set only by authorized administrator membership changes
+or successful invitation redemption. It is persisted atomically with invite
+consumption. Signing in, presenting a reviewer role, selecting workspace headers,
+creating a browser pointer or having a legacy self-created membership does not
+approve a person. Checks use current directory records, without a positive cache:
+revoking the last approved active membership removes personal and team platform
+access on the next request. Another approved active organization membership
+preserves platform admission, not access to a revoked organization/team.
 
-1. In the **existing workforce tenant**, enable **External Identities > External
-   collaboration settings > Enable guest self-service sign up via user flows**.
-2. Under **External Identities > All identity providers**, enable **Email one-time
-   passcode**. External work/school accounts can use their home-tenant identity;
-   eligible users without a supported account can verify an email code. Gmail
-   does not require Google OAuth federation when the email-code path is used.
-3. Create a B2B self-service sign-up **User flow** with Microsoft Entra ID and
-   Email one-time passcode enabled, collect only necessary attributes, and add
-   the **existing AgentSpark browser application** (`AUTH_SPA_CLIENT_ID`) to it.
-   Include Microsoft Account if supporting addresses already linked to personal
-   Microsoft accounts. Review external collaboration/domain restrictions,
-   cross-tenant access, application assignment and consent requirements.
-4. Preserve conditional-access/MFA policies. A sign-up flow creates an Entra guest,
-   not AgentSpark organization/team membership; only authenticated invitation
-   acceptance grants the offered team access. Existing authenticated personal
-   assessment access remains available, so self-service sign-up is not an
-   invitation-only gate for personal workflows or model usage. Tenant guest creation can affect
-   other directory policies, so the tenant administrator must approve this setup.
+**Administrator bootstrap before rollout:** configure `PLATFORM_ADMIN_IDENTITIES`
+with a minimal comma-separated list of trusted, verified AgentSpark identity IDs
+(64 lowercase hexadecimal characters). Obtain the intended administrator's exact
+ID from their authenticated **Organizations & teams > Your identity** screen or
+`/auth/me`; do not use an email address, Entra object ID or an unverified subject.
+These specific identities bypass the admission check so an operator can create
+the first organization and issue invitations. They do not gain access to someone
+else's organization, team or personal workflows, or gain a reviewer role.
+Removing their memberships does not revoke this bootstrap exception: remove the
+identity from the deployment configuration to remove the exception itself.
+No identity is bootstrapped automatically from tenant membership or token roles.
+For azd provisioning, persist the same deliberate value in the selected azd
+environment as `PLATFORM_ADMIN_IDENTITIES`; the Bicep parameter forwards it to
+the app. An existing-resource release must update this setting as well as the
+image. Do not describe that rollout as image-only, and include the approved value
+in the release configuration checks so later provisioning does not remove it.
 
-If self-service sign-up is not approved, an administrator must issue and complete
-a B2B guest invitation before sharing the AgentSpark link. This is a supported
-fallback, not seamless automatic provisioning. Enabling only email OTP does not
-enable first-time self-service sign-up.
+Legacy organization memberships default to unapproved. Before rollout, configure
+the intended bootstrap owner, then explicitly reapprove existing intended users
+through administrator membership updates or fresh invitations. Do not blanket
+approve old self-created memberships. Directory schema additions are backwards
+readable and require no container/index migration. Directory outages fail closed
+with explicit dependency errors, not successful admission or false empty results.
+The shared unauthenticated local demo is explicitly exempt and must never be
+exposed as a public/private-user deployment.
+
+The browser shows **Invitation required** for unapproved accounts rather than
+loading assessment data. A revocation response clears displayed workspace data
+and its saved pointer; invitation acceptance opens the permitted workspace.
+Invitation links remain private bearer links, not recipient-email-bound links:
+only an authenticated holder can redeem one, so send them privately and revoke
+them if forwarded or exposed. Email/domain claims are not platform approval.
+
+### External email onboarding (administrator-issued Entra B2B guests only)
+
+**Do not enable public self-service sign-up or associate AgentSpark with a B2B
+self-service user flow.** There is no public registration or automatic guest
+provisioning. Keep the existing tenant authority, token issuer, audience, MFA,
+conditional-access and reviewer-role checks.
+
+1. An Entra administrator invites the intended Gmail or external work address via
+   **Entra ID > Users > New user > Invite external user**.
+2. The recipient completes that Entra B2B invitation. Work/school users normally
+   authenticate through their own organization; eligible email-only users can
+   use **Email one-time passcode**, enabled under **External Identities >
+   All identity providers**. A Gmail address already associated with a Microsoft
+   account can use that identity instead. Do not disable email OTP tenant-wide.
+3. An approved AgentSpark organization owner/admin shares a private application
+   invitation with the intended organization/team permissions. The recipient
+   verifies sign-in and explicitly accepts it. An Entra guest account by itself
+   still cannot create personal assessments or consume model operations.
 
 Before merging a release that claims external onboarding works, validate with an
-actual first-time Gmail account and an outside-company work account against the
-configured Entra application: verify sign-in, invitation retention after a
+actual administrator-invited Gmail account and an outside-company work account
+against the configured Entra application: verify sign-in, denied access before
+application approval, invitation retention after a
 cancel/reload, explicit acceptance, direct team selection and scoped access.
 Check revoked, expired and exhausted links. Signed-claim unit tests and mocked
 MSAL browser tests prove application contracts only, not live tenant configuration,
 email delivery, external consent or conditional-access behavior. If Graph returns
-403 for policy/user-flow inspection, obtain administrator assistance; do not treat
-external onboarding as verified or broaden the app's identity permissions.
+403 for policy inspection, obtain administrator assistance; do not treat external
+onboarding as verified or broaden the app's identity permissions. This admission
+gate is not a request-rate limit or a usage quota for already-approved users.
 
-References: [B2B self-service user flows](https://learn.microsoft.com/entra/external-id/self-service-sign-up-user-flow)
-and [email one-time passcode](https://learn.microsoft.com/entra/external-id/one-time-passcode).
+Reference: [Email one-time passcode](https://learn.microsoft.com/entra/external-id/one-time-passcode).
 
 Browser/backend gates use isolated temporary archives and remove their own files.
 The CI container smoke uses a disposable writable tmpfs archive mount for UID/GID
@@ -482,7 +520,13 @@ The CI container smoke uses a disposable writable tmpfs archive mount for UID/GI
 unavailable on hosts without Docker; require the hosted container gate before merge.
 
 The image health check uses dependency-free `/health`. `/ready` probes live
-dependencies, including a billable one-token OpenAI call: run it conservatively,
+dependencies, including a billable bounded OpenAI call, and requires authenticated
+platform admission in OIDC mode. Unapproved or anonymous requests never run its
+probes; infrastructure probes continue using public `/health`. For live release
+smoke checks, provide an approved API access token in the process-only
+`AGENTSPARK_SMOKE_TOKEN` environment variable, never a command-line argument,
+tracked file or artifact. The smoke client sends it only to readiness and does
+not forward it on redirects. Run readiness conservatively,
 not as a high-frequency liveness check. The smoke command requires an expected
 runtime mode, validates the built SPA and hashed assets, and requires HTTPS for
 non-loopback origins. Without `--demo-workflow` it performs no workflow writes.
@@ -529,6 +573,14 @@ azd up                                      # provision + remote ACR build + dep
 # enable browser sign-in at the app URL (SPA redirect URI + tenant-wide consent; needs an Entra admin)
 ./infra/scripts/create-entra-app.ps1 -SpaRedirectUris "https://<app-fqdn>/auth-redirect.html,http://localhost:5173/auth-redirect.html"
 ```
+
+For a new deployment, sign in as the deliberately chosen administrator and copy
+the identity shown under **Invitation required > Your identity ID for
+administrator approval**. Configure that exact ID as `PLATFORM_ADMIN_IDENTITIES`
+in both the Container App and selected azd environment, then check access again.
+For an existing deployment, obtain it before rollout from **Organizations &
+teams > Your identity**. See the admission/migration procedure above; do not
+deploy with a guessed identity or enable public signup to bypass bootstrap.
 
 If `azd deploy` fails with ACR `InvalidCorrelationRequestId` (seen with azd
 1.22; upgrade azd first), build and roll out manually. Recording the image in the
@@ -584,7 +636,7 @@ Personal-workflow reviewers need the reviewer app role (value `AgentSense.Review
 display name `AgentSpark Reviewer` for updated registrations; older registrations
 may still display `AgentSense Reviewer`) assigned in the
 enterprise application; team reviewers only need their in-app team reviewer grant.
-Call `/ready` once after seeding; run acceptance with two
+Call authenticated `/ready` once after seeding and approving the operator; run acceptance with two
 identities so creator/reviewer separation is exercised. `azd down --purge`
 deletes the whole environment.
 

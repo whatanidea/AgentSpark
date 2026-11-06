@@ -75,7 +75,7 @@ def create_organization(req: NameRequest):
                              document_type="organization", name=redact_pii(req.name))
     member = DirectoryRecord(id=f"member-{principal_context.get().owner_id}", organization_id=organization,
                              document_type="org_member", identity_id=principal_context.get().owner_id,
-                             role="owner", generation=str(uuid4()))
+                             role="owner", generation=str(uuid4()), platform_admitted=True)
     tenant_directory.write([record, member])
     return {"organization_id": organization, "name": record.name, "role": "owner"}
 
@@ -148,6 +148,7 @@ def set_member(organization_id: SessionId, identity_id: IdentityId, req: MemberR
     record = DirectoryRecord(
         id=f"member-{identity_id}", organization_id=organization_id, document_type="org_member",
         identity_id=identity_id, role=req.role, active=req.active, version=req.version or "",
+        platform_admitted=True,
         generation=current.generation if current and current.active else str(uuid4()))
     tenant_directory.write([record])
     return {"status": "updated"}
@@ -278,15 +279,18 @@ def redeem_invite(req: RedeemRequest):
     changes: list[DirectoryRecord] = []
     if current and current.active:
         member = current
-        if ROLE_RANK[invite.role] > ROLE_RANK[current.role]:
-            member = current.model_copy(update={"role": invite.role})
+        if ROLE_RANK[invite.role] > ROLE_RANK[current.role] or not current.platform_admitted:
+            member = current.model_copy(update={
+                "role": invite.role if ROLE_RANK[invite.role] > ROLE_RANK[current.role] else current.role,
+                "platform_admitted": True,
+            })
             changes.append(member)
     else:
         # New or previously revoked members get a fresh generation, so stale team grants stay inactive.
         member = DirectoryRecord(
             id=f"member-{identity}", organization_id=organization_id, document_type="org_member",
             identity_id=identity, role=invite.role, generation=str(uuid4()),
-            version=current.version if current else "")
+            version=current.version if current else "", platform_admitted=True)
         changes.append(member)
 
     team_id = None

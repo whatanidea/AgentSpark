@@ -17,7 +17,7 @@ import DiscoveryOriginSummary from "./components/DiscoveryOriginSummary";
 import EvidenceRegister from "./components/EvidenceRegister";
 import ImplementationReadiness from "./components/ImplementationReadiness";
 import Icon from "./components/Icon";
-import { Button } from "./components/ui";
+import { Button, Card } from "./components/ui";
 
 type View = "home" | "intake" | "diagnose" | "evidence" | "readiness" | "analyze" | "blueprint" | "workspaces" | "portfolio" | "discovery";
 const NAV: { id: View; label: string }[] = [
@@ -99,6 +99,7 @@ export default function App() {
   const [invitation, setInvitation] = useState(restoreInvitation);
   const pendingInvite = invitation.code;
   const [signedInAs, setSignedInAs] = useState("");
+  const [invitationInput, setInvitationInput] = useState("");
   const websiteDestination = useRef<View | null>(null);
   const sessionId = snapshot?.session_id || "";
   const canWrite = snapshot ? snapshot.permissions.write : workspace?.permissions.write !== false;
@@ -122,6 +123,10 @@ export default function App() {
     setWorkspace(null); selectWorkspace(null); setInvitedOrganization("");
     const who = await api.me();
     setIdentity(who);
+    if (!who.platform_access) {
+      forgetPointer(); setSnapshot(null);
+      return;
+    }
     const pointer = readPointer();
     if (pointer?.identity === who.identity) {
       try {
@@ -166,6 +171,16 @@ export default function App() {
   }, [connect]);
 
   useEffect(() => {
+    const requireInvitation = () => {
+      setIdentity(current => current ? { ...current, platform_access: false, can_review: false } : current);
+      setWorkspace(null); selectWorkspace(null); setSnapshot(null); setInvitedOrganization("");
+      forgetPointer(); setMessage("Platform access is no longer active. Ask an administrator for a new invitation.");
+    };
+    window.addEventListener("agentspark-invitation-required", requireInvitation);
+    return () => window.removeEventListener("agentspark-invitation-required", requireInvitation);
+  }, []);
+
+  useEffect(() => {
     let alive = true;
     async function refresh() {
       try {
@@ -175,13 +190,13 @@ export default function App() {
         if (alive) setRuntimeError(e instanceof Error ? e.message : "Backend unavailable");
       }
     }
-    const active = !showLanding || !!pendingInvite;
+    const active = !!identity?.platform_access && (!showLanding || !!pendingInvite);
     if (active) void refresh();
     const interval = active ? window.setInterval(refresh, 30000) : undefined;
     const expire = () => { setTokenProvider(null); void signInModule().then((m) => m.signOutLocally()); setAccessToken(""); setWorkspace(null); selectWorkspace(null); setInvitedOrganization(""); setIdentity(null); setSignedInAs(""); setSnapshot(null); setView("intake"); setMessage("Access expired. Sign in again; tokens are never saved in browser storage."); };
     window.addEventListener("agentsense-auth-expired", expire);
     return () => { alive = false; clearInterval(interval); window.removeEventListener("agentsense-auth-expired", expire); };
-  }, [showLanding, pendingInvite]);
+  }, [showLanding, pendingInvite, identity?.platform_access]);
 
   useEffect(() => {
     const onHash = () => { const incoming = takeInviteFromUrl(); if (incoming) setInvitation(incoming); };
@@ -190,7 +205,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!snapshot || !identity) return;
+    if (!snapshot || !identity?.platform_access) return;
     try {
       sessionStorage.setItem(POINTER, JSON.stringify({ session: snapshot.session_id, identity: identity.identity, view,
         ...(snapshot.organization_id && snapshot.team_id ? { workspace: {
@@ -239,7 +254,7 @@ export default function App() {
         ? "Your browser blocked the sign-in window. Allow pop-ups for this site and try again."
         : /user_cancelled/.test(text) ? "Sign-in was cancelled. Your invitation is retained; try again when ready."
         : /AADSTS50020|AADSTS90072|AADSTS500208/.test(text)
-          ? "This account cannot enter the configured Entra tenant yet. Ask the administrator to enable external self-service sign-up or invite your email as a guest. Your invitation is retained."
+          ? "This account cannot enter the configured Entra tenant yet. Ask the administrator to invite your email as an Entra guest. Public sign-up is not enabled. Your invitation is retained."
           : `Microsoft sign-in failed. ${text}`);
     } finally { setBusy(false); }
   }
@@ -256,6 +271,7 @@ export default function App() {
     catch { return "The invitation could not be cleared from tab storage. Close this tab when finished."; }
   }
   function finishInvitation(joined: InviteRedemption) {
+    setIdentity(current => current ? { ...current, platform_access: true } : current);
     const warning = clearInvitation();
     if (joined.workspace) {
       changeWorkspace(joined.workspace);
@@ -311,6 +327,43 @@ export default function App() {
     onWorkspace={() => enterFromWebsite("home")}
     onDiscover={() => enterFromWebsite("discovery")}
     disabled={busy || starting} hasSession={!!sessionId} signedIn={!!identity} message={message} /></Suspense>;
+
+  if (identity && !identity.platform_access) return <main className="min-h-screen bg-canvas px-4 py-12">
+    <div className="max-w-xl mx-auto space-y-5">
+      <p className="text-xl font-bold">AgentSpark</p>
+      <Card>
+        <p className="eyebrow mb-3">Private platform</p>
+        <h1 className="text-2xl font-bold">Invitation required</h1>
+        <p className="text-sm text-zinc-600 mt-4">Your account is signed in, but this platform is invitation-only.
+          Signing in does not grant access to assessments, uploads or AI processing. Ask your administrator for a private invitation link.</p>
+        {message && <p role="status" className="notice mt-4">{message}</p>}
+        <form className="space-y-4 mt-5" onSubmit={event => {
+          event.preventDefault();
+          window.location.hash = `invite=${encodeURIComponent(parseInviteCode(invitationInput))}`;
+        }}>
+          <label className="block text-sm">Invitation link or code
+            <input className="form-control block mt-2" required maxLength={400} autoComplete="off" spellCheck={false}
+              value={invitationInput} onChange={event => setInvitationInput(event.target.value)} />
+          </label>
+          <Button type="submit" disabled={busy || !invitationInput.trim()}>Open invitation</Button>
+        </form>
+        <details className="mt-5 text-sm">
+          <summary>Your identity ID for administrator approval</summary>
+          <input aria-label="Identity ID for administrator approval" readOnly value={identity.identity}
+            className="form-control block mt-2 font-mono text-xs" />
+        </details>
+        <div className="flex flex-wrap gap-3 mt-5">
+          <Button variant="ghost" disabled={busy} onClick={async () => {
+            setBusy(true); setMessage("");
+            try { await connect(); }
+            catch (e) { setMessage(e instanceof Error ? e.message : "Access could not be checked. Retry."); }
+            finally { setBusy(false); }
+          }}>Check access again</Button>
+          <Button variant="ghost" disabled={busy} onClick={disconnect}>Use a different account</Button>
+        </div>
+      </Card>
+    </div>
+  </main>;
 
   return (
     <div className="portal min-h-screen flex flex-col md:flex-row">

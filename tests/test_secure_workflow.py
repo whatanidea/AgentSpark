@@ -32,7 +32,10 @@ class OIDCValidationTests(unittest.TestCase):
         cls.key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 
     def setUp(self):
-        self.secure = AuthSettings("oidc", "https://issuer.example", "agentsense", "https://issuer.example/keys")
+        approved = tuple(hashlib.sha256(f"https://issuer.example\0{subject}".encode()).hexdigest()
+                         for subject in ("owner-a", "owner-b"))
+        self.secure = AuthSettings("oidc", "https://issuer.example", "agentsense", "https://issuer.example/keys",
+                                   platform_admin_ids=approved)
         self.patches = [
             patch.object(auth, "auth_settings", self.secure),
             patch.object(routes, "auth_settings", self.secure),
@@ -85,9 +88,9 @@ class OIDCValidationTests(unittest.TestCase):
                 self.assertEqual(self.client.get("/api/v1/auth/me", headers={"Authorization": "Bearer " + token}).status_code, 401)
 
     def test_no_identity_header_bypass_and_public_liveness(self):
-        for endpoint in ("/api/v1/portfolio", "/api/v1/patterns", "/api/v1/sessions/any", "/api/v1/auth/me"):
+        for endpoint in ("/api/v1/portfolio", "/api/v1/patterns", "/api/v1/sessions/any", "/api/v1/auth/me", "/ready"):
             self.assertEqual(self.client.get(endpoint, headers={"X-MS-CLIENT-PRINCIPAL-ID": "admin"}).status_code, 401)
-        for endpoint in ("/health", "/ready", "/api/v1/auth/config"):
+        for endpoint in ("/health", "/api/v1/auth/config"):
             self.assertEqual(self.client.get(endpoint).status_code, 200)
         self.assertEqual(self.client.get("/api/v1/auth/me", headers=[
             ("Authorization", "Bearer a"), ("Authorization", "Bearer b")]).status_code, 401)

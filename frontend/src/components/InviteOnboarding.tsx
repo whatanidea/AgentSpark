@@ -53,8 +53,9 @@ export default function InviteOnboarding({ code, warning, auth, identity, accoun
             <p className="text-xs text-zinc-500">Expires {new Date(preview.expires_at).toLocaleString()}</p>
           </div>
           {starting ? <p role="status">Loading secure sign-in...</p> : !identity ? <>
-            <p className="text-sm text-zinc-600">Use your work email or Gmail address. Microsoft Entra verifies your account
-              or sends an email code where enabled. Your organization's sign-in and security policies still apply.</p>
+            <p className="text-sm text-zinc-600">Use the work email or Gmail address your administrator invited to Entra.
+              Microsoft Entra verifies your account or sends an email code where enabled.
+              This platform has no public sign-up; your organization's security policies still apply.</p>
             {auth?.sign_in ? <form className="space-y-4" onSubmit={event => {
               event.preventDefault(); if (!working) void onSignIn(email.trim());
             }}>

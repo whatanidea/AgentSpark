@@ -13,6 +13,9 @@ param location string
 @description('Entra application (client) ID that access tokens must target.')
 param authAudience string
 
+@description('Comma-separated verified AgentSpark identity IDs for explicit invitation-only bootstrap owners.')
+param platformAdminIdentities string = ''
+
 @description('Container image set by azd after the first deploy; empty uses a placeholder.')
 param webImageName string = ''
 
@@ -33,6 +36,7 @@ module resources 'resources.bicep' = {
     resourceToken: toLower(uniqueString(subscription().id, environmentName, location))
     tenantId: tenant().tenantId
     authAudience: authAudience
+    platformAdminIdentities: platformAdminIdentities
     webImageName: webImageName
   }
 }

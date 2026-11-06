@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from functools import lru_cache
 import hashlib
 import os
+import re
 
 import jwt
 from fastapi import HTTPException
@@ -32,6 +33,7 @@ class AuthSettings:
     sign_in_client_id: str = ""
     sign_in_authority: str = ""
     sign_in_scope: str = ""
+    platform_admin_ids: tuple[str, ...] = ()
 
     def sign_in(self) -> dict[str, str] | None:
         """Public browser sign-in (OIDC authorization code + PKCE) settings, when configured."""
@@ -50,7 +52,10 @@ def load_auth_settings() -> AuthSettings:
         mode, os.getenv("AUTH_ISSUER", ""), os.getenv("AUTH_AUDIENCE", ""),
         os.getenv("AUTH_JWKS_URL", ""), os.getenv("AUTH_REVIEWER_ROLE", "AgentSense.Reviewer"),
         os.getenv("AUTH_SPA_CLIENT_ID", ""), os.getenv("AUTH_SPA_AUTHORITY", ""), os.getenv("AUTH_SPA_SCOPE", ""),
+        tuple(value.strip() for value in os.getenv("PLATFORM_ADMIN_IDENTITIES", "").split(",") if value.strip()),
     )
+    if any(not re.fullmatch(r"[a-f0-9]{64}", identity) for identity in result.platform_admin_ids):
+        raise ValueError("PLATFORM_ADMIN_IDENTITIES must contain comma-separated verified identity IDs (64 lowercase hex characters).")
     if mode == "oidc" and (
         not result.issuer.startswith("https://") or not result.audience
         or not result.jwks_url.startswith("https://") or not result.reviewer_role

@@ -3,13 +3,23 @@ from starlette.types import ASGIApp, Scope, Receive, Send
 from starlette.concurrency import run_in_threadpool
 from fastapi import HTTPException
 from app.security.auth import authenticate, principal_context
-from app.database.tenant_directory import Workspace, workspace_context
+from app.database.tenant_directory import Workspace, tenant_directory, workspace_context
+from app.utils.errors import DependencyUnavailable, InvalidDependencyResponse
 import logging
 import re
 
 logger = logging.getLogger(__name__)
 
 MAX_REQUEST_BYTES = 65536
+
+
+def dependency_response(exc: DependencyUnavailable) -> JSONResponse:
+    invalid = isinstance(exc, InvalidDependencyResponse)
+    return JSONResponse(status_code=502 if invalid else 503, content={
+        "detail": str(exc),
+        "code": "invalid_dependency_response" if invalid else "dependency_unavailable",
+        "dependency": exc.dependency,
+    })
 
 
 class SecurityBoundary:
@@ -31,14 +41,15 @@ class SecurityBoundary:
                     (b"referrer-policy", b"no-referrer"),
                     (b"x-frame-options", b"DENY"),
                 ])
-                if scope["path"].startswith("/api/"):
+                if scope["path"].startswith("/api/") or scope["path"] == "/ready":
                     headers = [(k, v) for k, v in headers if k.lower() != b"cache-control"]
                     headers.append((b"cache-control", b"no-store"))
                 message["headers"] = headers
             await send(message)
 
         public_invite_preview = scope["path"] == "/api/v1/invites/preview" and scope["method"] == "POST"
-        if not scope["path"].startswith("/api/") or scope["path"] == "/api/v1/auth/config" or public_invite_preview:
+        protected = scope["path"].startswith("/api/") or scope["path"] == "/ready"
+        if not protected or scope["path"] == "/api/v1/auth/config" or public_invite_preview:
             return await self.app(scope, receive, secured_send)
         headers = [v.decode("latin1") for k, v in scope["headers"] if k.lower() == b"authorization"]
         try:
@@ -60,7 +71,19 @@ class SecurityBoundary:
         context = principal_context.set(principal)
         workspace_token = workspace_context.set(workspace)
         try:
+            admission_exempt = (scope["method"], scope["path"]) in {
+                ("GET", "/api/v1/auth/me"), ("POST", "/api/v1/invites/redeem"),
+            }
+            if not admission_exempt and not await run_in_threadpool(tenant_directory.has_platform_access, principal):
+                return await JSONResponse(status_code=403, content={
+                    "detail": "AgentSpark is invitation-only. Accept an administrator invitation before using the platform.",
+                    "code": "invitation_required",
+                })(scope, receive, secured_send)
             await self.app(scope, receive, secured_send)
+        except DependencyUnavailable as exc:
+            if response_started:
+                raise RuntimeError("API response interrupted after headers were sent.") from None
+            return await dependency_response(exc)(scope, receive, secured_send)
         except Exception as exc:
             # Handle API failures here so the server cannot log sensitive exception text.
             logger.error("API operation failed (%s); request and exception content withheld.", type(exc).__name__)

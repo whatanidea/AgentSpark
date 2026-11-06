@@ -148,7 +148,7 @@ test("signing in from the assessment action opens intake without creating a work
     mode: "oidc", retention_hours: 24, archive_retention_days: 30,
   } }));
   await page.route("**/api/v1/auth/me", route => route.fulfill({ json: {
-    identity: "fictional-browser-identity", can_review: false,
+    identity: "fictional-browser-identity", can_review: false, platform_access: true,
   } }));
   await page.goto("/");
   await page.getByRole("button", { name: "Assess my workflow", exact: true }).first().click();
@@ -235,7 +235,7 @@ test("discovery sign-in retries retain the destination and the restored assessme
     await page.route("**/api/v1/auth/me", route => {
       attempts++;
       return route.fulfill(attempts === 1 ? { status: 401, json: { detail: "Fictional retry required." } }
-        : { json: { identity: pointer.identity, can_review: false } });
+        : { json: { identity: pointer.identity, can_review: false, platform_access: true } });
     });
     const writes: string[] = [];
     page.on("request", request => {

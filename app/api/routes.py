@@ -53,8 +53,10 @@ def auth_config():
 @router.get("/auth/me")
 def auth_me():
     principal = principal_context.get()
+    admitted = tenant_directory.has_platform_access(principal)
     return {"identity": principal.owner_id,
-            "can_review": auth_settings.mode == "local-demo" or auth_settings.reviewer_role in principal.roles}
+            "platform_access": admitted,
+            "can_review": admitted and (auth_settings.mode == "local-demo" or auth_settings.reviewer_role in principal.roles)}
 
 
 @router.get("/sessions/{session_id}")

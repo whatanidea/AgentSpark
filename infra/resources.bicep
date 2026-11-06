@@ -4,6 +4,7 @@ param tags object
 param resourceToken string
 param tenantId string
 param authAudience string
+param platformAdminIdentities string
 param webImageName string
 
 @description('Global Standard capacity in thousands of tokens per minute.')
@@ -274,6 +275,7 @@ resource web 'Microsoft.App/containerApps@2024-03-01' = {
             { name: 'AUTH_SPA_CLIENT_ID', value: authAudience }
             { name: 'AUTH_SPA_AUTHORITY', value: '${environment().authentication.loginEndpoint}${tenantId}' }
             { name: 'AUTH_SPA_SCOPE', value: 'api://${authAudience}/access_as_user' }
+            { name: 'PLATFORM_ADMIN_IDENTITIES', value: platformAdminIdentities }
             { name: 'SESSION_RETENTION_HOURS', value: '24' }
             { name: 'DECISION_ARCHIVE_RETENTION_DAYS', value: '30' }
             { name: 'COSMOS_DB_ENDPOINT', value: cosmos.properties.documentEndpoint }

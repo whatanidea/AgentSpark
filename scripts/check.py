@@ -13,7 +13,8 @@ ROOT = Path(__file__).resolve().parents[1]
 def offline_environment():
     env = {key: value for key, value in os.environ.items()
            if not key.startswith(("AZURE_OPENAI_", "AZURE_ANTHROPIC_", "FOUNDRY_CLAUDE_",
-                                  "AZURE_SEARCH_", "COSMOS_DB_", "AUTH_"))}
+                                  "AZURE_SEARCH_", "COSMOS_DB_", "AUTH_", "PLATFORM_ADMIN_",
+                                  "AGENTSPARK_SMOKE_TOKEN"))}
     env.update(AGENTSENSE_MODE="demo", AGENTSENSE_AUTH_MODE="local-demo", ENVIRONMENT="development",
                SESSION_RETENTION_HOURS="24", PYTHONDONTWRITEBYTECODE="1", PYTHONIOENCODING="utf-8")
     return env

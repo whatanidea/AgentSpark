@@ -26,7 +26,7 @@ from app.security import auth
 from app.utils.errors import ConcurrentUpdate, DependencyUnavailable, InvalidDependencyResponse
 
 
-class TenantFoundationTests(unittest.TestCase):
+class TenantFixture(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
         cls.key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
@@ -39,7 +39,9 @@ class TenantFoundationTests(unittest.TestCase):
         environment.start()
         self.addCleanup(environment.stop)
         self.database = DatabaseClient()
-        self.secure = auth.AuthSettings("oidc", "https://issuer.example", "agentsense", "https://issuer.example/keys")
+        owner = hashlib.sha256(b"https://issuer.example\0owner").hexdigest()
+        self.secure = auth.AuthSettings("oidc", "https://issuer.example", "agentsense", "https://issuer.example/keys",
+                                        platform_admin_ids=(owner,))
         for item in (
             patch.object(auth, "auth_settings", self.secure),
             patch.object(routes, "auth_settings", self.secure),
@@ -102,6 +104,15 @@ class TenantFoundationTests(unittest.TestCase):
 
     def review_body(self, analysis):
         return {"analysis_id": analysis, "decision": "approve", "reviewer": "forged", "note": "Fictional controls checked."}
+
+
+class TenantFoundationTests(TenantFixture):
+    def setUp(self):
+        TenantFixture.setUp(self)
+        # These tests isolate workspace authorization for already-approved users.
+        admission = patch.object(tenant_directory, "has_platform_access", return_value=True)
+        admission.start()
+        self.addCleanup(admission.stop)
 
     def test_discovery_enforces_personal_and_team_scope_on_records_and_assessment_links(self):
         private = self.draft(subject="creator")

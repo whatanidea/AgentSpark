@@ -226,7 +226,7 @@ export type ArchivedDecision = {
     roi: import("./components/ROIReport").ROIResult | null;
   };
 };
-export type Identity = { identity: string; can_review: boolean };
+export type Identity = { identity: string; can_review: boolean; platform_access: boolean };
 export type EvidenceInput = {
   id: string; kind: "client_fact" | "supported_finding" | "assumption" | "open_question";
   statement: string; source_reference: string; reporting_period: string; related_facts: string[];
@@ -474,7 +474,8 @@ async function requestResponse(path: string, method = "GET", body?: unknown, fil
   try {
   const token = tokenProvider ? (await tokenProvider().catch(() => "")) || accessToken : accessToken;
   if (track) processing({ id, label, phase: "stage", stage: file ? "Uploading the document" : "Sending the request" });
-  let r = await fetch(`${BASE}${path}`, {
+  const readiness = path === "/ready";
+  let r = await fetch(`${readiness ? "" : BASE}${path}`, {
     method, cache: "no-store",
     headers: { ...(file ? { "Content-Type": file.type || "application/octet-stream" }
       : body === undefined ? {} : { "Content-Type": "application/json" }),
@@ -483,12 +484,15 @@ async function requestResponse(path: string, method = "GET", body?: unknown, fil
       ...(token ? { Authorization: "Bearer " + token } : {}) },
     body: file || (body === undefined ? undefined : JSON.stringify(body)),
   });
-  if (!r.ok) {
+  if (!r.ok && !(readiness && r.status === 503)) {
     const error = await r.json().catch(() => null);
     const detail = typeof error?.detail === "string" ? error.detail
       : Array.isArray(error?.detail) ? error.detail.map((e: any) => `${e.loc?.slice(1).join(".")}: ${e.msg}`).join("; ")
       : "Request failed. Please retry.";
     if (r.status === 401) window.dispatchEvent(new Event("agentsense-auth-expired"));
+    if (r.status === 403 && error?.code === "invitation_required") {
+      window.dispatchEvent(new Event("agentspark-invitation-required"));
+    }
     throw new ApiError(r.status, `${r.status}: ${detail}`);
   }
   if (stream && r.headers.get("content-type")?.includes("application/x-ndjson")) {
@@ -616,9 +620,7 @@ export const api = {
     return response.json();
   },
   readiness: async (): Promise<Readiness> => {
-    const response = await fetch("/ready");
-    if (!response.ok && response.status !== 503) throw new Error(`Readiness check failed (${response.status})`);
-    return response.json();
+    return (await requestResponse("/ready")).json();
   },
   intake: (body: any) => post("/intake", body),
   chat: (session_id: string, message: string, version: string, question_ids: string[],

@@ -2,6 +2,7 @@
 import argparse
 from html.parser import HTMLParser
 import json
+import os
 from urllib.parse import urlencode, urlsplit
 from urllib.request import Request, urlopen
 from uuid import uuid4
@@ -29,20 +30,22 @@ def validate_url(url):
     return url.rstrip("/")
 
 
-def request(origin, path, method="GET", body=None):
+def request(origin, path, method="GET", body=None, access_token=""):
     data = json.dumps(body).encode() if body is not None else None
-    with urlopen(Request(origin + path, data=data, method=method,
-                         headers={"Content-Type": "application/json"}), timeout=30) as response:
+    outgoing = Request(origin + path, data=data, method=method, headers={"Content-Type": "application/json"})
+    if access_token:
+        outgoing.add_unredirected_header("Authorization", "Bearer " + access_token)
+    with urlopen(outgoing, timeout=30) as response:
         content = response.read()
         return json.loads(content) if "application/json" in response.headers.get("Content-Type", "") else content
 
 
-def smoke(origin, expected_mode, demo_workflow=False):
+def smoke(origin, expected_mode, demo_workflow=False, access_token=""):
     origin = validate_url(origin)
     health = request(origin, "/health")
     if health.get("status") != "ok" or health.get("mode") != expected_mode:
         raise RuntimeError("Liveness or selected runtime mode mismatch.")
-    ready = request(origin, "/ready")
+    ready = request(origin, "/ready", access_token=access_token) if access_token else request(origin, "/ready")
     if ready.get("ready") is not True or ready.get("mode") != expected_mode:
         raise RuntimeError("Release is not ready.")
     page = request(origin, "/")
@@ -92,7 +95,7 @@ def main():
     parser.add_argument("--expect-mode", choices=("demo", "live"), required=True)
     parser.add_argument("--demo-workflow", action="store_true")
     args = parser.parse_args()
-    smoke(args.url, args.expect_mode, args.demo_workflow)
+    smoke(args.url, args.expect_mode, args.demo_workflow, os.getenv("AGENTSPARK_SMOKE_TOKEN", ""))
 
 
 if __name__ == "__main__":

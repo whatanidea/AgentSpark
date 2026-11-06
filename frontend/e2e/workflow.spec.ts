@@ -848,7 +848,7 @@ test("team member can delete an own draft and open reviews without a global revi
   }
   expect((await page.request.post(`/api/v1/analyze/${pending}`, { headers })).status()).toBe(200);
   // Simulate an independent team member in the shared-demo browser fixture.
-  await page.route("**/api/v1/auth/me", route => route.fulfill({ json: { identity: "local-demo", can_review: false } }));
+  await page.route("**/api/v1/auth/me", route => route.fulfill({ json: { identity: "local-demo", can_review: false, platform_access: true } }));
   await page.route("**/api/v1/organizations?*", route => route.fulfill({ json: {
     items: [{ organization_id: organization, name: "Member permissions test", role: "member" }], next_cursor: null,
   } }));
@@ -1039,7 +1039,7 @@ test("invite onboarding retains cancelled sign-in and explains tenant guest-acce
   await expect(page.getByRole("status").filter({ hasText: "Sign-in was cancelled. Your invitation is retained" })).toBeVisible();
   await expect(page.getByLabel("Your email address", { exact: true })).toHaveValue("fictional.invitee@gmail.com");
   await page.getByRole("button", { name: "Continue with email", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "enable external self-service sign-up" })).toBeVisible();
+  await expect(page.getByRole("status").filter({ hasText: "invite your email as an Entra guest" })).toBeVisible();
   expect(await page.evaluate(() => sessionStorage.getItem("agentspark.invitation.v1"))).toBe(fixture.invite.code);
   const invites = await (await page.request.get(`/api/v1/organizations/${fixture.organization.organization_id}/invites`)).json();
   expect(invites.items[0].uses).toBe(0);
@@ -1086,4 +1086,49 @@ test("invite onboarding preserves the fragment with an explicit warning when tab
   await page.getByRole("button", { name: "Accept invitation", exact: true }).click();
   await expect(page.getByText(`${fixture.organization.name} / Invited workspace`, { exact: true }).first()).toBeVisible();
   expect(new URL(page.url()).hash).toBe("");
+});
+
+test("invitation-only access blocks signed-in users until an administrator invite is accepted", async ({ page }) => {
+  const fixture = await invitationFixture(page);
+  await page.route("**/api/v1/auth/config", route => route.fulfill({ json: {
+    mode: "oidc", retention_hours: 24, archive_retention_days: 30,
+  } }));
+  await page.route("**/api/v1/auth/me", route => route.fulfill({ json: {
+    identity: "fictional-uninvited", can_review: false, platform_access: false,
+  } }));
+  await page.addInitScript(() => sessionStorage.setItem("agentsense.session.v1", JSON.stringify({
+    identity: "fictional-uninvited", session: "unapproved-saved-pointer", view: "intake",
+  })));
+  const requests: string[] = [];
+  page.on("request", request => {
+    const path = new URL(request.url()).pathname;
+    if (path.startsWith("/api/") || path === "/ready") requests.push(path);
+  });
+  await page.goto("/workspace");
+  await page.getByLabel("Access token", { exact: true }).fill("fictional-boundary-token");
+  await page.getByRole("button", { name: "Connect securely", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Invitation required", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: "1 · Enterprise Intake", exact: true })).toHaveCount(0);
+  expect(requests.filter(path => !["/api/v1/auth/config", "/api/v1/auth/me"].includes(path))).toEqual([]);
+  expect(await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1"))).toBeNull();
+  await page.getByLabel("Invitation link or code", { exact: true }).fill(fixture.link);
+  await page.getByRole("button", { name: "Open invitation", exact: true }).click();
+  await expect(page.getByRole("heading", { name: `Join ${fixture.organization.name}`, exact: true })).toBeVisible();
+  const readiness = page.waitForRequest(request => new URL(request.url()).pathname === "/ready");
+  await page.getByRole("button", { name: "Accept invitation", exact: true }).click();
+  expect((await readiness).headers().authorization).toBe("Bearer fictional-boundary-token");
+  await expect(page.getByText(`${fixture.organization.name} / Invited workspace`, { exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: "1 · Enterprise Intake", exact: true })).toBeVisible();
+});
+
+test("invitation-only access removes the workspace when admission is revoked", async ({ page }) => {
+  await page.route("**/api/v1/home?*", route => route.fulfill({ status: 403, json: {
+    code: "invitation_required", detail: "AgentSpark is invitation-only.",
+  } }));
+  await page.goto("/workspace");
+  await expect(page.getByRole("heading", { name: "Invitation required", exact: true })).toBeVisible();
+  await expect(page.getByText("Platform access is no longer active.", { exact: false })).toBeVisible();
+  await expect(page.getByRole("navigation", { name: "Workflow steps", exact: true })).toHaveCount(0);
+  expect(await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1"))).toBeNull();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
