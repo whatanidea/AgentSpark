@@ -8,7 +8,7 @@ const REQUIREMENTS: Record<keyof RuntimeRequirements, string> = {
   reasoning: "Reasoning", duration: "Duration", external_waits: "External waits", recovery: "Recovery",
   side_effects: "Side effects", side_effect_safety: "Side-effect safety", existing_reasoning: "Existing reasoning",
   existing_runtime: "Existing runtime", runtime_hosting: "Runtime hosting", operational_owner: "Operational owner",
-  scale_constraints: "Scale constraints", platform_constraints: "Platform constraints",
+  scale_constraints: "Scale constraints", platform_constraints: "Platform constraints", specialist_roles: "Specialist responsibilities",
 };
 const ADVISORY = "Advisory architecture selection only. Deployment, availability and operational readiness are not verified; this does not authorize business actions.";
 const entries = (decision: RuntimeDecision) =>

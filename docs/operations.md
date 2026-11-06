@@ -412,12 +412,69 @@ links): pick role/team roles, expiry and maximum uses, send the link out of band
 and revoke unused links when no longer needed. Links carry a 256-bit secret in the
 URL fragment; only its SHA-256 is stored, redemption requires an authenticated
 identity, is atomic against `max_uses`, never downgrades access, and only owners
-can issue administrator invites. For Entra staging, first add the person to the
-tenant (B2B guest invitation), then send the invite link; they open it, choose
-**Sign in with Microsoft** (a pop-up, so the invite stays on the page), and select
-**Join organization**. Adding members by opaque
-identity ID remains available; email delivery and SSO provisioning are not supplied. Do not interpret workspace headers or disabled UI
-buttons as authorization.
+can issue administrator invites. Opening a link shows a focused onboarding page:
+review the organization, team, roles and expiry, enter an email for Entra sign-in,
+then explicitly **Accept invitation**. Successful team invitations open that team
+workspace directly; organization-only invitations open workspace administration.
+The pending code is held in this tab's `sessionStorage` across reloads/sign-in
+retries, then removed on acceptance or **Not now**. It is not stored in
+`localStorage`; access tokens remain memory-only. If tab storage is unavailable,
+the fragment stays in the URL and the page explains how to retain the invitation.
+`POST /api/v1/invites/preview` accepts the secret in a JSON body and exposes only
+the offered organization/team names, roles and expiry, with `no-store` and no
+membership mutation. Redemption still requires a validated OIDC access token.
+Inactive invitation teams fail closed rather than silently granting only
+organization membership. Adding members by opaque identity ID remains available;
+AgentSpark does not send invitation emails or provision Entra users itself.
+Do not interpret workspace headers or disabled UI buttons as authorization.
+
+### External email onboarding (Entra administrator prerequisite)
+
+The application has no Gmail or company-domain allowlist. That does **not** make a
+single-tenant Entra registration accept arbitrary email addresses automatically.
+Keep the configured tenant authority, token issuer, audience and reviewer-role
+checks; do not switch to `common`, accept unsigned tokens or grant reviewer app
+roles to make onboarding work.
+
+For seamless first-time onboarding without an administrator pre-inviting every
+person, an authorized Entra administrator must:
+
+1. In the **existing workforce tenant**, enable **External Identities > External
+   collaboration settings > Enable guest self-service sign up via user flows**.
+2. Under **External Identities > All identity providers**, enable **Email one-time
+   passcode**. External work/school accounts can use their home-tenant identity;
+   eligible users without a supported account can verify an email code. Gmail
+   does not require Google OAuth federation when the email-code path is used.
+3. Create a B2B self-service sign-up **User flow** with Microsoft Entra ID and
+   Email one-time passcode enabled, collect only necessary attributes, and add
+   the **existing AgentSpark browser application** (`AUTH_SPA_CLIENT_ID`) to it.
+   Include Microsoft Account if supporting addresses already linked to personal
+   Microsoft accounts. Review external collaboration/domain restrictions,
+   cross-tenant access, application assignment and consent requirements.
+4. Preserve conditional-access/MFA policies. A sign-up flow creates an Entra guest,
+   not AgentSpark organization/team membership; only authenticated invitation
+   acceptance grants the offered team access. Existing authenticated personal
+   assessment access remains available, so self-service sign-up is not an
+   invitation-only gate for personal workflows or model usage. Tenant guest creation can affect
+   other directory policies, so the tenant administrator must approve this setup.
+
+If self-service sign-up is not approved, an administrator must issue and complete
+a B2B guest invitation before sharing the AgentSpark link. This is a supported
+fallback, not seamless automatic provisioning. Enabling only email OTP does not
+enable first-time self-service sign-up.
+
+Before merging a release that claims external onboarding works, validate with an
+actual first-time Gmail account and an outside-company work account against the
+configured Entra application: verify sign-in, invitation retention after a
+cancel/reload, explicit acceptance, direct team selection and scoped access.
+Check revoked, expired and exhausted links. Signed-claim unit tests and mocked
+MSAL browser tests prove application contracts only, not live tenant configuration,
+email delivery, external consent or conditional-access behavior. If Graph returns
+403 for policy/user-flow inspection, obtain administrator assistance; do not treat
+external onboarding as verified or broaden the app's identity permissions.
+
+References: [B2B self-service user flows](https://learn.microsoft.com/entra/external-id/self-service-sign-up-user-flow)
+and [email one-time passcode](https://learn.microsoft.com/entra/external-id/one-time-passcode).
 
 Browser/backend gates use isolated temporary archives and remove their own files.
 The CI container smoke uses a disposable writable tmpfs archive mount for UID/GID

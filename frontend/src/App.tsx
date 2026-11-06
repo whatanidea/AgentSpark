@@ -1,6 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useBlocker, useLocation, useNavigate } from "react-router-dom";
-import { api, ApiError, AuthConfig, Identity, parseInviteCode, Readiness, SessionSnapshot, setAccessToken, setTokenProvider, setWorkspace, type WorkspaceSelection } from "./api";
+import { api, ApiError, AuthConfig, Identity, parseInviteCode, Readiness, SessionSnapshot, setAccessToken, setTokenProvider, setWorkspace, type InviteRedemption, type WorkspaceSelection } from "./api";
 const signInModule = () => import("./auth");
 import Intake from "./components/Intake";
 import ProcessingStatus from "./components/ProcessingStatus";
@@ -11,6 +11,7 @@ import Portfolio from "./components/Portfolio";
 import Home from "./components/Home";
 const Landing = lazy(() => import("./components/Landing"));
 import Workspaces from "./components/Workspaces";
+import InviteOnboarding from "./components/InviteOnboarding";
 import Discovery from "./components/Discovery";
 import DiscoveryOriginSummary from "./components/DiscoveryOriginSummary";
 import EvidenceRegister from "./components/EvidenceRegister";
@@ -42,12 +43,25 @@ function readPointer(): { session: string; identity: string; view: View; workspa
   } catch { return null; }
 }
 function forgetPointer() { try { sessionStorage.removeItem(POINTER); } catch {} }
-/** Invite links carry the code in the URL fragment, which browsers never send to the server. */
-function takeInviteFromUrl(): string {
-  if (!/^#invite=/.test(window.location.hash)) return "";
+const INVITATION = "agentspark.invitation.v1";
+type PendingInvitation = { code: string; warning: string };
+/** Keep the pending invitation in this tab across sign-in retries and reloads, never in localStorage. */
+function takeInviteFromUrl(): PendingInvitation | null {
+  if (!/^#invite=/.test(window.location.hash)) return null;
   const code = parseInviteCode(window.location.hash);
-  window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
-  return code;
+  try {
+    sessionStorage.setItem(INVITATION, code);
+    window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
+    return { code, warning: "" };
+  } catch {
+    return { code, warning: "Tab storage is unavailable. Keep this invitation URL and tab open until you finish joining." };
+  }
+}
+function restoreInvitation(): PendingInvitation {
+  const incoming = takeInviteFromUrl();
+  if (incoming) return incoming;
+  try { return { code: sessionStorage.getItem(INVITATION) || "", warning: "" }; }
+  catch { return { code: "", warning: "Tab storage is unavailable. Reopen your invitation link if needed." }; }
 }
 
 export default function App() {
@@ -81,7 +95,10 @@ export default function App() {
   const [runtime, setRuntime] = useState<Readiness | null>(null);
   const [runtimeError, setRuntimeError] = useState("");
   const [workspace, selectWorkspace] = useState<WorkspaceSelection | null>(null);
-  const [pendingInvite, setPendingInvite] = useState(takeInviteFromUrl);
+  const [invitedOrganization, setInvitedOrganization] = useState("");
+  const [invitation, setInvitation] = useState(restoreInvitation);
+  const pendingInvite = invitation.code;
+  const [signedInAs, setSignedInAs] = useState("");
   const websiteDestination = useRef<View | null>(null);
   const sessionId = snapshot?.session_id || "";
   const canWrite = snapshot ? snapshot.permissions.write : workspace?.permissions.write !== false;
@@ -102,7 +119,7 @@ export default function App() {
   }, [location.pathname]);
 
   const connect = useCallback(async () => {
-    setWorkspace(null); selectWorkspace(null);
+    setWorkspace(null); selectWorkspace(null); setInvitedOrganization("");
     const who = await api.me();
     setIdentity(who);
     const pointer = readPointer();
@@ -161,20 +178,16 @@ export default function App() {
     const active = !showLanding || !!pendingInvite;
     if (active) void refresh();
     const interval = active ? window.setInterval(refresh, 30000) : undefined;
-    const expire = () => { setTokenProvider(null); void signInModule().then((m) => m.signOutLocally()); setAccessToken(""); setWorkspace(null); selectWorkspace(null); setIdentity(null); setSnapshot(null); setView("intake"); setMessage("Access expired. Sign in again; tokens are never saved in browser storage."); };
+    const expire = () => { setTokenProvider(null); void signInModule().then((m) => m.signOutLocally()); setAccessToken(""); setWorkspace(null); selectWorkspace(null); setInvitedOrganization(""); setIdentity(null); setSignedInAs(""); setSnapshot(null); setView("intake"); setMessage("Access expired. Sign in again; tokens are never saved in browser storage."); };
     window.addEventListener("agentsense-auth-expired", expire);
     return () => { alive = false; clearInterval(interval); window.removeEventListener("agentsense-auth-expired", expire); };
   }, [showLanding, pendingInvite]);
 
   useEffect(() => {
-    const onHash = () => { const code = takeInviteFromUrl(); if (code) setPendingInvite(code); };
+    const onHash = () => { const incoming = takeInviteFromUrl(); if (incoming) setInvitation(incoming); };
     window.addEventListener("hashchange", onHash);
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
-
-  useEffect(() => {
-    if (identity && pendingInvite) { setView("workspaces"); setConfirmDelete(false); }
-  }, [identity, pendingInvite]);
 
   useEffect(() => {
     if (!snapshot || !identity) return;
@@ -212,19 +225,49 @@ export default function App() {
     catch (e) { setAccessToken(""); setIdentity(null); setMessage(e instanceof Error ? e.message : "Sign-in failed."); }
     finally { setBusy(false); }
   }
-  async function signInWithMicrosoft() {
+  async function signInWithMicrosoft(email?: string) {
     setBusy(true); setMessage("");
     try {
-      const { signInWithPopup, currentToken } = await signInModule();
-      setAccessToken(await signInWithPopup()); setTokenProvider(currentToken);
+      const { signInWithPopup, currentToken, accountLabel } = await signInModule();
+      setAccessToken(await signInWithPopup(email)); setTokenProvider(currentToken);
+      setSignedInAs(accountLabel());
       await connect();
     } catch (e) {
-      setTokenProvider(null); setAccessToken(""); setIdentity(null);
+      setTokenProvider(null); setAccessToken(""); setIdentity(null); setSignedInAs("");
       const text = e instanceof Error ? e.message : "";
       setMessage(/popup_window_error|empty_window_error/.test(text)
         ? "Your browser blocked the sign-in window. Allow pop-ups for this site and try again."
-        : /user_cancelled/.test(text) ? "Sign-in was cancelled." : `Microsoft sign-in failed. ${text}`);
+        : /user_cancelled/.test(text) ? "Sign-in was cancelled. Your invitation is retained; try again when ready."
+        : /AADSTS50020|AADSTS90072|AADSTS500208/.test(text)
+          ? "This account cannot enter the configured Entra tenant yet. Ask the administrator to enable external self-service sign-up or invite your email as a guest. Your invitation is retained."
+          : `Microsoft sign-in failed. ${text}`);
     } finally { setBusy(false); }
+  }
+  function disconnect() {
+    setTokenProvider(null); setAccessToken(""); setWorkspace(null); selectWorkspace(null);
+    setIdentity(null); setSignedInAs(""); setInvitedOrganization(""); setSnapshot(null); forgetPointer(); setMessage("");
+    void signInModule().then(module => module.signOutLocally())
+      .catch(() => setMessage("The local sign-in client could not be reset. Reload before signing in again."));
+  }
+  function clearInvitation() {
+    setInvitation({ code: "", warning: "" });
+    window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
+    try { sessionStorage.removeItem(INVITATION); return ""; }
+    catch { return "The invitation could not be cleared from tab storage. Close this tab when finished."; }
+  }
+  function finishInvitation(joined: InviteRedemption) {
+    const warning = clearInvitation();
+    if (joined.workspace) {
+      changeWorkspace(joined.workspace);
+      setMessage(`Welcome to ${joined.workspace.organization_name} / ${joined.workspace.team_name}. ${warning}`.trim());
+    } else {
+      changeWorkspace(null);
+      setInvitedOrganization(joined.organization_id);
+      setView("workspaces");
+      setMessage(`Joined ${joined.name}. This invitation includes organization membership only; ask an administrator for team access. ${warning}`.trim());
+    }
+    setShowLanding(false);
+    void navigate("/workspace", { replace: true });
   }
   async function removeSession() {
     setBusy(true);
@@ -243,7 +286,7 @@ export default function App() {
     setMessage("New workflow. The previous server session remains until expiry unless deleted.");
   }
   function changeWorkspace(value: WorkspaceSelection | null) {
-    setWorkspace(value); selectWorkspace(value); forgetPointer(); setSnapshot(null);
+    setWorkspace(value); selectWorkspace(value); setInvitedOrganization(""); forgetPointer(); setSnapshot(null);
     setView("home"); setConfirmDelete(false); setMessage("");
   }
   async function openWorkflow(id: string) {
@@ -258,7 +301,12 @@ export default function App() {
     void changeView(next);
   }
 
-  if (showLanding && !pendingInvite) return <Suspense fallback={<div role="status" className="min-h-screen grid place-items-center">Loading product overview…</div>}><Landing
+  if (pendingInvite) return <InviteOnboarding code={pendingInvite} warning={invitation.warning}
+    auth={auth} identity={identity} accountLabel={signedInAs} starting={starting} busy={busy} message={message}
+    onSignIn={signInWithMicrosoft} onSwitchAccount={disconnect} onJoined={finishInvitation}
+    onCancel={() => { setMessage(clearInvitation()); setShowLanding(false); void navigate("/workspace", { replace: true }); }} />;
+
+  if (showLanding) return <Suspense fallback={<div role="status" className="min-h-screen grid place-items-center">Loading product overview…</div>}><Landing
     onStart={() => enterFromWebsite(sessionId ? "home" : "intake")}
     onWorkspace={() => enterFromWebsite("home")}
     onDiscover={() => enterFromWebsite("discovery")}
@@ -324,7 +372,7 @@ export default function App() {
             </div>
           </>}
           {identity && auth?.mode === "oidc" && <Button variant="ghost" disabled={busy} onClick={() => {
-            setAccessToken(""); setWorkspace(null); selectWorkspace(null); setIdentity(null); setSnapshot(null); setView("home"); setShowLanding(true); forgetPointer();
+            disconnect(); setView("home"); setShowLanding(true);
             void navigate("/", { replace: true });
           }}>Sign out</Button>}
         </div>
@@ -344,7 +392,7 @@ export default function App() {
                 <p className="mt-2">Pattern-based redaction is best-effort, not anonymization.
                   {" "}{auth?.mode === "local-demo" ? "Local demo is unauthenticated and shared; do not expose it publicly." : "Personal workflows are owner-private. Team workflows require active membership and scoped permissions. Team reviewers cannot review their own workflows; personal review requires the configured token role."}
                   {" "}Session retention: {auth?.retention_hours ?? "…"} hours; decision snapshots: {auth?.archive_retention_days ?? "…"} days.
-                  {" "}Deleting a workflow also deletes its decision archive. Only an opaque session pointer is kept in this tab.
+                  {" "}Deleting a workflow also deletes its decision archive. An opaque session pointer and any pending invitation code are kept in this tab.
                 </p>
               </details>
             </div>
@@ -380,10 +428,9 @@ export default function App() {
           {starting ? <p role="status">Loading access configuration…</p> : !identity ? (
             <section className="surface-card max-w-xl space-y-4">
               <h1 className="text-2xl font-bold">Organization access</h1>
-              {pendingInvite && <p role="status" className="notice">You opened an invite link. Sign in first; you can then accept the invite on the Organizations & teams page.</p>}
               {auth?.sign_in ? <>
                 <p className="text-sm text-zinc-600 leading-relaxed">Sign in with your organization's Microsoft account. Your session stays in this tab only.</p>
-                <Button disabled={busy} onClick={signInWithMicrosoft}>Sign in with Microsoft</Button>
+                <Button disabled={busy} onClick={() => void signInWithMicrosoft()}>Sign in with Microsoft</Button>
               </> : null}
               <details className="text-sm" open={!auth?.sign_in}>
                 <summary className="cursor-pointer text-zinc-600">{auth?.sign_in ? "Use an access token instead" : "Access token"}</summary>
@@ -400,8 +447,7 @@ export default function App() {
             </section>
           ) : <div key={sessionId || "new"}>
             {view === "workspaces" && <Workspaces identity={identity.identity} demo={auth?.mode === "local-demo"}
-              onSelect={changeWorkspace} onBusyChange={setBusy} inviteCode={pendingInvite}
-              onInviteHandled={() => setPendingInvite("")} />}
+              onSelect={changeWorkspace} onBusyChange={setBusy} initialOrganizationId={workspace?.organization_id || invitedOrganization} />}
             {view === "discovery" && <Discovery canCreate={workspace?.permissions.write !== false}
               initialEngagementId={discoveryEntry?.id} createNew={discoveryEntry?.createNew}
               onOpen={openWorkflow} onBusyChange={setBusy} onUnsavedChange={updateDiscoveryUnsaved}

@@ -37,7 +37,8 @@ class SecurityBoundary:
                 message["headers"] = headers
             await send(message)
 
-        if not scope["path"].startswith("/api/") or scope["path"] == "/api/v1/auth/config":
+        public_invite_preview = scope["path"] == "/api/v1/invites/preview" and scope["method"] == "POST"
+        if not scope["path"].startswith("/api/") or scope["path"] == "/api/v1/auth/config" or public_invite_preview:
             return await self.app(scope, receive, secured_send)
         headers = [v.decode("latin1") for k, v in scope["headers"] if k.lower() == b"authorization"]
         try:

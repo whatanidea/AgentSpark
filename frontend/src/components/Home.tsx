@@ -7,6 +7,7 @@ import ROIReport from "./ROIReport";
 import { EvidenceSummary } from "./EvidenceRegister";
 import { ReadinessSummary } from "./ImplementationReadiness";
 import RuntimeDecisionSummary from "./RuntimeDecision";
+import AgenticAdoption from "./AgenticAdoption";
 import ExecutiveBriefSummary from "./ExecutiveBrief";
 import HomeDiscovery from "./HomeDiscovery";
 
@@ -150,6 +151,7 @@ export default function Home({ demo, retentionDays, workspaceName, canCreate, on
       </Card>
       <EvidenceSummary report={decision.details.evidence_report} />
       <ReadinessSummary report={decision.details.readiness_report} />
+      <AgenticAdoption adoption={decision.details.suitability_score?.adoption} readiness={decision.details.readiness_report} />
       <RuntimeDecisionSummary decision={decision.details.runtime_decision} />
       <Card title={review ? "Reviewer decision & comments" : "Automated policy decision"}>
         {review ? <>
@@ -163,7 +165,7 @@ export default function Home({ demo, retentionDays, workspaceName, canCreate, on
       </Card>
       {decision.details.workflow_intelligence && <Card title="Workflow overview"><p className="text-sm text-zinc-600 leading-relaxed">{decision.details.workflow_intelligence.summary}</p>
         <p className="text-xs text-zinc-500 mt-3">Systems: {decision.details.workflow_intelligence.systems.join(", ") || "None supplied"}</p></Card>}
-      {decision.details.suitability_score && <Card title="Readiness assessment">
+      {decision.details.suitability_score && <Card title="Descriptive workflow profile">
         <p className="text-3xl font-semibold text-brand-800">{decision.details.suitability_score.agent_score}<span className="text-base text-zinc-500"> / 100</span></p>
         <p className="text-sm font-medium mt-3">{decision.details.suitability_score.recommended_pattern}</p>
         <p className="text-sm text-zinc-500 leading-relaxed mt-2">{decision.details.suitability_score.explanation}</p>
@@ -173,7 +175,7 @@ export default function Home({ demo, retentionDays, workspaceName, canCreate, on
         <p className="text-sm text-zinc-600 leading-relaxed mt-3">{decision.details.governance.reason}</p>
         <p className="text-xs text-zinc-500 mt-2">Overall risk: {decision.details.governance.overall_risk}. A human review does not rewrite the original policy outcome.</p>
       </Card>}
-      {decision.details.roi && <Card title="ROI assumptions and scenarios"><ROIReport roi={decision.details.roi} /></Card>}
+      {decision.details.roi && <Card title="Business value and pilot measures"><ROIReport roi={decision.details.roi} /></Card>}
       {decision.details.architecture_doc && <Card title="Retained recommendation"><Markdown>{decision.details.architecture_doc}</Markdown></Card>}
       {decision.details.cost_estimate && <Card title="Retained cost estimate"><Markdown>{decision.details.cost_estimate}</Markdown></Card>}
       {decision.details.roadmap && <Card title="Retained delivery roadmap"><Markdown>{decision.details.roadmap}</Markdown></Card>}

@@ -18,6 +18,7 @@ async function intake(page: Page, sample?: string, cloud = "azure") {
   else await page.getByLabel("Business Domain", { exact: true }).fill("Fictional incomplete workflow");
   await page.getByRole("button", { name: "Submit Intake", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Diagnostic Interview", exact: true })).toBeVisible();
+  await expect.poll(() => page.evaluate(() => sessionStorage.getItem("agentsense.session.v1"))).not.toBeNull();
 }
 
 async function analyze(page: Page) {
@@ -51,6 +52,156 @@ test("incomplete demo input withholds scores and estimates", async ({ page }) =>
   expect(result.roi).toBeNull();
   expect(result.analysis_id).toBeNull();
   await expect(page.getByText("Clarification required — score, ROI and blueprint are withheld.", { exact: true })).toBeVisible();
+});
+
+test("business value is deferred by default and technical analysis needs no costs", async ({ page }) => {
+  await intake(page, "🧾 Invoice Approval (Finance)");
+  await page.getByRole("button", { name: "3 · Workflow Analysis", exact: true }).click();
+  await expect(page.getByRole("checkbox", { name: "Estimate business value now (optional)", exact: true })).not.toBeChecked();
+  await expect(page.getByRole("spinbutton")).toHaveCount(0);
+  const result = await analyze(page);
+  expect(result.roi.status).toBe("deferred");
+  expect(result.roi.hours_saved_per_year).toBeNull();
+  expect(result.roi.implementation_cost).toBeNull();
+  expect(result.roi.first_year_balance).toBeNull();
+  expect(result.governance.assessments["Cost Governance"].score).toBe("NOT_ASSESSED");
+  await expect(page.getByRole("heading", { name: "Business value and pilot measures", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "4 · Blueprint & Review", exact: true }).click();
+  const valueCard = page.locator(".surface-card").filter({
+    has: page.getByRole("heading", { name: "Business value and pilot measures", exact: true }),
+  });
+  await expect(valueCard).toContainText("Business value deferred: validate during the pilot.");
+  await expect(valueCard).toBeVisible();
+});
+
+test("agentic adoption separates opportunity permissions and readiness across reload and exports", async ({ page }) => {
+  await intake(page, "🧾 Invoice Approval (Finance)");
+  await page.getByRole("button", { name: "Review answers / complete checklist", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Show captured answers too", exact: true }).check();
+  for (const [label, value] of [["Steps", "7"], ["Decision points", "2"], ["Exceptions per week", "10"], ["Volume per day", "25"]]) {
+    await page.getByRole("spinbutton", { name: new RegExp(`^${label}`) }).fill(value);
+  }
+  await page.getByRole("textbox", { name: /^Workflow name/ }).fill("Azure SRE Incident Enrichment");
+  await page.getByRole("textbox", { name: /^Systems/ }).fill("Azure Monitor, Azure Log Analytics, SAP, PagerDuty");
+  await page.getByRole("combobox", { name: /^Rule stability/ }).selectOption("Stable");
+  await page.getByRole("combobox", { name: /^Human judgment/ }).selectOption("Medium");
+  await page.getByRole("combobox", { name: /^Unstructured content/ }).selectOption("Low");
+  await page.getByRole("combobox", { name: /^Data availability/ }).selectOption("High");
+  await page.getByRole("combobox", { name: /^Reasoning behavior/ }).selectOption("dynamic");
+  await page.getByRole("button", { name: "Save interview answers", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Answers saved." })).toBeVisible();
+  const result = await analyze(page);
+  expect(result.score.agent_score).toBe(45);
+  expect(result.score.classification).toBe("Low");
+  expect(result.score.adoption.design_family).toBe("hybrid_agentic");
+  expect(result.score.adoption.opportunity).toBe("supported");
+  expect(result.score.requires_hitl).toBe(true);
+  expect(result.status).toBe("awaiting_human_review");
+  const card = page.locator(".surface-card").filter({
+    has: page.getByRole("heading", { name: "Agentic adoption assessment", exact: true }),
+  });
+  await expect(card.getByRole("heading", { name: "Agentic opportunity", exact: true })).toBeVisible();
+  await expect(card.getByRole("heading", { name: "Permitted autonomy", exact: true })).toBeVisible();
+  await expect(card.getByRole("heading", { name: "Delivery readiness", exact: true })).toBeVisible();
+  await expect(card).toContainText("Supported by stated requirements");
+  await expect(card).toContainText("No production authority is granted.");
+  await expect(card).toContainText("Start with one agent");
+  await page.reload();
+  await expect(card).toContainText("Hybrid Workflow with Supervised Investigation Agent");
+  await page.getByRole("button", { name: "4 · Blueprint & Review", exact: true }).click();
+  await expect(card).toContainText("Hybrid Workflow with Supervised Investigation Agent");
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "⬇ Export .md", exact: true }).click();
+  const file = await download;
+  const stream = await file.createReadStream();
+  expect(stream).not.toBeNull();
+  let markdown = "";
+  for await (const chunk of stream!) markdown += chunk.toString();
+  expect(markdown).toContain("## Agentic adoption assessment");
+  expect(markdown).toContain("### Stop conditions");
+  expect(markdown).toContain("### Expansion conditions");
+  expect(markdown).toContain("runtime.reasoning: dynamic");
+  expect(markdown).toContain("adoption-rules-v1");
+  const dimensions = await page.evaluate(() => ({
+    width: document.documentElement.scrollWidth, viewport: window.innerWidth,
+  }));
+  expect(dimensions.width).toBeLessThanOrEqual(dimensions.viewport + 1);
+});
+
+test("agentic adoption keeps unknown investigation conditional instead of selecting a graph", async ({ page }) => {
+  await intake(page, "🧾 Invoice Approval (Finance)");
+  const result = await analyze(page);
+  expect(result.score.adoption.opportunity).toBe("potential");
+  expect(result.runtime_decision.reasoning.selected).toBeNull();
+  await expect(page.getByText("Potential - validate reasoning", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Validate before adding complexity", exact: true })).toBeVisible();
+  await expect(page.getByText("The 12-criterion profile is descriptive; it does not select architecture, prove ROI or establish delivery readiness.", { exact: true })).toBeVisible();
+});
+
+test("business value separates salaried capacity from cash and preserves provenance after reload", async ({ page }) => {
+  await intake(page, "🧾 Invoice Approval (Finance)");
+  await page.getByRole("button", { name: "3 · Workflow Analysis", exact: true }).click();
+  const toggle = page.getByRole("checkbox", { name: "Estimate business value now (optional)", exact: true });
+  await toggle.check();
+  await page.getByRole("spinbutton", { name: "Workflow operating days / year", exact: true }).fill("250");
+  await page.getByRole("spinbutton", { name: "Total human minutes / item", exact: true }).fill("20");
+  await page.getByRole("spinbutton", { name: "Expected human-effort reduction (%)", exact: true }).fill("40");
+  await page.getByRole("spinbutton", { name: "Loaded labor rate (USD / hour; capacity valuation only)", exact: true }).fill("80");
+  await page.getByRole("combobox", { name: "Basis for Total human minutes / item", exact: true }).selectOption("measured");
+  await page.getByRole("textbox", { name: "Source for Total human minutes / item (optional)", exact: true }).fill("Fictional 30-case baseline");
+  await page.getByText("Optional financial inputs — leave unknowns blank", { exact: true }).click();
+  await page.getByRole("spinbutton", { name: "Annual cash savings (USD; spending reduction only)", exact: true }).fill("0");
+  await page.getByRole("spinbutton", { name: "Total implementation cost (USD)", exact: true }).fill("10000");
+  await page.getByRole("spinbutton", { name: "Annual avoided-hiring value (USD; separate benefit)", exact: true }).fill("100000");
+  const result = await analyze(page);
+  expect(result.roi.hours_saved_per_year).toBe(16666.67);
+  expect(result.roi.capacity_value_per_year).toBe(1333333.33);
+  expect(result.roi.annual_cash_savings).toBe(0);
+  expect(result.roi.annual_net_cash_benefit).toBeNull();
+  expect(result.roi.payback_months).toBeNull();
+  expect(result.roi.assumption_inputs.evidence.manual_minutes_per_item.basis).toBe("measured");
+  await page.reload();
+  await expect(toggle).toBeChecked();
+  await expect(page.getByRole("spinbutton", { name: "Total human minutes / item", exact: true })).toHaveValue("20");
+  await expect(page.getByRole("combobox", { name: "Basis for Total human minutes / item", exact: true })).toHaveValue("measured");
+  await toggle.uncheck();
+  const deferred = await analyze(page);
+  expect(deferred.roi.status).toBe("deferred");
+  expect(deferred.roi.capacity_value_per_year).toBeNull();
+});
+
+test("business value supports role-level capacity and unknown financial inputs", async ({ page }) => {
+  await intake(page, "🧾 Invoice Approval (Finance)");
+  await page.getByRole("button", { name: "3 · Workflow Analysis", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Estimate business value now (optional)", exact: true }).check();
+  const partial = await analyze(page);
+  expect(partial.roi.status).toBe("incomplete");
+  expect(partial.score).not.toBeNull();
+  let requests = 0;
+  page.on("request", request => { if (request.url().includes("/api/v1/analyze/")) requests += 1; });
+  await page.getByRole("spinbutton", { name: "Workflow operating days / year", exact: true }).fill("367");
+  await page.getByRole("button", { name: "▶ Run Multi-Agent Analysis", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Review the highlighted business-value input");
+  expect(requests).toBe(0);
+  await page.getByRole("checkbox", { name: "Estimate business value now (optional)", exact: true }).uncheck();
+  expect((await analyze(page)).roi.status).toBe("deferred");
+  await page.getByRole("checkbox", { name: "Estimate business value now (optional)", exact: true }).check();
+  await page.getByRole("spinbutton", { name: "Workflow operating days / year", exact: true }).fill("200");
+  await page.getByRole("button", { name: "Add role-level effort", exact: true }).click();
+  await page.getByRole("button", { name: "Add role-level effort", exact: true }).click();
+  await expect(page.getByRole("spinbutton", { name: "Total human minutes / item", exact: true })).toHaveCount(0);
+  for (const [index, minutes, reduction] of [[1, 10, 50], [2, 2, 25]]) {
+    await page.getByRole("spinbutton", { name: `Role ${index} human minutes / item`, exact: true }).fill(String(minutes));
+    await page.getByRole("spinbutton", { name: `Role ${index} effort reduction (%)`, exact: true }).fill(String(reduction));
+  }
+  await page.getByRole("spinbutton", { name: "Role 1 loaded rate (USD / hour)", exact: true }).fill("60");
+  await page.getByRole("textbox", { name: "Service improvements and pilot measures (optional)", exact: true }).fill("Measure backlog reduction during the pilot.");
+  const result = await analyze(page);
+  expect(result.roi.hours_saved_per_year).toBe(9166.67);
+  expect(result.roi.capacity_value_per_year).toBeNull();
+  expect(result.roi.annual_cash_savings).toBeNull();
+  expect(result.roi.service_improvements).toContain("Measure backlog reduction");
+  await expect(page.getByRole("heading", { name: "Architecture Recommendation", exact: true })).toBeVisible();
 });
 
 test("guided interview stops at ten rounds and completes via a saved checklist", async ({ page }) => {
@@ -448,7 +599,7 @@ test("stale evidence form shows a conflict and reloads without overwriting anoth
   await expect(page.getByLabel("Statement or question", { exact: true })).toHaveValue("");
 });
 
-test("human review survives reload and exports current evidence and scenarios", async ({ page }) => {
+test("human review survives reload and exports evidence and deferred business value", async ({ page }) => {
   await intake(page, "🧾 Invoice Approval (Finance)");
   await page.getByRole("textbox", { name: "Describe your workflow", exact: true }).fill("Contact fictional@example.com about this sample.");
   await page.getByRole("button", { name: "Send", exact: true }).click();
@@ -473,7 +624,7 @@ test("human review survives reload and exports current evidence and scenarios", 
   let markdown = "";
   for await (const chunk of stream) markdown += chunk.toString("utf8");
   expect(markdown).toMatch(/^# AgentSpark Blueprint\n/);
-  for (const text of ["demo_fixture", "conservative", "optimistic", "SHA256", "not deployment-ready"]) {
+  for (const text of ["demo_fixture", "Business value deferred", "Business value and pilot measures", "SHA256", "not deployment-ready"]) {
     expect(markdown).toContain(text);
   }
   expect(markdown).not.toContain("PROVISIONAL: NOT APPROVED");
@@ -491,7 +642,7 @@ test("no-agent outcome stays rejected and confirmed deletion removes restoration
   await intake(page, "Payroll Calculation (standard software)");
   const result = await analyze(page);
   expect(result.status).toBe("rejected");
-  expect(result.roi.implementation_cost).toBe(0);
+  expect(result.roi.implementation_cost).toBeNull();
   expect(result.roi.payback_months).toBeNull();
   await page.getByRole("button", { name: "4 · Blueprint & Review", exact: true }).click();
   await expect(page.getByText("Rejected — no agentic blueprint", { exact: true })).toBeVisible();
@@ -573,7 +724,7 @@ test("mobile analysis and provisional review stay within the viewport", async ({
   await intake(page, "🧾 Invoice Approval (Finance)");
   const result = await analyze(page);
   expect(result.status).toBe("awaiting_human_review");
-  await expect(page.getByRole("table")).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Business value and pilot measures", exact: true })).toBeVisible();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole("button", { name: "4 · Blueprint & Review", exact: true }).click();
   await expect(page.getByLabel("Reviewer", { exact: true })).toBeVisible();
@@ -794,11 +945,15 @@ test("invite links join a team without exchanging identity IDs and are single-us
   await expect(page.getByText("Used 0/1", { exact: false })).toBeVisible();
 
   await page.goto(link);
-  await expect(page.getByText("You opened an invite link.", { exact: false })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Join Fictional invite organization", exact: true })).toBeVisible();
   expect(new URL(page.url()).hash).toBe("");
-  await expect(page.getByLabel("Invite link or code", { exact: true })).not.toHaveValue("");
-  await page.getByRole("button", { name: "Join organization", exact: true }).click();
-  await expect(page.getByRole("status").filter({ hasText: "Joined Fictional invite organization as owner with team access." })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Accept invitation", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Accept invitation", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Welcome to Fictional invite organization / Invite claims." })).toBeVisible();
+  await expect(page.getByText("Fictional invite organization / Invite claims", { exact: true }).first()).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem("agentspark.invitation.v1"))).toBeNull();
+  await page.getByRole("button", { name: "Organizations & teams", exact: true }).click();
   await expect(page.getByText("Used 1/1", { exact: false })).toBeVisible();
   await expect(page.getByText("used", { exact: true })).toBeVisible();
 
@@ -806,4 +961,129 @@ test("invite links join a team without exchanging identity IDs and are single-us
   await page.getByRole("button", { name: "Join organization", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("invalid, expired, revoked, or already used");
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+});
+
+async function invitationFixture(page: Page, teamAccess = true) {
+  const organization = await (await page.request.post("/api/v1/organizations", {
+    data: { name: `Fictional onboarding ${randomUUID()}` },
+  })).json();
+  const team = teamAccess ? await (await page.request.post(`/api/v1/organizations/${organization.organization_id}/teams`, {
+    data: { name: "Invited workspace" },
+  })).json() : null;
+  const invite = await (await page.request.post(`/api/v1/organizations/${organization.organization_id}/invites`, {
+    data: team ? { team_id: team.team_id, team_roles: ["viewer"] } : {},
+  })).json();
+  return { organization, team, invite, link: `/workspace#invite=${invite.code}` };
+}
+
+for (const email of ["fictional.invitee@gmail.com", "fictional.invitee@outside-company.example"]) {
+  test(`invite onboarding accepts ${email} and opens the invited workspace after verification`, async ({ page }) => {
+    const fixture = await invitationFixture(page);
+    // Stub only the MSAL boundary: offline browser journeys do not validate the live Entra tenant or email delivery.
+    await page.route("**/api/v1/auth/config", route => route.fulfill({ json: {
+      mode: "oidc", retention_hours: 24, archive_retention_days: 30,
+      sign_in: { client_id: "fictional-client", authority: "https://login.example.test/fictional", scope: "fictional-scope" },
+    } }));
+    await page.route("**/assets/auth-*.js", route => route.fulfill({ contentType: "text/javascript", body: `
+      let label = "";
+      export async function initSignIn() {}
+      export async function signInWithPopup(email) { label = email; return "fictional-in-memory-access-token"; }
+      export async function currentToken() { return label ? "fictional-in-memory-access-token" : ""; }
+      export function accountLabel() { return label; }
+      export function signOutLocally() { label = ""; }
+    ` }));
+    let redemptions = 0;
+    page.on("request", request => { if (new URL(request.url()).pathname === "/api/v1/invites/redeem") redemptions++; });
+    await page.goto(fixture.link);
+    await expect(page.getByRole("heading", { name: `Join ${fixture.organization.name}`, exact: true })).toBeVisible();
+    expect(new URL(page.url()).hash).toBe("");
+    await page.reload();
+    await expect(page.getByLabel("Your email address", { exact: true })).toBeVisible();
+    expect(redemptions).toBe(0);
+    await page.getByLabel("Your email address", { exact: true }).fill(email);
+    await page.getByRole("button", { name: "Continue with email", exact: true }).click();
+    await expect(page.getByText(email, { exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: "Accept invitation", exact: true })).toBeVisible();
+    expect(redemptions).toBe(0);
+    await page.getByRole("button", { name: "Use a different account", exact: true }).click();
+    await expect(page.getByLabel("Your email address", { exact: true })).toHaveValue(email);
+    await page.getByRole("button", { name: "Continue with email", exact: true }).click();
+    await page.getByRole("button", { name: "Accept invitation", exact: true }).click();
+    await expect(page.getByText(`${fixture.organization.name} / Invited workspace`, { exact: true }).first()).toBeVisible();
+    expect(redemptions).toBe(1);
+    expect(await page.evaluate(() => sessionStorage.getItem("agentspark.invitation.v1"))).toBeNull();
+    const storage = await page.evaluate(() => JSON.stringify([Object.entries(sessionStorage), Object.entries(localStorage)]));
+    expect(storage).not.toContain("fictional-in-memory-access-token");
+    expect(storage).not.toContain(fixture.invite.code);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+}
+
+test("invite onboarding retains cancelled sign-in and explains tenant guest-access failures", async ({ page }) => {
+  const fixture = await invitationFixture(page);
+  await page.route("**/api/v1/auth/config", route => route.fulfill({ json: {
+    mode: "oidc", retention_hours: 24, archive_retention_days: 30,
+    sign_in: { client_id: "fictional-client", authority: "https://login.example.test/fictional", scope: "fictional-scope" },
+  } }));
+  await page.route("**/assets/auth-*.js", route => route.fulfill({ contentType: "text/javascript", body: `
+    let calls = 0;
+    export async function initSignIn() {}
+    export async function signInWithPopup() { throw new Error(++calls === 1 ? "user_cancelled" : "AADSTS50020"); }
+    export async function currentToken() { return ""; }
+    export function accountLabel() { return ""; }
+    export function signOutLocally() {}
+  ` }));
+  await page.goto(fixture.link);
+  await page.getByLabel("Your email address", { exact: true }).fill("fictional.invitee@gmail.com");
+  await page.getByRole("button", { name: "Continue with email", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Sign-in was cancelled. Your invitation is retained" })).toBeVisible();
+  await expect(page.getByLabel("Your email address", { exact: true })).toHaveValue("fictional.invitee@gmail.com");
+  await page.getByRole("button", { name: "Continue with email", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "enable external self-service sign-up" })).toBeVisible();
+  expect(await page.evaluate(() => sessionStorage.getItem("agentspark.invitation.v1"))).toBe(fixture.invite.code);
+  const invites = await (await page.request.get(`/api/v1/organizations/${fixture.organization.organization_id}/invites`)).json();
+  expect(invites.items[0].uses).toBe(0);
+  await page.getByRole("button", { name: "Not now", exact: true }).click();
+  expect(await page.evaluate(() => sessionStorage.getItem("agentspark.invitation.v1"))).toBeNull();
+});
+
+test("invite onboarding retries redemption errors without consuming access and rejects revoked links", async ({ page }) => {
+  const fixture = await invitationFixture(page, false);
+  await page.route("**/api/v1/invites/redeem", route => route.fulfill({
+    status: 503, json: { detail: "Fictional temporary directory outage. Retry." },
+  }), { times: 1 });
+  await page.goto(fixture.link);
+  await expect(page.getByText("Organization membership only", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Accept invitation", exact: true }).click();
+  await expect(page.getByRole("alert")).toContainText("Fictional temporary directory outage");
+  expect(await page.evaluate(() => sessionStorage.getItem("agentspark.invitation.v1"))).toBe(fixture.invite.code);
+  await page.route("**/api/v1/organizations?*", route => route.fulfill({ json: { items: [], next_cursor: null } }));
+  await page.getByRole("button", { name: "Accept invitation", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Organizations & teams", exact: true })).toBeVisible();
+  await expect(page.getByRole("combobox", { name: "Organization", exact: true })).toHaveValue(fixture.organization.organization_id);
+  expect(await page.evaluate(() => sessionStorage.getItem("agentspark.invitation.v1"))).toBeNull();
+  // The fixture creator is already a member, so organization-only acceptance does not consume a use.
+  await page.request.delete(`/api/v1/organizations/${fixture.organization.organization_id}/invites/${fixture.invite.invite_id}`);
+  await page.goto(fixture.link);
+  await expect(page.getByRole("alert")).toContainText("invalid, expired, revoked, or already used");
+  await expect(page.getByRole("button", { name: "Accept invitation", exact: true })).toHaveCount(0);
+});
+
+test("invite onboarding preserves the fragment with an explicit warning when tab storage is blocked", async ({ page }) => {
+  const fixture = await invitationFixture(page);
+  await page.addInitScript(() => {
+    const original = Storage.prototype.setItem;
+    Storage.prototype.setItem = function(key, value) {
+      if (key === "agentspark.invitation.v1") throw new DOMException("Fictional blocked storage", "SecurityError");
+      return original.call(this, key, value);
+    };
+  });
+  await page.goto(fixture.link);
+  await expect(page.getByRole("status").filter({ hasText: "Tab storage is unavailable" })).toBeVisible();
+  expect(new URL(page.url()).hash).toBe(`#invite=${fixture.invite.code}`);
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Accept invitation", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Accept invitation", exact: true }).click();
+  await expect(page.getByText(`${fixture.organization.name} / Invited workspace`, { exact: true }).first()).toBeVisible();
+  expect(new URL(page.url()).hash).toBe("");
 });

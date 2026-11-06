@@ -13,11 +13,11 @@ A seven-stage pipeline orchestrated with **LangGraph**:
 | # | Stage | Agent / Component | Output |
 |---|-------|-------------------|--------|
 | 1 | Diagnose | **Diagnostic Agent** | Workflow facts with supplied/inferred/missing evidence; incomplete inputs return follow-up questions and stop |
-| 2 | Score | **Scoring Engine** | Agentification Readiness Index — 12 weighted, explained criteria |
+| 2 | Assess | **Scoring + adoption rules** | Descriptive 12-criterion profile and separate evidence-backed agentic opportunity, design candidate and human boundaries |
 | 3 | Map | **Mapping Agent** | Recommended Azure or AWS service candidates for the selected assessment target |
-| 4 | Recommend | **Recommendation Agent** | Readiness-constrained design with pattern IDs, source snapshots, completeness and self-critique |
-| 5 | Estimate | **ROI Engine** | Explicit assumptions and conservative/base/optimistic labor-effort scenarios |
-| 6 | Govern | **Governance Agent** | Validated, ordered policies over risk, completeness, autonomy, and actual first-year ROI |
+| 4 | Recommend | **Recommendation Agent** | Adoption-constrained design with pattern IDs, source snapshots, completeness and self-critique |
+| 5 | Estimate | **Business-value Engine** | Deferred by default; optional capacity, separate cash/hiring/service outcomes and per-input provenance |
+| 6 | Govern | **Governance Agent** | Validated, ordered technical policies over risk, completeness and autonomy; financial value is advisory |
 | 7 | Outcome | **Blueprint Agent** or rejection outcome | Approved/provisional blueprint, or a non-agentic alternative without generating a blueprint |
 
 Every run emits an **agent trace** (per-step status + latency) for observability/audit.
@@ -119,12 +119,13 @@ Analysis deterministically persists a versioned, source-linked summary alongside
 the existing assessment. It recommends investigating further, conventional
 automation, considering a bounded AI pilot, or not proceeding. Recorded rejection
 takes precedence. A pilot recommendation requires complete suitability facts and
-the strict `ready` readiness outcome, not `ready_with_conditions`. Advisory approval
+the strict `ready` readiness outcome, not `ready_with_conditions`, and a supported
+reasoning need rather than an unresolved conditional agentic candidate. Advisory approval
 does not authorize pilot execution or production.
 
-Benefit ranges reuse existing ROI sensitivity scenarios and explicit assumptions:
-gross capacity value is **not realized cash savings**, a confidence interval or a
-measured result. Unknown facts, readiness gaps, pilot gaps and validation tasks
+Business value is deferred by default. Optional supplied estimates separate
+released capacity from cash savings, avoided hiring and service outcomes; they are
+not measured results or guaranteed benefits. Unknown facts, readiness gaps, pilot gaps and validation tasks
 remain visible. No additional inference call is made.
 
 Analysis, restored sessions, Blueprint, review and archived decision snapshots
@@ -252,8 +253,10 @@ During mapping, versioned deterministic rules recommend two independent layers:
 - **Durable execution:** no separate engine, Temporal, Azure Durable Functions,
   or AWS Step Functions Standard Workflows.
 
-LangGraph is not selected merely because the suitability score is high. Explicit
-dynamic reasoning and a compatible prescribed design are required. Runtime choice
+`runtime-rules-v2` does not select LangGraph merely because the profile score is
+high, or block it because volume/profile is low. Explicit dynamic reasoning and
+a compatible adoption design are required. Unknown adaptivity remains unresolved.
+Runtime choice
 never increases prescribed autonomy or removes a human gate. Deterministic
 long-running workflows may need a durable engine without an agent framework;
 combined reasoning and durable runtimes are also supported.
@@ -292,10 +295,39 @@ silently generate a recommendation.
 
 After analysis, open **Blueprint & Review**, fetch the current blueprint and select
 **Export PDF**. Markdown export remains available. The downloadable
-`AgentSpark_Assessment.pdf` includes workflow/suitability, cloud service candidates,
-governance and reviewer attestation, ROI assumptions/scenarios, evidence and
-diagnostic provenance, implementation readiness/actions/pilot criteria, grounded
-sources, architecture, cost estimate, roadmap and illustrative scaffold.
+`AgentSpark_Assessment.pdf` now leads with a plain-language decision story:
+
+1. **The decision at a glance:** reported work volume, system/decision counts,
+   candidate, advisory status and the next action.
+2. **How the work would change:** a native vector responsibility flow, software
+   versus proposed AI work, actual systems and human-control boundaries.
+3. **What must be true before a pilot:** a readiness matrix, blockers, proposed
+   owners and priority actions. Approval is not delivery readiness.
+4. **What value do we know today:** optional capacity/cash/payback cards, unknowns
+   shown explicitly, and separate salaried capacity, spending and hiring outcomes.
+5. **Start small:** recorded pilot targets, failure/authorization boundaries,
+   baseline comparison and proposed stop/expansion criteria.
+
+The standard fictional sample has a five-page decision story. Long inputs and
+populated financial/pilot sections may need more pages; text is never shrunk to
+force that count. Rejected reports omit operating-model/value/pilot implementation
+sections and explain the rejection and conventional alternative.
+
+The report uses a consistent purple/navy visual system, larger decision-story
+type, metric cards, status callouts, striped tables, running status/analysis ID,
+page numbers and PDF outline bookmarks. A technical reference section retains the
+full workflow/profile criteria, cloud candidates, governance/reviewer attestation,
+business-value inputs and provenance, evidence register, diagnostics, readiness
+actions, runtime decisions, grounded sources, architecture, roadmap and illustrative
+scaffold. Profile drivers are also shown as vector bars, explicitly not an
+opportunity or delivery-readiness verdict. A small glossary explains technical terms.
+
+Long statements may be visibly excerpted in the decision story; the full recorded
+text remains in the reference section. The proposed flow is not a verified process
+map. Missing values are not zero, and no new facts, financial calculations or AI
+calls are introduced by formatting. Rendering remains local/in-memory with escaped
+text: PDF bookmarks are internal navigation, and user-provided links/media are not
+activated or fetched.
 
 Provisional reports prominently state **PROVISIONAL - NOT APPROVED** on every page.
 Approved reports distinguish advisory/policy approval from human attestation.
@@ -372,11 +404,13 @@ Each policy contains `conditions` with `field`, `operator` (`eq`, `lt`, `gt`), a
 `value`; all conditions must match, and the first matching policy wins. There are no
 Python expressions or `eval`. If no policy matches, `default_decision` is honored.
 
-Cost governance compares **annual gross labor savings** with the **one-time build
-cost** over a first-year horizon, subtracting annual operating costs when supplied.
-A negative base-case first-year balance rejects the recommendation. When operating
-costs are unknown, the balance, payback and multiple are explicitly **before**
-operating costs, not a claim of net cash savings.
+Business value is optional and deferred by default. Cost governance reports
+`NOT_ASSESSED` for missing cash inputs or `REVIEW` for a negative supplied cash
+balance, without rejecting the technical recommendation. Default technical policies
+do not depend on financial estimates; security, suitability and required human
+oversight remain enforced. Separate budget approval is still required. Custom
+`first_year_net_savings` conditions compare cash savings minus operating and
+implementation costs only when all are known; unknown values match no comparison.
 The security dimension is a limited text policy check, not a security audit.
 
 ### Differentiators
@@ -755,9 +789,66 @@ live sample buttons only populate intake templates.
 
 ### Grounded and consistent designs
 
-The readiness score prescribes the design and autonomy: High uses supervisor/worker,
-Medium uses a grounded copilot, Low uses deterministic RPA plus AI exception triage,
-and Not Suitable uses standard software. Required human gates are preserved.
+New assessments persist `suitability_score.adoption` (`adoption-rules-v1`).
+The scalar profile is descriptive, not an architecture selector, financial
+estimate, or delivery-readiness verdict. Its numeric weights/bands remain
+compatible; the old `ROI Potential` criterion is now explicitly labeled
+`Workload Footprint (not ROI)`. Historical scores without adoption metadata are
+not retroactively reinterpreted; rerun analysis for a modern assessment.
+
+The engine separates:
+
+- **Opportunity:** `supported` by stated dynamic-reasoning requirements,
+  `potential` when cross-system judgement/content analysis needs validation,
+  or `not_indicated` by currently supplied evidence. None is measured capability.
+- **Permissions:** start agentic candidates supervised, with read-only tools,
+  draft outputs, explicit tool/time budgets, audit and human approval around
+  consequential actions. High compliance or error impact narrows authority; it
+  does not automatically erase an opportunity.
+- **Delivery readiness:** the existing separate readiness report, integration
+  access, security/privacy, operational ownership, recovery and pilot criteria.
+  Opportunity and advisory approval never fill readiness checks.
+
+Stated dynamic reasoning selects a supervised `tool_agent` for a single-system
+workflow or `hybrid_agentic` investigation for multiple systems. Unknown
+adaptivity with reported cross-system judgement or content-analysis needs produces
+a **conditional** candidate, not an invented dynamic fact or a selected reasoning
+framework. Explicit deterministic investigation retains `standard_software`;
+bounded AI remains a `rag_copilot` candidate without an iterative graph.
+`supervisor_worker` requires dynamic reasoning plus at least two distinct
+user-supplied specialist responsibilities in optional
+`runtime.specialist_roles` (semicolon/newline separated). This is an attested
+decomposition hypothesis, not proof that multi-agent coordination is superior.
+Many systems, high volume and a high profile alone never select multiple agents.
+
+Each assessment includes the fixed-query/software baseline, cited input
+provenance, deterministic/proposed-agent responsibilities, unresolved questions,
+bounded pilot, success measures, stop conditions and expansion prerequisites.
+Process owners must agree measurable thresholds before a pilot; the engine does
+not invent achieved improvements or approvals. These fields survive restoration,
+review, retained decisions, executive brief and Markdown/PDF exports.
+
+The Azure SRE regression (25 items/day, structured inputs, stable policies,
+high compliance/error impact, four systems, profile 45/100) now gets a
+conditional supervised investigation-agent candidate, not automatic RPA-only
+advice. Confirm whether investigation chooses follow-up queries from evidence.
+If dynamic, consider one supervised investigator with deterministic collection
+and authorization in application code. If truly fixed, retain the simpler
+baseline. A deterministic collection quote alone does not establish deterministic
+investigation: shared document validation requests whole-scope evidence; reanalysis
+reopens saved partial document-sourced reasoning and preserves its quote/location.
+Explicit human checklist choices and edited document choices remain authoritative.
+This conservative scope guard is not a general semantic-verification guarantee.
+
+Tool/hybrid candidates reuse existing grounded patterns `p01`, `p06`, `p04`;
+specialists use `p02` plus the human gate. AWS adaptations preserve original
+source fingerprints and provide AWS-only curated candidates. No new search
+records, cloud credentials, runtime installation or deployment is introduced.
+The default not-suitable rejection only applies when opportunity is also
+`not_indicated`; security and required human-review policies remain enforced.
+Legacy direct callers lacking adoption metadata retain their original
+score-to-family compatibility behavior.
+
 Generation must match those structured constraints and cite the required retrieved
 pattern IDs; invented, duplicate, missing or incompatible citations and conflicting
 design assertions fail explicitly rather than falling back to a plausible answer.
@@ -775,53 +866,75 @@ For compatibility, governance rule input `confidence`, assessment key `Confidenc
 and `overall_confidence` retain their old names but mean **data completeness only**,
 never model accuracy or statistical certainty. The UI labels that distinction.
 
-### Estimates, not guaranteed savings
+### Optional capacity-first business value
 
-The analysis request optionally accepts `{"roi_assumptions": {...}}`; validated
-inputs are persisted and reused by later requests without overrides. The Workflow
-Analysis screen exposes the same inputs. USD defaults:
+The analysis request optionally accepts `{"roi_assumptions": {...}}`. New assessments
+default to `mode: "deferred"` with no numeric defaults. Technical suitability,
+architecture, readiness and blueprint generation require no financial estimates.
+The UI offers "Estimate business value now (optional)" and "validate during the
+pilot"; enabling estimation still allows every input to remain unknown.
+Validated inputs persist with the assessment and are reused unless overridden.
+Turning estimation off submits a clean deferred request, so even an unfinished or
+invalid financial draft cannot block technical analysis. Those optional draft
+inputs are not saved by the deferred run. Enabled inputs receive browser and
+server bounds validation; invalid values are reported rather than silently used.
 
-| Input | Default | Valid range |
-|---|---:|---|
-| `working_days_per_year` | 250 | integer 1-366 |
-| `loaded_hourly_rate` | 45 | 1-1,000 |
-| `minutes_per_step` | 1.5 | 0-60 |
-| `minutes_per_decision` | 2 | 0-240 |
-| `implementation_cost_per_agent` | 12,000 | integer 1-1,000,000 |
-| `annual_operating_cost` | null (unknown) | null or integer 0-1,000,000,000 |
+With `mode: "estimate"`, optional inputs are:
 
-Manual minutes/item = steps x minutes/step + decisions x additional minutes/decision.
-Gross saved hours = daily volume x working days x minutes/item x automation / 60;
-gross labor savings = saved hours x loaded hourly rate. Tier automation heuristics
-are High 0.70, Medium 0.45, Low 0.20, Not Suitable 0; required HITL multiplies by 0.8.
-Illustrative build units are 4/2/1/0 respectively, multiplied by the input build
-cost. These are **cost heuristics, not promises about actual agent counts**; the
-legacy API input name `implementation_cost_per_agent` is retained.
+| Input | Meaning / valid range |
+|---|---|
+| `working_days_per_year` | Workflow operating days, integer 1-366; use 365 for year-round operation when appropriate |
+| `manual_minutes_per_item` | Total active human effort per case, 0-1,440; exclude waiting and avoid counting decisions twice |
+| `effort_reduction_percent` | User-supplied expected net reduction including remaining review/exceptions, 0-100 |
+| `loaded_hourly_rate` | Approved aggregate labor rate for capacity valuation only, greater than 0 through 10,000 USD/hour |
+| `productive_hours_per_fte` | Organization-approved productive hours/employee-year, greater than 0 through 8,784 |
+| `implementation_cost` | Total implementation budget, not cost per agent, 0-1 billion USD |
+| `annual_operating_cost` | Annual model/infrastructure/support/review cost, 0-1 billion USD |
+| `annual_cash_savings` | Separately supplied spending reduction, 0-1 billion USD |
+| `annual_avoided_hiring_value` | Separate avoided-hiring benefit, 0-1 billion USD; never added to cash payback |
+| `service_improvements` | Proposed or observed operational measures, at most 2,000 characters |
 
-Conservative/base/optimistic scenarios vary automation by 0.75x/1x/1.15x (capped at
-100%); all other inputs stay fixed. These are what-if sensitivity cases, not
-confidence intervals. The base case drives governance; a positive base case does
-not imply the conservative case passes policy. Known operating cost is subtracted
-for net annual savings, payback, multiple, and the first-year balance. Unknown
-operating cost stays null, with unknown net savings. Zero savings means no payback
-(`null`), not zero months; a no-agent estimate has no artificial $1 build cost.
+`roles` optionally holds up to 20 named roles with human minutes/item, reduction
+percentage and hourly rate. Role entries replace workflow-average effort and rate,
+rather than adding to them. Missing effort in any role leaves total capacity unknown;
+missing any role's rate leaves total monetary capacity value unknown. No partial
+total is represented as a complete estimate.
 
-Labor effort is not necessarily cash released or headcount reduced. No staffing
-capacity cap, measured task times, integration quote, Azure price lookup, or
-probabilistic forecast is implied. Validate assumptions and budgets with owners.
+Capacity hours/year = reported daily volume x operating days x human minutes/item
+x supplied reduction percentage / 100 / 60, summed by role when applicable.
+FTE-years = capacity hours / supplied productive hours. **This is distributed
+capacity, not a claim that positions can be removed.** Capacity value uses the
+corresponding role rates, never an assumed payroll reduction. Cash net benefit
+uses only supplied cash savings minus known operating cost; first-year cash
+balance also subtracts total implementation cost. Payback requires a known positive
+net cash benefit and positive implementation cost. Unknown costs are not zero.
+
+Every supplied input has `evidence` with `basis` (`assumed`, `measured`, or
+`finance_approved`) and an optional `reference` (500 characters maximum). Missing
+basis labels default to `assumed`; these are stakeholder attestations, not
+independently verified approvals. Role inputs have their own evidence. Business-value
+text is screened for instruction overrides and PII-redacted before persistence.
+
+Version-2 results expose `status` (`deferred`, `incomplete`, `estimated`), missing
+capacity inputs, capacity hours/value, FTE-years, cash savings, avoided hiring,
+cash balance/payback and service improvements separately. Unknown results are null.
+No suitability-based automation percentages, agent build counts or fabricated
+sensitivity scenarios are generated. Reports, executive briefs, Markdown/PDF exports
+and archived decisions preserve these distinctions and input provenance.
 
 ### Workflow-specific blueprints and migration
 
 Blueprint generation receives workflow/intake, evidence, score, mapping, grounded
-references, policy result and ROI assumptions/scenarios. The diagram represents the
+references, policy result and optional business-value inputs. The diagram represents the
 customer workflow rather than AgentSpark's internal agents. Generated code is
 labeled **illustrative, untested, not deployment-ready**, including in Markdown
 exports; demo endpoints deliberately return `501` until integrations, authorization,
 audit and approval enforcement are implemented. Azure costs are unpriced cost
 drivers, not a fabricated monthly quote.
 
-Existing stored results remain readable. Legacy estimates without scenarios are
-marked for reanalysis, not relabeled as audited estimates. A new approval of an old
+Existing stored results remain readable. Legacy illustrative estimates are marked
+for reanalysis, not relabeled as validated business cases; old per-step/per-agent
+inputs remain parseable but do not silently opt into the new estimator. A new approval of an old
 analysis without complete provenance is refused (`409`); rerun analysis first.
 Reanalysis/input invalidation and ETag concurrency behavior remain in effect.
 

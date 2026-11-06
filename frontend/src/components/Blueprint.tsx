@@ -9,6 +9,7 @@ import { ReadinessSummary, readinessMarkdown } from "./ImplementationReadiness";
 import RuntimeDecisionSummary, { runtimeDecisionMarkdown } from "./RuntimeDecision";
 import ExecutiveBriefSummary, { executiveBriefMarkdown } from "./ExecutiveBrief";
 import ROIReport, { roiMarkdown } from "./ROIReport";
+import AgenticAdoption, { adoptionMarkdown } from "./AgenticAdoption";
 
 export default function Blueprint({ sessionId, active, canReview, secureReview, onRefresh, onBusyChange }: any) {
   const [bp, setBp] = useState<any>(null);
@@ -112,6 +113,7 @@ ${JSON.stringify(bp.diagnosis, null, 2)}
 ${evidenceMarkdown(bp.evidence_report)}
 ${readinessMarkdown(bp.readiness_report, { analysis_id: bp.analysis_id, status: bp.status, human_review: bp.human_review })}
 ${runtimeDecisionMarkdown(bp.runtime_decision)}
+${adoptionMarkdown(s.adoption)}
 ${executiveBriefMarkdown(bp.executive_brief)}
 
 ## Grounded pattern sources (keyword retrieval + required design IDs)
@@ -119,7 +121,7 @@ ${(bp.retrieved_patterns || []).map((p: { id: string; name: string; source_ref?:
   `- ${p.id}: ${p.name} — ${p.source_ref && p.content_sha256
     ? `${p.source_ref}; SHA256 ${p.content_sha256}` : "Legacy source unavailable; rerun analysis."}`).join("\n")}
 
-## ROI assumptions and sensitivity
+## Business value and pilot measures
 ${roiMarkdown(bp.roi)}
 `;
     const md = bp.status === "rejected" ? `${heading}
@@ -131,7 +133,7 @@ ${bp.human_review?.note || bp.governance?.reason || ""}
 ${bp.alternative || ""}
 ` : `${heading}
 
-**Readiness:** ${s.agent_score ?? "-"}/100 (${s.classification ?? "-"}) · Pattern: ${s.recommended_pattern ?? "-"}
+**Descriptive workflow profile (not an agentic-opportunity verdict):** ${s.agent_score ?? "-"}/100 (${s.classification ?? "-"}) · Pattern: ${s.recommended_pattern ?? "-"}
 
 ## Architecture
 ${bp.architecture_doc || ""}
@@ -191,6 +193,7 @@ ${bp.code_scaffold || ""}
       {bp && <EvidenceSummary report={bp.evidence_report} />}
       {bp && <ReadinessSummary report={bp.readiness_report} />}
       {bp && <ExecutiveBriefSummary brief={bp.executive_brief} sessionId={sessionId} />}
+      {bp && <AgenticAdoption adoption={bp.suitability_score?.adoption} readiness={bp.readiness_report} />}
       {bp && <RuntimeDecisionSummary decision={bp.runtime_decision} />}
       {bp && <Card title="Assessment deployment target">
         <p className="font-semibold">{bp.enterprise_context?.target_cloud === "aws" ? "AWS" : "Azure"} / {bp.enterprise_context?.preferred_region || "Region not specified"} (unverified)</p>
@@ -205,7 +208,7 @@ ${bp.code_scaffold || ""}
       </Card>}
       {bp && !bp.diagnosis && <Card><p className="text-amber-800 text-sm">Legacy analysis has no fact provenance. Rerun analysis before reviewing it.</p></Card>}
       <AnalysisEvidence diagnosis={bp?.diagnosis} scenario={bp?.demo_scenario} />
-      {bp?.roi && <Card title="ROI assumptions and sensitivity"><ROIReport roi={bp.roi} /></Card>}
+      {bp?.roi && <Card title="Business value and pilot measures"><ROIReport roi={bp.roi} /></Card>}
 
       {bp && (
         <Card title="Recommendation disposition">

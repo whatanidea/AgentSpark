@@ -3,8 +3,9 @@ from app.utils.models import (
     AgentSuitabilityScore, EnterpriseContext, FactEvidence, RuntimeDecision,
     RuntimeLayerDecision, RuntimeOption, RuntimeRequirements,
 )
+from app.scoring.adoption import effective_reasoning
 
-RULES_VERSION = "runtime-rules-v1"
+RULES_VERSION = "runtime-rules-v2"
 CATALOG_VERSION = "runtime-catalog-v1"
 CATALOG = {
     "none": ("No separate workflow engine", "Application code must own error handling and any required persistence."),
@@ -20,7 +21,7 @@ LIMITATIONS = (
     "require validation. No runtime guarantees exactly-once business effects."
 )
 RUNTIME_FIELDS = {
-    "reasoning": ("Reasoning behavior", "Are the steps deterministic, a bounded AI task, or dynamic iterative tool use?",
+    "reasoning": ("Reasoning behavior", "After collection, is investigation deterministic (fixed queries), a bounded AI task, or dynamic iterative tool/query selection? Deterministic collection alone does not answer this.",
                   ["unknown", "deterministic", "bounded", "dynamic"]),
     "duration": ("Process duration", "Is execution request-bound or long-running across hours or days?",
                  ["unknown", "request_bound", "long_running"]),
@@ -44,6 +45,8 @@ RUNTIME_FIELDS = {
                           []),
     "platform_constraints": ("Runtime platform constraints", "State existing platform, residency, network or team-skill constraints that need review.",
                             []),
+    "specialist_roles": ("Specialist responsibilities (optional)", "Only if multiple agents are justified, list distinct specialist responsibilities separated by semicolons. Multiple systems alone do not justify multiple agents.",
+                         []),
 }
 
 
@@ -57,7 +60,7 @@ def runtime_fields(requirements: RuntimeRequirements) -> list[dict]:
         fields.append({"id": f"runtime.{key}", "label": label, "question": question,
                        "group": "Architecture runtime requirements", "kind": "select" if options else "text",
                        "options": options, "max_length": 200 if key == "operational_owner" else 1000,
-                       "required": relevant and key not in ("scale_constraints", "platform_constraints")})
+                       "required": relevant and key not in ("scale_constraints", "platform_constraints", "specialist_roles")})
     return fields
 
 
@@ -78,14 +81,19 @@ def _layer(selected: str | None, reasons: list[str], options: list[RuntimeOption
 
 def recommend_runtime(requirements: RuntimeRequirements, sources: dict[str, FactEvidence],
                       score: AgentSuitabilityScore, context: EnterpriseContext) -> RuntimeDecision:
-    r = requirements
+    r = requirements.model_copy(deep=True)
+    r.reasoning, scope_warning = effective_reasoning(requirements, sources)
     tasks: list[str] = []
     missing = []
     reasoning_reasons = []
-    allowed_dynamic = score.classification == "High"
+    if scope_warning:
+        tasks.append(scope_warning)
+    conventional = (score.adoption.design_family == "standard_software" if score.adoption
+                    else score.classification == "Not Suitable")
+    allowed_dynamic = not conventional
     reasoning = {"deterministic": "none", "bounded": "bounded_handler",
                  "dynamic": "langgraph" if allowed_dynamic else "bounded_handler"}.get(r.reasoning)
-    if score.classification == "Not Suitable":
+    if conventional:
         reasoning = "none"
         reasoning_reasons.append("The prescribed standard-software design does not justify agent coordination.")
         if r.reasoning not in ("deterministic", "unknown"):
@@ -152,7 +160,7 @@ def recommend_runtime(requirements: RuntimeRequirements, sources: dict[str, Fact
     if r.platform_constraints or context.deployment_constraints or context.data_residency_requirements:
         tasks.append("Review supplied platform, deployment and residency constraints against each candidate; text constraints are not automatically verified.")
     reasoning_options = [
-        _option("none", r.reasoning == "deterministic" or score.classification == "Not Suitable",
+        _option("none", r.reasoning == "deterministic" or conventional,
                 "Application code suffices for deterministic processing; it cannot substitute for required dynamic reasoning.",
                 reasoning=True),
         _option("bounded_handler", r.reasoning == "bounded" or (r.reasoning == "dynamic" and not allowed_dynamic),

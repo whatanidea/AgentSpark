@@ -52,6 +52,7 @@ def _supported_count(candidate: DocumentField) -> bool:
 
 
 def validate_fields(state: WorkflowState, candidates: list[DocumentField]):
+    from app.scoring.adoption import reasoning_scope_supported
     catalog = {field["id"]: field for field in document_fields(state)}
     for candidate in candidates:
         spec = catalog.get(candidate.field_id)
@@ -64,6 +65,8 @@ def validate_fields(state: WorkflowState, candidates: list[DocumentField]):
         if not candidate.edited and spec["kind"] == "number" and not _supported_count(candidate):
             raise ValueError("A document count needs literal digits, matching number words, or cited consecutive decision ordinals.")
         quoted_text = " ".join([candidate.quote, *(quote.quote for quote in candidate.supporting_quotes)])
+        if candidate.field_id == "runtime.reasoning" and not candidate.edited and not reasoning_scope_supported(candidate.value, quoted_text):
+            raise ValueError("Deterministic collection/validation does not establish deterministic investigation. Cite the whole reasoning scope or leave it unresolved.")
         if not candidate.edited and spec["options"] and not _explicit_option(candidate.value, quoted_text):
             raise ValueError("A document rating or option must be explicit in its source quote, or marked as a human edit.")
         if candidate.value.lower() in ("unknown", "unconfirmed"):

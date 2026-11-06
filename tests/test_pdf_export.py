@@ -85,8 +85,8 @@ class PDFExportTests(unittest.TestCase):
             self.assertIn("PROVISIONAL - NOT APPROVED", page.extract_text())
             self.assertIn(analysis["analysis_id"], page.extract_text())
         for value in ("AgentSpark Assessment Report", "PROVISIONAL - NOT APPROVED", analysis["analysis_id"],
-                      "aws", "eu-central-1", "ROI assumptions and sensitivity", "Unknown",
-                      "conservative", "optimistic", "Evidence register", "Implementation Readiness Report",
+                      "aws", "eu-central-1", "Business value and pilot measures",
+                      "Business value deferred", "Evidence register", "Implementation Readiness Report",
                       "Not assessed", "not deployment-ready", "Source", "SHA256"):
             self.assertIn(value, text)
         self.assertIn(re.sub(r"\s+", " ", self.client.get(self.path).json()["assessment_limitations"]), text)
@@ -216,10 +216,31 @@ class PDFExportTests(unittest.TestCase):
         snapshot.update(evidence_report=None, readiness_report=None, roi={"cost_saved_per_year": 1234567},
                         diagnosis=None, retrieved_patterns=[])
         _, text = pdf_text(build_blueprint_pdf(snapshot))
-        for marker in ("historical assessment", "No auditable ROI scenarios", "unknown costs are not zero",
+        for marker in ("historical assessment", "historical illustrative estimate", "Unknown costs are not zero",
                        "No diagnostic provenance", "No retained pattern sources"):
             self.assertIn(marker, text)
         self.assertNotIn("1234567", text)
+
+    def test_optional_value_pdf_separates_capacity_cash_and_provenance(self):
+        response = self.client.post(f"/api/v1/analyze/{self.session}", json={"roi_assumptions": {
+            "mode": "estimate", "working_days_per_year": 250, "manual_minutes_per_item": 20,
+            "effort_reduction_percent": 40, "loaded_hourly_rate": 80,
+            "annual_cash_savings": 0, "annual_operating_cost": 30000, "implementation_cost": 10000,
+            "annual_avoided_hiring_value": 100000,
+            "service_improvements": "Measure response time in a bounded pilot.",
+            "evidence": {"loaded_hourly_rate": {"basis": "finance_approved", "reference": "Fictional role rate card"}},
+        }})
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()
+        self.assertEqual(result["roi"]["annual_net_cash_benefit"], -30000)
+        self.assertIsNone(result["roi"]["payback_months"])
+        _, text = pdf_text(self.download(result).content)
+        for marker in ("Capacity released", "not cash savings", "Supplied cash savings",
+                       "Separate avoided-hiring", "Total implementation cost", "-40000",
+                       "finance_approved", "Fictional role rate card", "Measure response time"):
+            self.assertIn(marker, text)
+        self.assertNotIn("conservative", text)
+        self.assertNotIn("optimistic", text)
 
     def test_parallel_reports_do_not_mix_private_content(self):
         self.analyze()
@@ -243,3 +264,73 @@ class PDFExportTests(unittest.TestCase):
         self.assertEqual(result.status_code, 500)
         self.assertEqual(result.json()["code"], "internal_error")
         self.assertNotIn("fictional-secret-error", json.dumps(logs.output) + result.text)
+
+    def test_decision_story_is_five_scannable_pages_before_a_bookmarked_reference(self):
+        analysis = self.analyze()
+        reader, text = pdf_text(self.download(analysis).content)
+        chapters = (
+            "The decision at a glance", "How the work would change", "What must be true before a pilot?",
+            "What value do we know today?", "Start small. Earn the right to expand.",
+            "Reference / Evidence and technical detail",
+        )
+        for index, title in enumerate(chapters):
+            self.assertIn(title, re.sub(r"\s+", " ", reader.pages[index].extract_text()))
+        outline = [entry["/Title"] for entry in reader.outline if isinstance(entry, dict)]
+        self.assertEqual(outline, list(chapters))
+        main_text = " ".join(page.extract_text() for page in reader.pages[:5])
+        self.assertNotIn("Diagnostic inputs and provenance", main_text)
+        self.assertNotIn("Illustrative, untested scaffold", main_text)
+        self.assertIn("Diagnostic inputs and provenance", text)
+        self.assertIn("Proposed responsibility flow, not a verified map", main_text)
+        self.assertIn("Capacity is not cash savings", main_text)
+        self.assertIn("Unknown", reader.pages[3].extract_text())
+        self.assertIn("What should we do?", reader.pages[0].extract_text())
+        self.assertIn("Your next move", reader.pages[0].extract_text())
+        sizes = []
+        reader.pages[0].extract_text(visitor_text=lambda text, cm, tm, font, size: sizes.append(size) if text.strip() else None)
+        self.assertIn(27, sizes)
+        self.assertIn(10.2, sizes)
+
+    def test_visual_summary_distinguishes_zero_from_unknown_and_does_not_inflate_permissions(self):
+        self.analyze()
+        snapshot = self.client.get(self.path).json()
+        snapshot["workflow_intelligence"].update(volume_per_day=0, decision_points=0, systems=[])
+        reader, _ = pdf_text(build_blueprint_pdf(snapshot))
+        cover = re.sub(r"\s+", " ", reader.pages[0].extract_text())
+        self.assertIn("0 / day", cover)
+        self.assertIn("Connected systems 0", cover)
+        self.assertIn("Human decision points 0", cover)
+        self.assertIn("does not authorize", cover)
+        snapshot["workflow_intelligence"] = {}
+        reader, _ = pdf_text(build_blueprint_pdf(snapshot))
+        cover = re.sub(r"\s+", " ", reader.pages[0].extract_text())
+        self.assertIn("Reported daily work Unknown", cover)
+        self.assertIn("Connected systems Unknown", cover)
+        self.assertIn("Human decision points Unknown", cover)
+
+    def test_long_cover_and_main_section_markup_are_safe_without_dropping_reference_tail(self):
+        self.analyze()
+        snapshot = self.client.get(self.path).json()
+        snapshot["workflow_intelligence"]["workflow_name"] = "Long fictional workflow " * 8
+        snapshot["workflow_intelligence"]["summary"] = (
+            '<img src="https://invalid.example/cover.png"/> & literal markup ' * 25 + "REFERENCE-SUMMARY-END")
+        snapshot["suitability_score"]["adoption"]["human_boundaries"] = [
+            "Long authorization boundary " * 70 + "REFERENCE-BOUNDARY-END"]
+        with patch("urllib.request.urlopen", side_effect=AssertionError("No remote content")):
+            reader, text = pdf_text(build_blueprint_pdf(snapshot))
+        for marker in ("<img", "REFERENCE-SUMMARY-END", "REFERENCE-BOUNDARY-END", "[see reference]"):
+            self.assertIn(marker, text)
+        for page in reader.pages:
+            self.assertFalse(page.get("/Annots"))
+            self.assertIn(snapshot["analysis_id"], page.extract_text())
+
+    def test_rejected_report_has_a_clear_alternative_instead_of_a_pilot_implementation_story(self):
+        analysis = self.analyze()
+        rejected = self.review(analysis, "reject")
+        reader, text = pdf_text(self.download(rejected).content)
+        outline = [entry["/Title"] for entry in reader.outline if isinstance(entry, dict)]
+        self.assertEqual(outline, ["The decision at a glance", "Why this proposal stopped",
+                                  "Reference / Evidence and technical detail"])
+        self.assertIn("Consider a non-agentic alternative", reader.pages[1].extract_text())
+        self.assertNotIn("How the work would change", text)
+        self.assertNotIn("Start small. Earn the right to expand.", text)

@@ -27,11 +27,13 @@ class MappingAgent:
         context = context or EnterpriseContext()
         cloud = context.target_cloud
         catalog = CATALOGS[cloud]
-        if score is not None and score.classification == "Not Suitable":
+        conventional = score is not None and (
+            score.adoption.design_family == "standard_software" if score.adoption else score.classification == "Not Suitable")
+        if conventional:
             result = CloudServiceMapping(
                 compute="Existing application hosting", database="Existing system of record",
                 ai="Not required", search="Not required", orchestration="Deterministic application code",
-                rationale="Readiness does not justify an agentic system; retain standard software.",
+                rationale="Available reasoning evidence does not justify an agent loop; retain standard software.",
             )
         elif self.use_mock:
             result = CloudServiceMapping(
@@ -49,6 +51,7 @@ class MappingAgent:
                            "Do not introduce agents or orchestration beyond that design." if score else "")
             payload = {"workflow": intel.model_dump(), "deployment_preferences": context.model_dump(),
                        "catalog_candidates": catalog}
+            payload["adoption_assessment"] = score.adoption.model_dump() if score and score.adoption else None
             result = structured_call(get_chat_llm(temperature=0.1), _SYSTEM + constraints,
                                      json.dumps(payload), CloudServiceMapping)
             if any(getattr(result, field) not in catalog[field]

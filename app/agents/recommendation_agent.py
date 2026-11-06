@@ -39,10 +39,11 @@ def _data_completeness(intel: WorkflowIntelligence, diagnosis: WorkflowDiagnosis
 
 _SYSTEM = """You are AgentSpark's Recommendation Agent. Explain the prescribed design for this
 CUSTOMER workflow, not AgentSpark itself. The required design family, primary pattern, autonomy,
-and human gate are authoritative constraints from the deterministic readiness score.
+and human gate are authoritative constraints from the evidence-backed adoption assessment.
 Use ONLY IDs in retrieved_patterns, include every required_pattern_id, and match the prescribed
-design and autonomy exactly. Do not recommend multi-agent or autonomous systems for Low or
-Not Suitable workflows. Cite the supplied patterns; never invent names, IDs, or sources.
+design and autonomy exactly. The descriptive profile score does not select architecture.
+Do not add specialists or autonomy beyond the prescribed design. Conditional candidates require
+validation before an agent loop is introduced. Cite supplied patterns; never invent names, IDs, or sources.
 Discuss limitations and the need for validation; completeness is NOT confidence in correctness.
 Use the selected cloud mapping and implementation references, not a different cloud's services.
 Preserve external customer integrations without treating them as the target hosting platform.
@@ -67,7 +68,12 @@ class RecommendationAgent:
                                 assessment_evidence: dict | None = None,
                                 runtime_decision: dict | None = None) -> dict:
         family, primary = _DESIGNS[score.classification]
-        required = (primary, "p04") if score.requires_hitl and family != "standard_software" else (primary,)
+        if score.adoption:
+            family = score.adoption.design_family
+            primary = {"supervisor_worker": "p02", "rag_copilot": "p05", "rpa_triage": "p09",
+                       "standard_software": "p20", "tool_agent": "p01", "hybrid_agentic": "p01"}[family]
+        required = (primary, "p06", "p04") if family in ("tool_agent", "hybrid_agentic") else (
+            (primary, "p04") if score.requires_hitl and family != "standard_software" else (primary,))
         if patterns is None:
             patterns = retrieve_patterns(self.build_query(intel, score), top_k=4, required_ids=required)
         # Only readiness-compatible patterns enter generation, even if lexical retrieval ranks another design highly.
@@ -87,7 +93,7 @@ class RecommendationAgent:
                 memory_strategy="Retain case state and audit records; do not reuse customer data as unvalidated model memory.",
                 governance="Human approval before consequential actions." if score.requires_hitl else
                            "Bound tool permissions, retain audit records, and validate quality before enabling actions.",
-                justification=f"{intel.workflow_name}: readiness {score.agent_score}/100 supports {score.recommended_pattern}. "
+                justification=f"{intel.workflow_name}: prescribed candidate is {score.recommended_pattern}; profile {score.agent_score}/100 does not select architecture. "
                               f"Rules are {intel.rule_stability}; data availability is {intel.data_availability}.",
                 critique="Fictional demo facts and estimated effort must be replaced with measured customer baselines.",
             )

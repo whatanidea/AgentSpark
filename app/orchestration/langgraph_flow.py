@@ -43,6 +43,7 @@ from app.agents.recommendation_agent import recommendation_agent
 from app.agents.blueprint_agent import blueprint_agent
 from app.agents.governance_agent import governance_agent
 from app.scoring.scoring_engine import scoring_engine
+from app.scoring.adoption import assess_adoption, effective_reasoning
 from app.scoring.roi import estimate_roi
 from app.database.cosmos_client import db_client
 from app.utils.processing import report_stage
@@ -110,13 +111,15 @@ def extract_intelligence(state: GraphState) -> GraphState:
 
 
 def score_workflow(state: GraphState) -> GraphState:
-    report_stage("Scoring the workflow with deterministic suitability rules")
+    report_stage("Assessing workflow profile, agentic opportunity and human boundaries")
     t = time.perf_counter()
     logger.info("[2/7] Scoring Engine → Agentification Readiness Index")
-    score = scoring_engine.evaluate(state["workflow_intelligence"])
+    score = assess_adoption(state["workflow_intelligence"], scoring_engine.evaluate(state["workflow_intelligence"]),
+        state["runtime_requirements"], state["runtime_requirement_sources"], state["diagnosis"])
     state["suitability_score"] = score
-    _trace(state, "Scoring Engine", f"Readiness {score.agent_score}/100 ({score.classification}); "
-           f"12 criteria evaluated; HITL={'required' if score.requires_hitl else 'optional'}.", t)
+    _trace(state, "Scoring Engine", f"Workflow profile {score.agent_score}/100 ({score.classification}); "
+           f"opportunity={score.adoption.opportunity}; candidate={score.adoption.design_family}; "
+           f"12 descriptive criteria; HITL={'required' if score.requires_hitl else 'optional'}.", t)
     return state
 
 
@@ -173,13 +176,13 @@ def evaluate_governance(state: GraphState) -> GraphState:
 
 
 def estimate_value(state: GraphState) -> GraphState:
-    report_stage("Calculating the value estimate from explicit assumptions")
+    report_stage("Recording deferred business value" if state["roi_assumptions"].mode == "deferred"
+                 else "Calculating optional capacity and business value from supplied inputs")
     t = time.perf_counter()
     logger.info("[5/7] ROI Engine → value estimate")
     roi = estimate_roi(state["workflow_intelligence"], state["suitability_score"], state["roi_assumptions"])
     state["roi"] = roi.model_dump()
-    _trace(state, "ROI Engine", f"~${roi.cost_saved_per_year:,}/yr saved, "
-           f"{roi.roi_multiple}x ROI, payback {roi.payback_months} mo.", t)
+    _trace(state, "ROI Engine", f"Business value {roi.status}; no financial assumptions required for technical analysis.", t)
     return state
 
 
@@ -252,6 +255,14 @@ def run_orchestration(session_id: str, roi_assumptions: ROIAssumptions | None = 
         raise ConcurrentUpdate()
     if roi_assumptions is not None:
         db_state.roi_assumptions = roi_assumptions
+    reasoning, scope_warning = effective_reasoning(db_state.runtime_requirements, db_state.runtime_requirement_sources)
+    if scope_warning:
+        db_state.runtime_requirements.reasoning = reasoning
+        if "runtime.reasoning" in db_state.interview_unconfirmed:
+            db_state.interview_unconfirmed.remove("runtime.reasoning")
+        for key in ("reasoning", "runtime.reasoning"):
+            if key in db_state.runtime_requirement_sources:
+                db_state.runtime_requirement_sources[key].status = "inferred"
 
     initial_state: GraphState = {
         "session_id": db_state.session_id,

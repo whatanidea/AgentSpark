@@ -1,15 +1,12 @@
 """
-Portfolio scoring — rank a backlog of workflows by agentification readiness.
-
-This turns AgentSpark from a single-workflow advisor into a transformation
-portfolio planner: feed it several candidate workflows and it ranks where agents
-deliver the most value first. Every score here is COMPUTED by the same 12-criteria
-engine used in the main flow — none are hard-coded.
+Compare descriptive workflow profiles and conditional adoption candidates.
+Profile order is not a financial-value or delivery-readiness ranking.
 """
 from typing import List
 
 from app.utils.models import WorkflowIntelligence, PortfolioEntry
 from app.scoring.scoring_engine import scoring_engine
+from app.scoring.adoption import assess_adoption
 from app.scoring.roi import estimate_roi
 from app.agents.governance_agent import governance_agent
 
@@ -52,13 +49,14 @@ def score_backlog(workflows: List[WorkflowIntelligence] | None = None) -> List[P
     workflows = workflows or SAMPLE_BACKLOG
     entries = []
     for wf in workflows:
-        s = scoring_engine.evaluate(wf)
+        s = assess_adoption(wf, scoring_engine.evaluate(wf))
         
         # Mock recommendation for portfolio planning governance checks
         mock_recommendation = {"confidence": 0.85, "architecture_doc": "Standard Architecture"}
         g = governance_agent.evaluate(wf, s, mock_recommendation, estimate_roi(wf, s))
         
         entries.append(PortfolioEntry(
+            adoption=s.adoption,
             workflow_name=wf.workflow_name,
             agent_score=s.agent_score,
             classification=s.classification,

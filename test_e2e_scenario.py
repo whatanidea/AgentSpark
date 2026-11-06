@@ -69,10 +69,11 @@ def run_tests():
     assert len(score["criteria"]) == 12, "expected 12 scoring criteria"
     assert data["governance"]["decision"] == "HUMAN_REVIEW_REQUIRED", "high compliance must require human review"
     assert len(data["patterns"]) > 0, "RAG should return grounded patterns"
-    assert data["roi"]["cost_saved_per_year"] > 0, "ROI should be quantified"
+    assert data["roi"]["status"] == "deferred", "financial estimates should be deferred by default"
+    assert data["roi"]["capacity_value_per_year"] is None, "unknown value must not be invented"
     assert len(data["trace"]) == 7, "expected a 7-step agent trace"
     print(f"   Governance risk: {data['governance']['overall_risk']}; "
-          f"ROI: ${data['roi']['cost_saved_per_year']:,}/yr ({data['roi']['roi_multiple']}x); "
+          f"Business value: {data['roi']['status']}; "
           f"trace steps: {len(data['trace'])}")
 
     print("=== 5. Blueprint ===")

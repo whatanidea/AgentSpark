@@ -144,7 +144,7 @@ def interview_progress(state: WorkflowState) -> dict:
     answers.update({f"readiness.{check.id}": check.finding for check in state.readiness_assessment.checks})
     answers.update({f"pilot.{key}": getattr(state.readiness_assessment.pilot, key) for key in _PILOT})
     answers.update({f"runtime.{key}": value for key, value in state.runtime_requirements.model_dump().items()
-                    if key in state.runtime_requirement_sources})
+                    if key in state.runtime_requirement_sources and state.runtime_requirement_sources[key].status == "supplied"})
     fields = interview_fields(state)
     missing = [field["id"] for field in fields if field.get("required", True)
                and not answers.get(field["id"], "").strip()]
@@ -231,7 +231,7 @@ def apply_answers(state: WorkflowState, answers: dict[str, str], *, captured=Fal
             if not captured or unconfirmed or not getattr(state.readiness_assessment.pilot, key):
                 setattr(state.readiness_assessment.pilot, key, text)
         elif group == "runtime":
-            if not captured or unconfirmed or key not in state.runtime_requirement_sources:
+            if not captured or unconfirmed or key not in state.runtime_requirement_sources or state.runtime_requirement_sources[key].status != "supplied":
                 values = state.runtime_requirements.model_dump()
                 values[key] = text or RuntimeRequirements().model_dump()[key]
                 state.runtime_requirements = RuntimeRequirements.model_validate(values)

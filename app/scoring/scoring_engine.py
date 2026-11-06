@@ -29,7 +29,7 @@ class ScoringEngine:
         "Rule Stability": 8,
         "Human Judgement": 8,
         "Unstructured Content": 10,
-        "ROI Potential": 8,
+        "Workload Footprint (not ROI)": 8,
         "Compliance Sensitivity (inverse)": 5,
         "Error Cost (inverse)": 5,
     }
@@ -69,9 +69,9 @@ class ScoringEngine:
             "Unstructured Content": (
                 _lvl(intel.unstructured_content, hi_med_lo),
                 f"Unstructured content is {intel.unstructured_content} — LLMs shine on free text/docs."),
-            "ROI Potential": (
+            "Workload Footprint (not ROI)": (
                 roi_raw,
-                "ROI estimated from volume × process complexity."),
+                "Volume and step-count footprint only; not financial value or proof of agentic opportunity."),
             "Compliance Sensitivity (inverse)": (
                 _lvl(intel.compliance_sensitivity, inverse),
                 f"Compliance is {intel.compliance_sensitivity} — higher sensitivity tempers full autonomy."),

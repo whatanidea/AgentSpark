@@ -680,6 +680,90 @@ class TenantFoundationTests(unittest.TestCase):
         self.assertEqual(response.status_code, 401)
         self.assertEqual(self.call("GET", "/organizations", subject="invitee")["items"], [])
 
+    def test_public_invite_preview_is_minimal_read_only_and_does_not_bypass_redemption_auth(self):
+        organization, team = self.organization()
+        created = self.call("POST", f"/organizations/{organization}/invites", status=201,
+                            body={"team_id": team, "team_roles": ["viewer"]})
+        response = self.client.post("/api/v1/invites/preview", json={"code": created["code"]})
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {
+            "organization_name": "Fictional enterprise", "team_name": "Finance", "role": "member",
+            "team_roles": ["viewer"], "expires_at": created["expires_at"]})
+        self.assertEqual(response.headers["cache-control"], "no-store")
+        self.assertEqual(response.headers["referrer-policy"], "no-referrer")
+        self.assertNotIn(created["code"], response.text)
+        self.assertNotIn(self.identity("owner"), response.text)
+        self.assertEqual(self.call("GET", f"/organizations/{organization}/invites")["items"][0]["uses"], 0)
+        self.assertEqual(self.call("GET", "/organizations", subject="invitee")["items"], [])
+        self.assertEqual(self.client.post("/api/v1/invites/redeem", json={"code": created["code"]}).status_code, 401)
+        for path in ("/api/v1/invites/preview", "/api/v1/invites/preview/other", "/api/v1/organizations"):
+            self.assertEqual(self.client.get(path).status_code, 401)
+
+    def test_selected_organization_lookup_requires_active_membership(self):
+        organization, team = self.organization()
+        self.call("GET", f"/organizations/{organization}", subject="outside", status=404)
+        identity = self.member(organization, team, "viewer", ["viewer"])
+        self.assertEqual(self.call("GET", f"/organizations/{organization}", subject="viewer"), {
+            "organization_id": organization, "name": "Fictional enterprise", "role": "member"})
+        member = tenant_directory.get(organization, f"member-{identity}")
+        tenant_directory.write([member.model_copy(update={"active": False})])
+        self.call("GET", f"/organizations/{organization}", subject="viewer", status=404)
+
+    def test_preview_and_redemption_reject_stale_invites_without_partial_membership(self):
+        organization, team = self.organization()
+        for reason in ("revoked", "expired", "used", "disabled_team", "disabled_organization", "forged"):
+            with self.subTest(reason=reason):
+                created = self.call("POST", f"/organizations/{organization}/invites", status=201,
+                                    body={"team_id": team, "team_roles": ["viewer"]})
+                code = created["code"]
+                record = tenant_directory.get(organization, f"invite-{created['invite_id']}")
+                original = None
+                if reason == "revoked":
+                    tenant_directory.write([record.model_copy(update={"active": False})])
+                elif reason == "expired":
+                    tenant_directory.write([record.model_copy(update={"expires_at": "2000-01-01T00:00:00+00:00"})])
+                elif reason == "used":
+                    self.call("POST", "/invites/redeem", subject="previous", body={"code": code})
+                elif reason in ("disabled_team", "disabled_organization"):
+                    original = tenant_directory.get(organization, f"team-{team}" if reason == "disabled_team" else "organization")
+                    tenant_directory.write([original.model_copy(update={"active": False})])
+                else:
+                    code = code[:-1] + ("A" if code[-1] != "A" else "B")
+                response = self.client.post("/api/v1/invites/preview", json={"code": code})
+                self.assertEqual(response.status_code, 404)
+                self.assertEqual(response.json()["detail"], "This invite link is invalid, expired, revoked, or already used.")
+                self.call("POST", "/invites/redeem", subject="outsider", body={"code": code}, status=404)
+                self.assertIsNone(tenant_directory.get(organization, f"member-{self.identity('outsider')}"))
+                if original:
+                    current = tenant_directory.get(organization, original.id)
+                    tenant_directory.write([current.model_copy(update={"active": True})])
+
+    def test_verified_external_email_claims_join_without_domain_rules_or_identity_aliasing(self):
+        organization, team = self.organization()
+        for index, email in enumerate(("fictional.invitee@gmail.com", "fictional.invitee@outside-company.example")):
+            with self.subTest(email=email):
+                subject = f"verified-guest-{index}"
+                claims = jwt.decode(self.headers(subject, reviewer=False)["Authorization"].split(" ", 1)[1],
+                                    self.key.public_key(), algorithms=["RS256"], audience=self.secure.audience,
+                                    issuer=self.secure.issuer)
+                claims.update(email=email, preferred_username=email)
+                headers = {"Authorization": "Bearer " + jwt.encode(claims, self.key, algorithm="RS256")}
+                denied = self.client.get(f"/api/v1/organizations/{organization}/teams", headers=headers)
+                self.assertEqual(denied.status_code, 404)
+                invite = self.call("POST", f"/organizations/{organization}/invites", status=201,
+                                   body={"team_id": team, "team_roles": ["viewer"]})
+                response = self.client.post("/api/v1/invites/redeem", headers=headers, json={"code": invite["code"]})
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(response.json()["workspace"], {
+                    "organization_id": organization, "team_id": team, "organization_name": "Fictional enterprise",
+                    "team_name": "Finance", "permissions": {"read": True, "write": False, "review": False, "delete": False}})
+                claims["sub"] = f"different-identity-{index}"
+                impostor = {"Authorization": "Bearer " + jwt.encode(claims, self.key, algorithm="RS256")}
+                self.assertEqual(self.client.get(f"/api/v1/organizations/{organization}/teams", headers=impostor).status_code, 404)
+                scoped = {**headers, "X-Organization-ID": organization, "X-Team-ID": team}
+                self.assertEqual(self.client.get("/api/v1/home", headers=scoped).status_code, 200)
+                self.assertFalse(self.client.get("/api/v1/auth/me", headers=headers).json()["can_review"])
+
     def test_invite_privileges_never_escalate_or_downgrade(self):
         organization, team = self.organization()
         self.call("POST", f"/organizations/{organization}/invites", subject="stranger", body={}, status=404)

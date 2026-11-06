@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../api";
 import { Card, Button, Bar, Pill, Spinner, classColor } from "./ui";
 import AnalysisEvidence from "./AnalysisEvidence";
@@ -6,7 +6,9 @@ import { EvidenceSummary } from "./EvidenceRegister";
 import { ReadinessSummary } from "./ImplementationReadiness";
 import RuntimeDecisionSummary from "./RuntimeDecision";
 import ExecutiveBriefSummary from "./ExecutiveBrief";
-import ROIReport, { DEFAULT_ROI_ASSUMPTIONS, ROIAssumptionForm } from "./ROIReport";
+import AgenticAdoption from "./AgenticAdoption";
+import ROIReport, { DEFAULT_ROI_ASSUMPTIONS, savedValueAssumptions, ROIAssumptionForm } from "./ROIReport";
+import type { ROIAssumptions } from "../api";
 
 function analysisData(s: any) {
   return !s || s.status === "init" ? null : {
@@ -19,7 +21,8 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
   const [busy, setBusy] = useState(false);
   const [running, setRunning] = useState(false);
   const [err, setErr] = useState("");
-  const [assumptions, setAssumptions] = useState(initialSnapshot?.roi_assumptions || DEFAULT_ROI_ASSUMPTIONS);
+  const [assumptions, setAssumptions] = useState<ROIAssumptions>(() => savedValueAssumptions(initialSnapshot?.roi_assumptions));
+  const valueForm = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
     if (!active || !sessionId) return;
@@ -28,6 +31,7 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
     api.session(sessionId).then((snapshot) => {
       if (cancelled) return;
       setData(analysisData(snapshot));
+      setAssumptions(savedValueAssumptions(snapshot.roi_assumptions));
     }).catch((e: Error) => {
       if (!cancelled) { setData(null); setErr(e.message); }
     }).finally(() => { if (!cancelled) { setBusy(false); onBusyChange(false); } });
@@ -36,9 +40,13 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
 
   async function run() {
     if (!sessionId) return;
+    if (assumptions.mode === "estimate" && valueForm.current && !valueForm.current.reportValidity()) {
+      setErr("Review the highlighted business-value input. Leave unknown values blank.");
+      return;
+    }
     setBusy(true); setRunning(true); onBusyChange(true); setErr(""); setData(null);
     try {
-      setData(await api.analyze(sessionId, assumptions));
+      setData(await api.analyze(sessionId, assumptions.mode === "deferred" ? DEFAULT_ROI_ASSUMPTIONS : assumptions));
       await onRefresh();
     } catch (e: any) { setErr(e.message); }
     finally { setBusy(false); setRunning(false); onBusyChange(false); }
@@ -56,8 +64,8 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
       <header className="page-header flex items-end justify-between flex-wrap gap-4">
         <div>
           <div className="eyebrow mb-2">Step 03 / Evaluate the opportunity</div>
-          <h1>Agentification Readiness</h1>
-          <p className="mt-2">A grounded assessment of readiness, value, architecture, and governance.</p>
+          <h1>Agentic Opportunity & Readiness</h1>
+          <p className="mt-2">Separate the agentic opportunity, human authority, delivery readiness, and optional business value.</p>
         </div>
         <Button aria-label="▶ Run Multi-Agent Analysis" onClick={run} disabled={!sessionId || busy}>Run Multi-Agent Analysis</Button>
       </header>
@@ -68,7 +76,10 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
       {data?.enterprise_context && <p className="notice">Assessment target: {data.enterprise_context.target_cloud === "aws" ? "AWS" : "Azure"}.
         {" "}Region: {data.enterprise_context.preferred_region || "not specified"} (unverified). This does not change AgentSpark hosting or deploy resources.</p>}
       {data && <ExecutiveBriefSummary brief={data.executive_brief} sessionId={sessionId} />}
-      <ROIAssumptionForm value={assumptions} onChange={setAssumptions} disabled={busy} />
+      {score && <AgenticAdoption adoption={score.adoption} readiness={data?.readiness_report} />}
+      <form ref={valueForm} onSubmit={(event) => { event.preventDefault(); void run(); }}>
+        <ROIAssumptionForm value={assumptions} onChange={setAssumptions} disabled={busy} />
+      </form>
       <AnalysisEvidence diagnosis={data?.diagnosis} scenario={data?.demo_scenario} />
       {data && <EvidenceSummary report={data.evidence_report} />}
       {data && <ReadinessSummary report={data.readiness_report} />}
@@ -95,7 +106,7 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
         <>
           {/* Score + ROI */}
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-            <Card className="lg:col-span-1">
+            <Card title="Descriptive workflow profile" className="lg:col-span-1">
               <div className="flex items-baseline gap-2">
                 <span className="text-6xl font-extrabold" style={{ color: classColor(score.classification) }}>{score.agent_score}</span>
                 <span className="text-zinc-500 text-lg">/100</span>
@@ -107,9 +118,10 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
               </div>
               <p className="text-sm text-zinc-700 mt-3 font-semibold">{score.recommended_pattern}</p>
               <p className="text-xs text-zinc-500 mt-1">{score.explanation}</p>
+              <p className="text-xs text-zinc-500 mt-2">This profile is not an agentic-opportunity verdict, ROI estimate or deployment authorization.</p>
             </Card>
 
-            <Card title="Estimated ROI" className="lg:col-span-2">
+            <Card title="Business value and pilot measures" className="lg:col-span-2">
               {roi ? (
                 <>
                   <ROIReport roi={roi} />

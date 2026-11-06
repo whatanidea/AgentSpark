@@ -108,7 +108,7 @@ test("executive brief keeps provenance in UI and exports and blocks a stale summ
     const card = page.locator(".surface-card").filter({
       has: page.getByRole("heading", { name: "Executive decision brief", exact: true }),
     });
-    await expect(card).toContainText("Investigate further before authorizing a pilot");
+    await expect(card).toContainText("Validate the agentic opportunity before authorizing a pilot");
     await expect(card).toContainText("not realized cash savings");
     await card.getByText("Risks, gaps and source evidence", { exact: true }).click();
     await expect(card).toContainText("roi.assumptions");
@@ -125,7 +125,7 @@ test("executive brief keeps provenance in UI and exports and blocks a stale summ
     await card.getByRole("button", { name: "Export one-page brief PDF", exact: true }).click();
     expect((await pdfDownload).suggestedFilename()).toBe("AgentSpark_Executive_Brief.pdf");
     await page.getByRole("button", { name: "4 · Blueprint & Review", exact: true }).click();
-    await expect(card).toContainText("Investigate further before authorizing a pilot");
+    await expect(card).toContainText("Validate the agentic opportunity before authorizing a pilot");
     const progress = await (await page.request.get(`/api/v1/sessions/${session}/interview`)).json();
     expect((await page.request.put(`/api/v1/sessions/${session}/interview`, {
       data: { version: progress.version, answers: { "fact.steps": "9" } },

@@ -241,6 +241,13 @@ class TenantDirectory:
         if not team_record or not team_record.active:
             not_found()
         grant = self.get(organization, f"grant-{team}-{member.identity_id}")
+        permissions = self.member_permissions(member, grant)
+        if not permissions:
+            not_found()
+        return permissions
+
+    @staticmethod
+    def member_permissions(member: DirectoryRecord, grant: DirectoryRecord | None) -> set[str]:
         roles = set(grant.roles) if grant and grant.active and grant.generation == member.generation else set()
         permissions = {"read", "write", "delete"} if member.role in ("owner", "admin") else set()
         if roles:
@@ -249,8 +256,6 @@ class TenantDirectory:
             permissions.add("write")
         if "reviewer" in roles:
             permissions.add("review")
-        if not permissions:
-            not_found()
         return permissions
 
     def require(self, organization: str, team: str, action: Action):
