@@ -14,7 +14,7 @@ from pydantic import ValidationError
 from app.agents.demo_scenarios import DEMO_SCENARIOS, demo_diagnosis
 from app.agents.diagnostic_agent import DiagnosticAgent
 from app.agents.recommendation_agent import RecommendationAgent, Recommendation, _data_completeness
-from app.agents.blueprint_agent import BlueprintAgent, Blueprint
+from app.agents.blueprint_agent import BlueprintAgent, Blueprint, _demo_view
 from app.agents.governance_agent import governance_agent
 from app.api import routes
 from app.database.cosmos_client import db_client
@@ -576,19 +576,28 @@ class Phase3APITests(unittest.TestCase):
         self.assertEqual(bp["diagnosis"], result["diagnosis"])
         self.assertEqual(bp["demo_scenario"], "claims")
         self.assertIn("No live cloud pricing was queried", bp["cost_estimate"])
+        view = bp["architecture_view"]
+        self.assertEqual(view["version"], "architecture-view-v1")
+        self.assertGreaterEqual(len(view["flow"]), 4)
+        self.assertLessEqual(len(view["flow"]), 7)
+        self.assertTrue(any(step["kind"] == "human" for step in view["flow"]))
+        for previous, following in zip(view["flow"], view["flow"][1:]):
+            self.assertEqual(previous["produces"], following["receives"])
+        self.assertEqual({choice["component"] for choice in view["choices"]}, {"compute", "database"})
 
     def test_live_blueprint_receives_full_context_instead_of_only_score(self):
         diagnosis = confirmed_diagnosis()
         intel = diagnosis.intelligence
         score = scoring_engine.evaluate(intel)
         context = EnterpriseContext(business_domain="Finance", pain_points="Slow review")
-        mapping = {"compute": "Example hosting"}
+        mapping = {"compute": "Azure Container Apps", "database": "Azure Cosmos DB", "ai": "Azure OpenAI"}
         rec = RecommendationAgent().generate_recommendation(score, mapping, intel, diagnosis=diagnosis)
         roi = estimate_roi(intel, score).model_dump()
         governance = governance_agent.evaluate(intel, score, rec, estimate_roi(intel, score)).model_dump()
         agent = BlueprintAgent()
         agent.use_mock = False
         model_result = Blueprint(
+                                 architecture_view=_demo_view(intel, score, mapping, context.target_cloud),
                                  design_family=rec["design_family"], autonomy_level=score.autonomy_level,
                                  requires_hitl=score.requires_hitl, pattern_ids=rec["pattern_ids"],
                                  governance_decision=governance["decision"],
@@ -611,7 +620,14 @@ class Phase3APITests(unittest.TestCase):
         for changes in ({"design_family": "standard_software"}, {"autonomy_level": "Autonomous"},
                         {"requires_hitl": False}, {"pattern_ids": ["p20"]},
                         {"pattern_ids": rec["pattern_ids"] + [rec["pattern_ids"][0]]},
-                        {"governance_decision": "AUTO_APPROVE"}):
+                        {"governance_decision": "AUTO_APPROVE"},
+                        {"architecture_view": None},
+                        {"architecture_view": model_result.architecture_view.model_copy(update={
+                            "flow": [step.model_copy(update={"kind": "software"})
+                                     for step in model_result.architecture_view.flow]})},
+                        {"architecture_view": model_result.architecture_view.model_copy(update={
+                            "choices": [choice.model_copy(update={"alternative": "AWS Lambda"})
+                                        for choice in model_result.architecture_view.choices]})}):
             with self.subTest(changes=changes), \
                     patch("app.agents.blueprint_agent.get_chat_llm", return_value=Mock()), \
                     patch("app.agents.blueprint_agent.structured_call",

@@ -116,6 +116,7 @@ def decision_record(state: WorkflowState, now: datetime, retention_days: int) ->
             "human_review": state.human_review.model_dump(mode="json") if state.human_review else None,
             "roi": state.roi, "retrieved_patterns": state.retrieved_patterns,
             "architecture_doc": blueprint.get("architecture_doc", ""),
+            "architecture_view": blueprint.get("architecture_view"),
             "cost_estimate": blueprint.get("cost_estimate", ""),
             "roadmap": blueprint.get("roadmap", ""),
         },

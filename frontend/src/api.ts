@@ -206,6 +206,17 @@ export type AdoptionAssessment = {
   human_boundaries: string[]; questions: string[]; pilot_scope: string; success_criteria: string[];
   stop_conditions: string[]; expansion_conditions: string[]; readiness_basis: string;
 };
+export type ArchitectureView = {
+  version: "architecture-view-v1";
+  outcome: string; why: string;
+  flow: {
+    title: string; kind: "software" | "ai" | "human"; purpose: string;
+    receives: string; produces: string; control: string;
+    components: ("compute" | "database" | "ai" | "search" | "orchestration" | "systems")[];
+  }[];
+  choices: { component: "compute" | "database"; why: string; alternative: string; tradeoff: string }[];
+  milestones: { title: string; acceptance: string }[];
+};
 export type ArchivedDecision = {
   summary: HomeItem;
   details: {
@@ -222,6 +233,7 @@ export type ArchivedDecision = {
     human_review: { decision: "approve" | "reject"; reviewer: string; note: string; reviewed_at: string } | null;
     governance: { decision: string; overall_risk: string; reason: string } | null;
     architecture_doc: string; cost_estimate: string; roadmap: string;
+    architecture_view?: ArchitectureView | null;
     retrieved_patterns: { id: string; name: string; source_ref: string; content_sha256: string }[];
     roi: import("./components/ROIReport").ROIResult | null;
   };

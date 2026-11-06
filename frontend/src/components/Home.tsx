@@ -10,6 +10,7 @@ import RuntimeDecisionSummary from "./RuntimeDecision";
 import AgenticAdoption from "./AgenticAdoption";
 import ExecutiveBriefSummary from "./ExecutiveBrief";
 import HomeDiscovery from "./HomeDiscovery";
+import ArchitectureDiagram from "./ArchitectureDiagram";
 
 const STATUS: Record<HomeStatus, { label: string; tone: "positive" | "red" | "amber" | "slate" }> = {
   draft: { label: "Draft / clarification", tone: "slate" },
@@ -176,7 +177,11 @@ export default function Home({ demo, retentionDays, workspaceName, canCreate, on
         <p className="text-xs text-zinc-500 mt-2">Overall risk: {decision.details.governance.overall_risk}. A human review does not rewrite the original policy outcome.</p>
       </Card>}
       {decision.details.roi && <Card title="Business value and pilot measures"><ROIReport roi={decision.details.roi} /></Card>}
-      {decision.details.architecture_doc && <Card title="Retained recommendation"><Markdown>{decision.details.architecture_doc}</Markdown></Card>}
+      {decision.summary.status !== "rejected" && decision.details.architecture_view && <ArchitectureDiagram bp={decision.details} />}
+      {decision.details.architecture_doc && <details className="rounded border border-zinc-200 p-5">
+        <summary className="cursor-pointer font-semibold text-brand-800">Retained technical recommendation</summary>
+        <Card title="Retained recommendation"><Markdown>{decision.details.architecture_doc}</Markdown></Card>
+      </details>}
       {decision.details.cost_estimate && <Card title="Retained cost estimate"><Markdown>{decision.details.cost_estimate}</Markdown></Card>}
       {decision.details.roadmap && <Card title="Retained delivery roadmap"><Markdown>{decision.details.roadmap}</Markdown></Card>}
       <p className="text-xs text-zinc-500 leading-relaxed">This deletable decision snapshot is not an immutable compliance audit log. Full interview transcripts are not retained in this archive.</p>

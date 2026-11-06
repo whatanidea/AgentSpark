@@ -141,6 +141,50 @@ class PDFExportTests(unittest.TestCase):
         self.assertIn("REJECTED RECOMMENDATION", text)
         self.assertNotIn("Illustrative, untested scaffold", text)
 
+    def test_connected_overview_is_retained_and_legacy_pdf_is_explicit(self):
+        self.analyze()
+        snapshot = self.client.get(self.path).json()
+        view = snapshot["architecture_view"]
+        reader, text = pdf_text(build_blueprint_pdf(snapshot))
+        for step in view["flow"]:
+            self.assertIn(step["title"], text)
+            self.assertIn(step["control"], text)
+        self.assertIn("Key building-block decisions", text)
+        self.assertIn("Acceptance-based delivery gates", text)
+        self.assertIn("not completed", text)
+        self.assertNotIn("[U+2192]", reader.pages[1].extract_text())
+        del snapshot["architecture_view"]
+        _, legacy = pdf_text(build_blueprint_pdf(snapshot))
+        self.assertIn("No workflow-specific overview was recorded", legacy)
+        self.assertIn(snapshot["architecture_doc"].splitlines()[0].replace("#", "").strip(), legacy)
+        self.assertLess(len(reader.pages), 30)
+
+    def test_repeated_source_metadata_is_compacted_without_losing_quotes(self):
+        self.analyze()
+        snapshot = self.client.get(self.path).json()
+        source = {"filename": "Unique-fictional-evidence-file.pdf", "sha256": "a" * 64,
+                  "reviewed_by": "Fictional document reviewer", "format": "pdf"}
+        snapshot["document_intake"] = {"fields": [
+            {"field_id": f"field_{index}", "quote": f"Unique retained quotation {index}", "source": source}
+            for index in range(4)]}
+        _, text = pdf_text(build_blueprint_pdf(snapshot))
+        self.assertEqual(text.count(source["filename"]), 1)
+        self.assertIn("identical record retained above", text)
+        for index in range(4):
+            self.assertIn(f"Unique retained quotation {index}", text)
+
+    def test_identical_long_quotes_keep_exact_text_once_and_reference_each_fact(self):
+        self.analyze()
+        snapshot = self.client.get(self.path).json()
+        quote = "Fictional exact shared source quotation. " * 7
+        snapshot["document_intake"] = {"fields": [
+            {"field_id": f"quoted_fact_{index}", "quote": quote} for index in range(3)]}
+        _, text = pdf_text(build_blueprint_pdf(snapshot))
+        self.assertEqual(text.count(quote.strip()), 1)
+        self.assertGreaterEqual(text.count("identical recorded quotation retained above"), 2)
+        for index in range(3):
+            self.assertIn(f"quoted_fact_{index}", text)
+
     def test_missing_stale_and_malformed_export_requests_fail_explicitly(self):
         result = self.client.get(self.path + "/pdf", params={"analysis_id": str(uuid4()), "status": "completed"})
         self.assertEqual(result.status_code, 404)
@@ -281,7 +325,7 @@ class PDFExportTests(unittest.TestCase):
         self.assertNotIn("Diagnostic inputs and provenance", main_text)
         self.assertNotIn("Illustrative, untested scaffold", main_text)
         self.assertIn("Diagnostic inputs and provenance", text)
-        self.assertIn("Proposed responsibility flow, not a verified map", main_text)
+        self.assertIn("Proposed handoffs, not a deployed system", main_text)
         self.assertIn("Capacity is not cash savings", main_text)
         self.assertIn("Unknown", reader.pages[3].extract_text())
         self.assertIn("What should we do?", reader.pages[0].extract_text())

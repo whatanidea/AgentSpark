@@ -11,7 +11,8 @@ from reportlab.lib import colors
 from reportlab.lib.enums import TA_LEFT
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle
-from reportlab.graphics.shapes import Drawing, Rect
+from reportlab.graphics.shapes import Drawing, Line, Polygon, Rect
+from app.utils.blueprint_view import narrative_text
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.platypus import KeepInFrame, PageBreakIfNotEmpty, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
@@ -329,9 +330,19 @@ def _assessment_reference(report, snapshot: dict):
         report.field("Reason", (review or {}).get("note") or (snapshot.get("governance") or {}).get("reason"))
         report.paragraph(snapshot.get("alternative") or "Use a deterministic, human-controlled alternative.")
     else:
+        if snapshot.get("architecture_view"):
+            report.heading("Full proposed architecture overview")
+            view = snapshot["architecture_view"]
+            report.field("Overview schema", view["version"])
+            report.paragraph("Outcome, building-block trade-offs and delivery gates are retained in chapters 01, 02 and 05.")
+            report.table([["Step / responsibility", "Purpose, handoff and control"]] + [
+                [f"{index + 1}. {step['title']} / {step['kind']}",
+                 f"{step['purpose']}\nReceives: {step['receives']}\nProduces: {step['produces']}\n"
+                 f"Control: {step['control']}\nComponents: {', '.join(step['components']) or 'Accountable person'}"]
+                for index, step in enumerate(view["flow"])], [145, report.width - 145])
         for title, key in (("Architecture", "architecture_doc"), ("Cost estimate", "cost_estimate"), ("Roadmap", "roadmap")):
             report.heading(title)
-            report.markdown(snapshot.get(key) or "Not supplied.")
+            report.markdown(narrative_text(snapshot.get(key) or "Not supplied."))
         report.heading("Mermaid diagram source")
         report.paragraph("Text source only; the PDF does not execute or render Mermaid diagrams.")
         report.markdown("```mermaid\n" + (snapshot.get("mermaid_diagram") or "Not supplied") + "\n```")
@@ -396,6 +407,8 @@ class _AssessmentReport(_Report):
         self.reference = False
         self.reference_sections = 0
         self.width = _WIDTH - 12
+        self.source_records = {}
+        self.quote_records = {}
 
     def heading(self, title, minor=False):
         style = self.h1 if self.reference and not minor else self.h2
@@ -483,9 +496,38 @@ class _AssessmentReport(_Report):
         ]))
         self.story.extend([table, Spacer(1, 10)])
 
+    def field(self, name, value):
+        if name.casefold() == "quote" and isinstance(value, str) and len(value) >= 160:
+            if value in self.quote_records:
+                super().field(name, f"{self.quote_records[value]} (identical recorded quotation retained above)")
+                return
+            reference = f"Q{len(self.quote_records) + 1}"
+            self.quote_records[value] = reference
+            super().field(f"Quote / {reference}", value)
+            return
+        super().field(name, value)
+
     def details(self, data):
+        if isinstance(data, dict) and "filename" in data and "sha256" in data:
+            key = json.dumps(data, sort_keys=True, ensure_ascii=True)
+            if key in self.source_records:
+                self.paragraph(f"Source metadata: {self.source_records[key]} (identical record retained above).", self.small)
+                return
+            reference = f"S{len(self.source_records) + 1}"
+            self.source_records[key] = reference
+            self.paragraph(f"Source metadata reference: {reference}. Reviewer-provided, not verified.", self.small)
         if isinstance(data, dict):
+            compact = {key for key, value in data.items()
+                       if key != "quote" and not isinstance(value, (dict, list))
+                       and len(_display(value)) <= 80}
+            if len(compact) >= 3:
+                self.paragraph(" | ".join(f"{_label(key)}: {_display(value)}"
+                                         for key, value in data.items() if key in compact), self.small)
+            else:
+                compact = set()
             for key, value in data.items():
+                if key in compact:
+                    continue
                 if isinstance(value, (dict, list)) and value:
                     self.heading(_label(key), minor=True)
                     self.details(value)
@@ -500,6 +542,28 @@ class _AssessmentReport(_Report):
                 self.details(value)
         else:
             self.paragraph(data, self.small)
+
+    def workflow_view(self, view):
+        roles = {"software": "SOFTWARE", "ai": "BOUNDED AI", "human": "HUMAN"}
+        title = ParagraphStyle("FlowTitle", parent=self.small, fontName="ReportVeraBold", spaceAfter=3)
+        for index, step in enumerate(view["flow"]):
+            tone = "warning" if step["kind"] == "human" else "accent" if step["kind"] == "ai" else "neutral"
+            table = Table([[Paragraph(_text(f"{index + 1:02d} / {roles[step['kind']]}"), title),
+                            [Paragraph(_text(step["title"]), title),
+                             Paragraph(_text(f"Input: {step['receives']} | Output: {step['produces']}"), self.small)]]],
+                          colWidths=[95, self.width - 95], hAlign="LEFT", splitByRow=1, splitInRow=1)
+            table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, -1), _TONES[tone][0]), ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 8), ("RIGHTPADDING", (0, 0), (-1, -1), 8),
+                ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+            ]))
+            self.story.append(table)
+            if index < len(view["flow"]) - 1:
+                arrow = Drawing(16, 12)
+                arrow.add(Line(8, 12, 8, 3, strokeColor=_PURPLE, strokeWidth=1))
+                arrow.add(Polygon([5, 5, 8, 1, 11, 5], fillColor=_PURPLE, strokeColor=None))
+                self.story.append(arrow)
+        self.paragraph("Proposed handoffs, not a deployed system. Step purposes, services and control boundaries are retained in the reference section.", self.small)
 
     def workflow_strip(self, *, agentic):
         labels = (("01 / INPUT", "Work arrives"), ("02 / SOFTWARE", "Collect and validate"),
@@ -562,6 +626,7 @@ def build_blueprint_pdf(snapshot: dict) -> bytes:
     runtime = snapshot.get("runtime_decision") or {}
     review = snapshot.get("human_review") or {}
     value = snapshot.get("roi") or {}
+    view = None if rejected else snapshot.get("architecture_view")
     report.chapter("01", "The decision at a glance", first=True)
     report.paragraph("AgentSpark Assessment Report", report.small)
     report.paragraph(intel.get("workflow_name") or context.get("business_domain") or "Workflow assessment", report.title)
@@ -585,6 +650,9 @@ def build_blueprint_pdf(snapshot: dict) -> bytes:
         brief.get("rationale") or score.get("explanation"))
     report.paragraph(_excerpt(rationale or "No recorded decision rationale. Rerun analysis before relying on this assessment.", 440))
     if not rejected:
+        if view:
+            report.panel("Proposed outcome", view["outcome"], "accent")
+            report.paragraph(view["why"])
         report.panel("Agentic opportunity: " + _OPPORTUNITY_LABELS.get(adoption.get("opportunity"), "Not assessed in this historical report"),
                      adoption.get("design_label") or score.get("recommended_pattern") or "No recorded design candidate.",
                      "accent")
@@ -602,15 +670,25 @@ def build_blueprint_pdf(snapshot: dict) -> bytes:
         report.paragraph(adoption.get("design_label") or score.get("recommended_pattern") or "Candidate not recorded.", report.h2)
         report.paragraph("AI is one part of the workflow, not a replacement for controls or accountability.")
         agentic = adoption.get("design_family") != "standard_software" if adoption else score.get("classification") != "Not Suitable"
-        report.workflow_strip(agentic=agentic)
-        report.heading("Where the work happens")
-        report.paragraph(", ".join(intel.get("systems", [])) or "No integrations reported.")
-        report.heading("Keep in ordinary software")
-        report.bullets(adoption.get("deterministic_responsibilities") or
-                       ["No responsibility split was recorded in this historical assessment; validate the architecture before implementation."], limit=3)
-        report.heading("Proposed AI / agent responsibilities")
-        report.bullets(adoption.get("proposed_agent_responsibilities") or
-                       ["No agent responsibilities were recorded. Do not infer them from the profile score."], limit=3)
+        if view:
+            report.workflow_view(view)
+            mapping = snapshot.get("cloud_mapping") or {}
+            report.heading("Key building-block decisions")
+            report.table([["Candidate / comparison", "Reason and trade-off"]] + [
+                [f"{choice['component']}: {mapping.get(choice['component'], 'Not recorded')}\nCompare: {choice['alternative']}",
+                 f"{choice['why']}\n{choice['tradeoff']}"] for choice in view["choices"]],
+                [180, report.width - 180])
+        else:
+            report.paragraph("No workflow-specific overview was recorded in this historical assessment. This strip is a generic reading aid; retained technical detail follows.", report.small)
+            report.workflow_strip(agentic=agentic)
+            report.heading("Where the work happens")
+            report.paragraph(", ".join(intel.get("systems", [])) or "No integrations reported.")
+            report.heading("Keep in ordinary software")
+            report.bullets(adoption.get("deterministic_responsibilities") or
+                           ["No responsibility split was recorded in this historical assessment; validate the architecture before implementation."], limit=3)
+            report.heading("Proposed AI / agent responsibilities")
+            report.bullets(adoption.get("proposed_agent_responsibilities") or
+                           ["No agent responsibilities were recorded. Do not infer them from the profile score."], limit=3)
         report.panel("Who remains in control?",
                      _excerpt(" ".join(adoption.get("human_boundaries") or
                               ["Preserve recorded human approval and authorization requirements; this report grants no new authority."]), 400),
@@ -681,24 +759,31 @@ def build_blueprint_pdf(snapshot: dict) -> bytes:
         report.paragraph("Input sources, role-level effort, assumptions and missing values are retained in the reference section.", report.small)
 
         report.chapter("05", "Start small. Earn the right to expand.")
+        if view:
+            report.heading("Acceptance-based delivery gates / not completed")
+            report.table([["Delivery gate / not completed", "Acceptance criterion"]] +
+                         [[f"{index}. {milestone['title']}", milestone["acceptance"]]
+                          for index, milestone in enumerate(view["milestones"], 1)],
+                         [150, report.width - 150])
         report.panel("Proposed pilot scope - not authorization",
                      _excerpt(pilot.get("scope") or adoption.get("pilot_scope") or
                               "No pilot scope recorded. Agree the cases, data and boundaries with the process owner.", 500), "accent")
-        report.heading("1 / Set the baseline and answer the open questions")
-        report.paragraph(_excerpt(adoption.get("current_approach") or
-                         "Compare the proposed approach against a simpler, human-controlled baseline.", 300))
-        report.bullets(adoption.get("questions") or ["No adoption questions recorded; review the full validation checklist."], limit=3)
-        report.heading("2 / Agree what success looks like before testing")
+        if not view:
+            report.heading("1 / Set the baseline and answer the open questions")
+            report.paragraph(_excerpt(adoption.get("current_approach") or
+                             "Compare the proposed approach against a simpler, human-controlled baseline.", 300))
+            report.bullets(adoption.get("questions") or ["No adoption questions recorded; review the full validation checklist."], limit=3)
+        report.heading("Recorded success criteria" if view else "2 / Agree what success looks like before testing")
         if pilot.get("success_metrics"):
             report.paragraph("Recorded success targets: " + _excerpt(pilot["success_metrics"], 260))
         report.bullets(adoption.get("success_criteria") or
                        ["Define measurable acceptance thresholds before a pilot."], limit=2 if pilot.get("success_metrics") else 3)
-        report.heading("3 / Stop when safety or quality fails")
+        report.heading("Stop when safety or quality fails" if view else "3 / Stop when safety or quality fails")
         stops = adoption.get("stop_conditions") or ["Define failure, escalation and rollback conditions before a pilot."]
         if pilot.get("failure_handling"):
             stops = ["Recorded failure plan: " + pilot["failure_handling"], *stops]
         report.bullets(stops, limit=2)
-        report.heading("4 / Expand only after evidence and explicit approval")
+        report.heading("Expand only after evidence and explicit approval" if view else "4 / Expand only after evidence and explicit approval")
         if pilot.get("authorization_boundaries"):
             report.paragraph("Recorded authorization boundary: " + _excerpt(pilot["authorization_boundaries"], 260))
         report.bullets(adoption.get("expansion_conditions") or

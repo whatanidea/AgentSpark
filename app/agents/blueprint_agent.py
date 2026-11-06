@@ -11,7 +11,8 @@ from app.utils.models import (
 from app.utils.llm import get_chat_llm, structured_call, model_dependency
 from app.utils.runtime import demo_mode
 from app.utils.errors import InvalidDependencyResponse
-from app.agents.cloud_catalog import CLOUD_NAMES, LIMITATIONS, has_foreign_services
+from app.agents.cloud_catalog import CATALOGS, CLOUD_NAMES, LIMITATIONS, has_foreign_services
+from app.utils.blueprint_view import ArchitectureView, narrative_text
 
 logger = logging.getLogger(__name__)
 
@@ -23,10 +24,11 @@ class Blueprint(BaseModel):
     requires_hitl: bool
     pattern_ids: list[str] = Field(min_length=1, max_length=4)
     governance_decision: GovernanceDecision
-    architecture_doc: str = Field(..., description="Markdown architecture for the CUSTOMER workflow")
+    architecture_view: ArchitectureView | None = Field(default=None, description="Required for new generation: concise proposed outcome, connected flow, compute/storage trade-offs and three acceptance-based milestones")
+    architecture_doc: str = Field(..., max_length=6000, description="Supporting Markdown technical detail for the CUSTOMER workflow, not a repeated executive summary")
     mermaid_diagram: str = Field(..., description="Mermaid graph TD of the customer workflow, no fences")
-    cost_estimate: str = Field(..., description="Unpriced cost drivers; distinguish supplied budgets from assumptions")
-    roadmap: str = Field(..., description="30/60/90-day roadmap that preserves the prescribed design and human gate")
+    cost_estimate: str = Field(..., max_length=1600, description="Concise unpriced cost drivers; distinguish supplied budgets from assumptions")
+    roadmap: str = Field(..., max_length=2200, description="Acceptance-based delivery phases, not invented 30/60/90-day dates")
     code_scaffold: str = Field(..., description="Illustrative untested scaffold, NOT deployment-ready code")
 
 
@@ -64,6 +66,74 @@ preserve unanswered questions and do not introduce a reasoning engine before con
 Do not treat a low descriptive profile score as a reason to reject a supported supervised agent.
 Preserve the pilot baseline, measurable acceptance criteria, stop and expansion conditions.
 Specialist coordination is only a candidate when distinct responsibilities were explicitly supplied."""
+_SYSTEM += """
+Return architecture_view for every new blueprint. Outcome is a proposed benefit, never a measured
+result. Explain the key decision rather than repeating the input. Use 4-7 ordered workflow-specific
+steps with short titles, software/ai/human responsibility, inputs, outputs, control boundaries and
+component keys from cloud_mapping (systems means the supplied external integrations).
+Adjacent steps must form a connected handoff: produces must exactly match the next receives.
+A human step is mandatory when requires_hitl is true;
+standard software must not have an ai step. The view grants no new execution authority.
+Include exactly two choices, one compute and one database, with an alternative verbatim from the
+supplied service_catalog and a concrete trade-off. Keep infrastructure choices conditional where
+requirements are unconfirmed; do not invent always-on, SQL/ACID, scale or integration requirements.
+Provide exactly three milestones: validate prerequisites, prove safe recovery/quality, then a
+separately authorized bounded pilot. Acceptance criteria must preserve supplied pilot targets.
+Resolve recovery and safe publication BEFORE a live pilot, not after it.
+Supporting detail should add failure handling, interfaces, evidence validation and permission
+boundaries, not duplicate the overview. Use actual newlines, never literal backslash-n.
+Scaffolds must not permanently mark a request handled before its output is safely published:
+distinguish pending/in-progress/published/failed state, retryable failure and ambiguous publication.
+Preserve event/evidence identities, reconciliation and at-least-once limitations; never promise
+exactly-once external effects. Keep code illustrative and untested."""
+
+
+def _demo_view(intelligence, score, mapping, cloud):
+    flow = [
+        dict(title="Validate the workflow request", kind="software",
+             purpose=f"Accept a scoped request for {intelligence.workflow_name}.",
+             receives="Workflow input", produces="Validated case",
+             control="Authenticate, validate identifiers and detect repeated requests.", components=["compute"]),
+        dict(title="Collect permitted context", kind="software",
+             purpose="Gather evidence from the reported systems; surface missing or conflicting sources.",
+             receives="Validated case", produces="Source-referenced evidence",
+             control="Use scoped access and mask sensitive fields before model use.", components=["compute", "systems"]),
+    ]
+    ai = score.adoption.design_family != "standard_software" if score.adoption else score.classification != "Not Suitable"
+    if ai:
+        flow.append(dict(title=score.recommended_pattern, kind="ai",
+                         purpose="Produce a bounded, evidence-backed draft within the prescribed design.",
+                         receives="Source-referenced evidence", produces="Draft with uncertainties",
+                         control="Bound model/tool calls; citations are not proof of correctness.", components=["ai"]))
+    flow.extend([
+        dict(title="Review the permitted next step" if score.requires_hitl else "Apply the permitted policy",
+             kind="human" if score.requires_hitl else "software",
+             purpose="An accountable person checks the evidence and retains business decision authority."
+             if score.requires_hitl else "Apply confirmed rules and route exceptions to the accountable person.",
+             receives="Draft with uncertainties" if ai else "Source-referenced evidence",
+             produces="Reviewed outcome" if score.requires_hitl else "Policy-checked outcome",
+             control="Advisory review is not authorization to deploy or execute.",
+             components=[] if score.requires_hitl else ["compute"]),
+        dict(title="Record and hand off the outcome", kind="software",
+             purpose="Keep an auditable outcome and hand off only what the workflow policy permits.",
+             receives="Reviewed outcome" if score.requires_hitl else "Policy-checked outcome", produces="Traceable outcome record",
+             control="Use retry-safe state; reconcile ambiguous writes before repeating them.",
+             components=["database", "compute"]),
+    ])
+    return ArchitectureView(
+        outcome=f"Proposed outcome: a traceable, controlled result for {intelligence.workflow_name}.",
+        why=f"{score.recommended_pattern} preserves the stated reasoning need and human boundary; this fictional design requires validation.",
+        flow=flow,
+        choices=[dict(component=key, why="Illustrative candidate; validate the workload and existing platform standard.",
+                      alternative=next(name for name in CATALOGS[cloud][key] if name != mapping.get(key)),
+                      tradeoff="Compare operating effort, access, recovery and cost before selecting the candidate.")
+                 for key in ("compute", "database")],
+        milestones=[
+            dict(title="Validate prerequisites", acceptance="Confirm scoped integrations, privacy, ownership and representative samples."),
+            dict(title="Prove quality and recovery", acceptance="Test citations, missing sources, retries and ambiguous publication against agreed pilot criteria."),
+            dict(title="Authorize a bounded pilot", acceptance="Resolve blockers and obtain separate pilot authorization; compare outcomes and reviewer effort with the baseline."),
+        ],
+    )
 
 _SCAFFOLD = '''from fastapi import FastAPI, HTTPException
 
@@ -95,6 +165,7 @@ class BlueprintAgent:
             "roi": roi, "diagnosis": diagnosis.model_dump(),
             "assessment_evidence": assessment_evidence,
             "runtime_decision": runtime_decision,
+            "service_catalog": CATALOGS[context.target_cloud],
         }
         if self.use_mock:
             citations = "\n".join(f"- {p['id']}: {p['name']} ({p['source_ref']}; SHA256 {p['content_sha256']})"
@@ -104,6 +175,7 @@ class BlueprintAgent:
                        f'    P --> G["{gate}"]\n    G --> S[Existing systems]\n    G --> A[Audit record]\n'
                        f'    P --> C["{mapping["compute"]}"]')
             result = Blueprint(
+                architecture_view=_demo_view(intelligence, score, mapping, context.target_cloud),
                 target_cloud=context.target_cloud,
                 design_family=recommendation["design_family"], autonomy_level=score.autonomy_level,
                 requires_hitl=score.requires_hitl, pattern_ids=recommendation["pattern_ids"],
@@ -146,9 +218,20 @@ class BlueprintAgent:
             )
         else:
             result = structured_call(get_chat_llm(temperature=0.2), _SYSTEM, json.dumps(payload), Blueprint)
+        view = result.architecture_view
+        if (view is None
+                or {choice.component for choice in view.choices} != {"compute", "database"}
+                or any(choice.alternative not in CATALOGS[context.target_cloud][choice.component]
+                       or choice.alternative == mapping.get(choice.component) for choice in view.choices)
+                or (score.requires_hitl and not any(step.kind == "human" for step in view.flow))
+                or (recommendation["design_family"] == "standard_software" and any(step.kind == "ai" for step in view.flow))
+                or any(key != "systems" and (not mapping.get(key) or mapping[key] == "Not required")
+                       for step in view.flow for key in step.components)):
+            logger.error("Blueprint overview lacks a valid flow, service alternative or prescribed human boundary.")
+            raise InvalidDependencyResponse(model_dependency())
         external_systems = context.existing_systems + "\n" + "\n".join(intelligence.systems)
         if has_foreign_services("\n".join((result.architecture_doc, result.mermaid_diagram, result.roadmap,
-                                          result.cost_estimate, result.code_scaffold)),
+                                          result.cost_estimate, result.code_scaffold, view.model_dump_json())),
                                 context.target_cloud, external_systems):
             logger.error("Blueprint introduced another cloud's services without a declared external integration.")
             raise InvalidDependencyResponse(model_dependency())
@@ -162,6 +245,8 @@ class BlueprintAgent:
             logger.error("Blueprint contradicted the prescribed design, sources, autonomy, or policy outcome.")
             raise InvalidDependencyResponse(model_dependency())
         out = result.model_dump()
+        for key in ("architecture_doc", "roadmap", "cost_estimate"):
+            out[key] = narrative_text(out[key])
         out["target_cloud"] = context.target_cloud
         out["deployment_preferences"] = {
             key: getattr(context, key) for key in ("target_cloud", "preferred_region",

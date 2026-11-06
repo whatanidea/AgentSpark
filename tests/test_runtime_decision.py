@@ -60,6 +60,20 @@ class RuntimeRuleTests(unittest.TestCase):
         self.assertEqual(result.reasoning.selected, "bounded_handler")
         self.assertEqual(result.durable_execution.selected, "none")
 
+    def test_alternative_reasons_distinguish_cloud_mismatch_from_unneeded_or_unknown_durability(self):
+        for cloud, candidate, foreign_cloud in (("azure", "azure_durable_functions", "AWS"),
+                                                 ("aws", "aws_step_functions", "Azure")):
+            for values, expected in ((requirements(reasoning="bounded"), "do not need"),
+                                     (RuntimeRequirements(reasoning="bounded"), "Confirm durable")):
+                with self.subTest(cloud=cloud, expected=expected):
+                    result = self.decide(values, cloud=cloud)
+                    option = next(option for option in result.durable_execution.alternatives if option.id == candidate)
+                    self.assertFalse(option.eligible)
+                    self.assertIn(expected, option.reason)
+                    self.assertNotIn(foreign_cloud + " target", option.reason)
+                    application = next(option for option in result.reasoning.alternatives if option.id == "none")
+                    self.assertIn("bounded AI task", application.reason)
+
     def test_dynamic_reasoning_can_run_without_separate_durable_engine(self):
         result = self.decide(requirements(reasoning="dynamic", existing_reasoning="langgraph"))
         self.assertEqual(result.reasoning.selected, "langgraph")

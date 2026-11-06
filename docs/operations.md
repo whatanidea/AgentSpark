@@ -1,5 +1,34 @@
 # Delivery and operations runbook
 
+## Outcome-first recommendations and visual blueprints
+
+New blueprints include a bounded `architecture_view` snapshot: proposed outcome,
+4-7 connected software/AI/human steps, compute/storage comparisons and three
+acceptance-based delivery gates. Each output must match the next input; references
+must use selected mapping components, alternatives must belong to the target-cloud
+catalog, and prescribed human boundaries cannot be removed. Invalid generation
+fails explicitly instead of silently supplying a generic diagram.
+
+The review page leads with outcomes, a selectable responsibility flow, recorded
+pilot targets and review controls. Evidence, readiness, service constraints and
+technical detail remain expandable. PDF and Markdown exports retain the connected
+overview and supporting details; PDF repeats identical document metadata and long
+quotes by reference, retaining each exact quotation once and preserving every
+fact's source binding. Unique source quotes are never dropped. Archived decisions retain the
+original overview. Historical snapshots without it remain readable and are
+explicitly labelled as lacking a workflow-specific view; rerunning analysis is
+required to create one. No existing assessment is automatically regenerated.
+
+Recommendations bound narrative lengths, distinguish conditional infrastructure
+choices from verified requirements, and put recovery/quality gates before a pilot.
+Scaffold guidance requires retryable state and ambiguous-publication reconciliation;
+generated code remains illustrative and untested, not a production implementation.
+Runtime alternative explanations distinguish unknown durability needs from a
+cloud mismatch. Question-bound interview answers are not silently copied to other
+fields; unresolved requirements still require explicit confirmation.
+
+No model, deployment, resource, permission or public-signup changes are introduced.
+
 ## Discovery and executive briefs
 
 This release adds no Azure resources, containers, secrets, model connections or

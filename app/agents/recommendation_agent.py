@@ -25,10 +25,10 @@ class Recommendation(BaseModel):
     autonomy_level: AutonomyLevel
     requires_hitl: bool
     pattern_ids: list[str] = Field(min_length=1, max_length=4)
-    memory_strategy: str
-    governance: str
-    justification: str
-    critique: str
+    memory_strategy: str = Field(max_length=600)
+    governance: str = Field(max_length=800)
+    justification: str = Field(max_length=1000)
+    critique: str = Field(max_length=800)
 
 
 def _data_completeness(intel: WorkflowIntelligence, diagnosis: WorkflowDiagnosis | None = None) -> float:
@@ -53,6 +53,12 @@ entry IDs when discussing them. References and links do not prove a claim or agr
 inputs. Do not override diagnostic inputs or invent verification. Explain relevant validation needs.
 runtime_decision, when supplied, is authoritative for runtime selection. Do not substitute a framework
 from retrieved pattern examples. Preserve unresolved selections, validation tasks and execution boundaries."""
+_SYSTEM += """
+Lead with the proposed outcome and why this design is the simplest justified fit.
+Do not restate all inputs or repeat standard disclaimers in every field.
+Make critique concrete: the highest-impact failure or unsupported assumption, its consequence,
+and the test or decision that resolves it. Unknown is not an invitation to invent a requirement.
+Keep quality targets and safe failure/recovery ahead of technology names."""
 
 
 class RecommendationAgent:
