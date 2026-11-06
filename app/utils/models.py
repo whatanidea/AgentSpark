@@ -2,7 +2,7 @@ from pydantic import BaseModel, ConfigDict, Field, PrivateAttr, StringConstraint
 from typing import List, Optional, Dict, Any, Literal, Annotated
 from datetime import datetime, timezone, timedelta
 import os
-from app.utils.document_models import ApprovedDocument
+from app.utils.document_models import ApprovedDocument, RetainedDocumentSource
 
 
 AutonomyLevel = Literal["Autonomous", "Supervised", "Assisted", "Manual"]
@@ -105,6 +105,9 @@ class InterviewAnswer(BaseModel):
 
 class InterviewDiagnosis(WorkflowDiagnosis):
     answers: Dict[str, InterviewAnswer] = Field(default_factory=dict, max_length=64)
+    capture_outcomes: Dict[str, Literal["captured", "unconfirmed", "needs_confirmation", "not_answered"]] = Field(
+        default_factory=dict, max_length=64)
+    capture_corrections: List[str] = Field(default_factory=list, max_length=64)
 
 
 # ──────────────────────────────────────────────────────────────
@@ -731,6 +734,7 @@ class WorkflowState(BaseModel):
     interview_diagnosis: Optional[WorkflowDiagnosis] = None
     interview_answers: Dict[str, str] = Field(default_factory=dict, max_length=14)
     document_intake: Optional[ApprovedDocument] = None
+    document_source: Optional[RetainedDocumentSource] = None
     interview_role: InterviewRole = "all"
     interview_unconfirmed: List[str] = Field(default_factory=list, max_length=64)
     executive_brief: Optional[ExecutiveBrief] = None

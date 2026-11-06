@@ -333,11 +333,19 @@ export type InterviewProgress = {
   role: InterviewRole; roles: Record<InterviewRole, string>; role_missing_fields: string[];
   deferred_fields: string[]; unconfirmed_fields: string[];
   version: string; rounds_used: number; max_rounds: number; limit_reached: boolean; can_chat: boolean;
-  questions: string[]; missing_fields: string[]; missing_facts: string[];
+  questions: string[]; question_ids: string[]; missing_fields: string[]; missing_facts: string[];
   fields: InterviewField[]; answers: Record<string, string>; permissions: Permissions;
+  document?: {
+    available: boolean; filename: string | null; expires_at: string | null;
+    checks: Record<string, "found" | "not_found" | "conflict" | "needs_confirmation">; excluded_fields: string[];
+    answers: (DocumentField & { source: DocumentMetadata; capture: "human_reviewed" | "document_lookup" })[];
+    conflicts: DocumentField[];
+  };
 };
 export type ChatResponse = { status: "blocked"; response: string } |
-  { status: "success"; response: string; message: string; interview: InterviewProgress };
+  { status: "success"; response: string; message: string; interview: InterviewProgress;
+    capture: { field_id: string; label: string;
+      status: "captured" | "unconfirmed" | "needs_confirmation" | "not_answered"; value: string | null }[] };
 export type Readiness = {
   status: "ready" | "degraded";
   ready: boolean;
@@ -345,14 +353,21 @@ export type Readiness = {
   dependencies: Record<string, "demo" | "ready" | "unavailable">;
 };
 export type DocumentMetadata = { filename: string; format: "pdf" | "docx"; sha256: string; source_count: number };
-export type DocumentField = { field_id: string; value: string; quote: string; location: string; edited: boolean };
+export type SourceExcerpt = { quote: string; location: string };
+export type DocumentField = SourceExcerpt & {
+  field_id: string; value: string; edited: boolean;
+  count_basis?: "literal" | "number_words" | "decision_ordinals"; supporting_quotes?: SourceExcerpt[];
+};
+export type DocumentSource = { metadata: DocumentMetadata; units: { location: string; text: string }[] };
 export type DocumentApproval = {
   metadata: DocumentMetadata; fields: DocumentField[]; context_approved: true;
   version: string | null; confirm_overwrite: boolean;
+  source?: DocumentSource; excluded_fields?: string[];
 };
 export type DocumentPreview = {
   metadata: DocumentMetadata; candidates: DocumentField[]; fields: InterviewField[];
   conflicting_fields: string[]; warnings: string[]; version: string | null; model_id: InferenceModel["id"];
+  source?: DocumentSource;
 };
 export type ProcessingUpdate = {
   id: string; label: string; phase: "start" | "stage" | "activity" | "complete" | "error";
@@ -425,8 +440,10 @@ async function requestResponse(path: string, method = "GET", body?: unknown, fil
   const id = uid();
   const track = method !== "GET";
   const stream = method === "POST" && (path === "/intake" || path.startsWith("/intake/document-preview?") ||
-    path === "/chat" || path.startsWith("/analyze/") || /^\/engagements\/[^/]+\/synthesis$/.test(path));
+    path === "/chat" || path.startsWith("/analyze/") || path.endsWith("/interview/document-lookup") ||
+    /^\/engagements\/[^/]+\/synthesis$/.test(path));
   const label = file ? "Document review" : path.startsWith("/analyze/") ? "Workflow analysis and blueprint"
+    : path.endsWith("/interview/document-lookup") ? "Document answer lookup"
     : path === "/chat" ? "Diagnostic response" : path.endsWith("/synthesis") ? "Discovery synthesis"
     : path === "/intake" ? "Enterprise intake" : "Saving workspace changes";
   if (track) processing({ id, label, phase: "start", stage: "Preparing a secure request" });
@@ -502,6 +519,8 @@ export const api = {
   me: (): Promise<Identity> => get("/auth/me"),
   session: (id: string): Promise<SessionSnapshot> => get(`/sessions/${encodeURIComponent(id)}`),
   interview: (id: string): Promise<InterviewProgress> => get(`/sessions/${encodeURIComponent(id)}/interview`),
+  lookupDocument: (id: string, version: string, field_ids: string[] = []): Promise<InterviewProgress> =>
+    post(`/sessions/${encodeURIComponent(id)}/interview/document-lookup`, { version, field_ids }),
   saveInterview: (id: string, version: string, answers: Record<string, string>, role?: InterviewRole): Promise<InterviewProgress> =>
     request(`/sessions/${encodeURIComponent(id)}/interview`, "PUT", { version, answers, ...(role ? { role } : {}) }),
   engagements: (cursor = ""): Promise<DirectoryPage<HomeItem>> => get(`/engagements?${new URLSearchParams({ cursor })}`),
@@ -576,8 +595,9 @@ export const api = {
     return response.json();
   },
   intake: (body: any) => post("/intake", body),
-  chat: (session_id: string, message: string, demo_scenario?: DemoScenario): Promise<ChatResponse> =>
-    post("/chat", { session_id, message, demo_scenario }),
+  chat: (session_id: string, message: string, version: string, question_ids: string[],
+    demo_scenario?: DemoScenario): Promise<ChatResponse> =>
+    post("/chat", { session_id, message, version, question_ids, demo_scenario }),
   analyze: (session_id: string, roi_assumptions?: ROIAssumptions, version?: string) =>
     post(`/analyze/${session_id}`, { roi_assumptions, ...(version ? { version } : {}) }),
   blueprint: (session_id: string) => get(`/blueprint/${session_id}`),

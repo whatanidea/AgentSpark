@@ -152,10 +152,14 @@ class DiagnosticAgent:
 
     def analyze_chat_history(self, chat_history, context: EnterpriseContext | None = None,
                              demo_scenario: DemoScenario | None = None, *,
-                             include_readiness: bool = False) -> WorkflowDiagnosis:
+                             include_readiness: bool = False, state: WorkflowState | None = None,
+                             question_ids: list[str] | None = None) -> WorkflowDiagnosis:
         """Extract facts with verifiable provenance; unknown facts block downstream analysis."""
         if self.use_mock:
             return demo_diagnosis(demo_scenario) if demo_scenario else WorkflowDiagnosis(demo_scenario_required=True)
+        if include_readiness and state is not None:
+            from app.utils.interview_capture import capture_turn
+            return capture_turn(state, chat_history[-1]["content"], question_ids)
 
         sources = {
             "intake": self._context_block(context),

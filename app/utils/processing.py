@@ -51,6 +51,7 @@ class ProcessingRoute(APIRoute):
             path = request.url.path
             supported = (path in ("/api/v1/intake", "/api/v1/intake/document-preview", "/api/v1/chat") or
                          path.startswith("/api/v1/analyze/") or
+                         (path.startswith("/api/v1/sessions/") and path.endswith("/interview/document-lookup")) or
                          (path.startswith("/api/v1/engagements/") and path.endswith("/synthesis")))
             if request.headers.get("accept") != "application/x-ndjson" or request.method != "POST" or not supported:
                 return await handler(request)

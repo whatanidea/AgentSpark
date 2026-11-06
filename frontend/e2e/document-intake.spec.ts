@@ -73,6 +73,45 @@ test("document intake PDF review preserves unknowns, requires approval and asks 
   expect(saved.document_intake.verification).toBe("human_reviewed_unverified");
 });
 
+test("document intake question lookup retrieves omitted context after reload with source references", async ({ page }) => {
+  await start(page);
+  const session = await upload(page, "pdf", "partial");
+  await expect(page.getByRole("heading", { name: "Review: fictional-partial.pdf", exact: true })).toBeVisible();
+  await page.getByRole("checkbox", { name: /^Use Summary proposal/ }).uncheck();
+  await acknowledge(page);
+  await page.getByRole("button", { name: "Approve context and continue", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Diagnostic Interview", exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("heading", { name: "Diagnostic Interview", exact: true })).toBeVisible();
+  const question = page.getByRole("listitem").filter({ hasText: "What does this workflow do, from input to outcome?" });
+  await question.getByRole("button", { name: "Find answer in uploaded document", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Answer found and applied" })).toBeVisible();
+  await expect(question).toHaveCount(0);
+  const progress = await (await page.request.get(`/api/v1/sessions/${session}/interview`)).json();
+  expect(progress.answers["fact.summary"]).toBe("Enrich the same PagerDuty incident for human responders.");
+  expect(progress.rounds_used).toBe(0);
+  const sources = page.getByText(/\d+ captured answers with source references/);
+  await sources.click();
+  await expect(page.getByText("Automatically captured from approved document", { exact: false }).first()).toBeVisible();
+  await expect(page.getByText("Summary: Enrich the same PagerDuty incident for human responders.", { exact: true })).toBeVisible();
+});
+
+test("document intake question lookup explicitly reports missing facts without fabricating an answer", async ({ page }) => {
+  await start(page);
+  const session = await upload(page, "pdf", "partial");
+  await expect(page.getByRole("heading", { name: "Review: fictional-partial.pdf", exact: true })).toBeVisible();
+  await acknowledge(page);
+  await page.getByRole("button", { name: "Approve context and continue", exact: true }).click();
+  await expect(page.getByRole("heading", { name: "Diagnostic Interview", exact: true })).toBeVisible();
+  const question = page.getByRole("listitem").filter({ hasText: "How many discrete steps does each item pass through?" });
+  await question.getByRole("button", { name: "Find answer in uploaded document", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "This information was not found in the document" })).toBeVisible();
+  const progress = await (await page.request.get(`/api/v1/sessions/${session}/interview`)).json();
+  expect(progress.missing_facts).toContain("steps");
+  expect(progress.document.checks["fact.steps"]).toBe("not_found");
+  expect(progress.rounds_used).toBe(0);
+});
+
 test("document intake full-width layout and Select file button work on desktop and mobile", async ({ page }) => {
   await start(page);
   const documentCard = page.locator(".surface-card").filter({

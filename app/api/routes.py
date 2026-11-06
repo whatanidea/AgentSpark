@@ -10,7 +10,7 @@ from app.utils.models import (
     WorkflowDiagnosis, InterviewDiagnosis, InterviewRole, FactEvidence,
 )
 from app.utils.interview import (
-    apply_answers, merge_diagnosis, interview_progress, interview_reply, MAX_INTERVIEW_ROUNDS,
+    apply_answers, merge_diagnosis, interview_progress, interview_reply, interview_fields, MAX_INTERVIEW_ROUNDS,
 )
 from app.utils.readiness import build_readiness_report, readiness_catalog
 from app.utils.pdf_report import build_blueprint_pdf, build_executive_brief_pdf
@@ -20,8 +20,9 @@ from app.agents.cloud_catalog import pattern_for_cloud
 from app.utils.runtime import demo_mode
 from app.utils.model_catalog import available_models, model_definition, assessment_model, MODEL_IDS
 from app.utils.llm import model_dependency
-from app.utils.document_models import DocumentApproval, ApprovedDocument, ApprovedDocumentField
-from app.utils.documents import preview_document, validate_fields
+from app.utils.document_models import DocumentApproval, ApprovedDocument, ApprovedDocumentField, RetainedDocumentSource
+from app.utils.documents import preview_document, validate_fields, document_fields, _checked_candidates
+from app.utils.document_lookup import document_status, resolve_document_questions
 from app.utils.errors import ConcurrentUpdate
 
 from app.database.cosmos_client import db_client
@@ -64,7 +65,7 @@ def restore_session(session_id: SessionId):
         organization = tenant_directory.get(state.organization_id, "organization")
         team = tenant_directory.get(state.organization_id, f"team-{state.team_id}")
         workspace = {"organization_name": organization.name, "team_name": team.name}
-    return {**state.model_dump(mode="json", exclude={"owner_id"}), "version": state._etag,
+    return {**state.model_dump(mode="json", exclude={"owner_id", "document_source"}), "version": state._etag,
             "permissions": db_client.permissions(state),
             "workspace": workspace}
 
@@ -131,6 +132,14 @@ class ChatRequest(RequestModel):
     session_id: SessionId
     message: str = Field(min_length=1, max_length=8000)
     demo_scenario: DemoScenario | None = None
+    version: str | None = Field(default=None, min_length=1, max_length=1000)
+    question_ids: list[Annotated[str, Field(min_length=1, max_length=100)]] | None = Field(default=None, max_length=3)
+
+    @model_validator(mode="after")
+    def bound_questions(self):
+        if (self.version is None) != (self.question_ids is None):
+            raise ValueError("Provide both the assessment version and displayed question IDs.")
+        return self
 
 
 class AnalyzeRequest(RequestModel):
@@ -169,7 +178,31 @@ class InterviewRequest(RequestModel):
 
 
 def interview_response(state):
-    return {**interview_progress(state), "permissions": db_client.permissions(state)}
+    return {**interview_progress(state), "permissions": db_client.permissions(state),
+            "document": document_status(state)}
+
+
+class DocumentLookupRequest(RequestModel):
+    version: str = Field(min_length=1, max_length=1000)
+    field_ids: list[Annotated[str, Field(min_length=1, max_length=100)]] = Field(default_factory=list, max_length=64)
+
+
+@router.post("/sessions/{session_id}/interview/document-lookup")
+def lookup_document_answers(session_id: SessionId, req: DocumentLookupRequest):
+    state = db_client.get_workflow_state(session_id)
+    db_client._authorize(state, "write")
+    if req.version != state._etag:
+        raise ConcurrentUpdate()
+    if state.document_source is None:
+        raise HTTPException(409, "Document text is unavailable. Re-upload and approve the document in Enterprise Intake.")
+    known = {field["id"] for field in interview_fields(state)}
+    if not set(req.field_ids).issubset(known):
+        raise HTTPException(422, "Choose supported interview questions.")
+    if any(field not in interview_progress(state)["missing_fields"] for field in req.field_ids):
+        raise HTTPException(409, "This question already has an answer. Edit it in the checklist instead.")
+    resolve_document_questions(state, req.field_ids or None, force=bool(req.field_ids))
+    db_client.save_workflow_state(state)
+    return interview_response(state)
 
 
 @router.get("/sessions/{session_id}/interview")
@@ -188,6 +221,7 @@ def save_interview(session_id: SessionId, req: InterviewRequest):
     if state.interview_diagnosis is None and state.diagnosis is not None:
         state.interview_diagnosis = state.diagnosis.model_copy(deep=True)
     before = state.model_dump(mode="json")
+    before_answers = interview_progress(state)["answers"]
     try:
         apply_answers(state, redact_data(req.answers))
     except (ValidationError, ValueError) as exc:
@@ -201,6 +235,11 @@ def save_interview(session_id: SessionId, req: InterviewRequest):
     if content_changed:
         state.invalidate_analysis()
         state.invalidate_readiness_context()
+        if state.document_source:
+            changed = [key for key, value in req.answers.items()
+                       if value != before_answers.get(key, "")]
+            state.document_source.excluded_fields = sorted(set(state.document_source.excluded_fields) | set(changed))
+    resolve_document_questions(state)
     db_client.save_workflow_state(state)
     return interview_response(state)
 
@@ -380,6 +419,16 @@ def save_intake(req: IntakeRequest):
                 raise HTTPException(422, "Approved document context contains instruction-override content. Please rephrase.")
             if field.field_id.startswith("intake.") and getattr(req, field.field_id.split(".", 1)[1], None) != field.value:
                 raise HTTPException(422, "The reviewed intake proposal differs from the form. Review the current value before approving.")
+        if req.document.source:
+            known = {field["id"] for field in document_fields(state)}
+            if not set(req.document.excluded_fields).issubset(known):
+                raise HTTPException(422, "Document exclusions must use supported field IDs.")
+            if any(not scan_input(unit.text).safe for unit in req.document.source.units):
+                raise HTTPException(422, "Document text contains instruction-override content.")
+            units = [{"location": unit.location, "text": redact_pii(unit.text)} for unit in req.document.source.units]
+            _, issues = _checked_candidates(state, [field for field in req.document.fields if not field.edited], units)
+            if issues:
+                raise HTTPException(422, "Approved proposals do not match the retained document. Review the upload again.")
     if state._etag is None and not demo_mode() and req.model_id is None:
         raise HTTPException(422, "Select an assessment model before starting the interview.")
     if req.model_id is not None:
@@ -444,10 +493,19 @@ def save_intake(req: IntakeRequest):
             metadata=metadata,
             fields=list(previous.values()), approved_by=principal_context.get().owner_id,
             approved_at=datetime.now(timezone.utc))
+        if req.document.source:
+            try:
+                state.document_source = RetainedDocumentSource(metadata=metadata, units=units,
+                    excluded_fields=req.document.excluded_fields)
+            except ValidationError as exc:
+                raise HTTPException(422, "Redacted document text exceeds the bounded source limits.") from exc
+        else:
+            state.document_source = None
         state.model_locked = True
         # Even a zero-candidate suitability import must use known intake facts, not a demo fixture.
         if state.interview_diagnosis is None:
             state.interview_diagnosis = WorkflowDiagnosis()
+        resolve_document_questions(state)
     db_client.save_workflow_state(state)
     return {"status": "success", "session_id": req.session_id,
             "enterprise_context": state.enterprise_context.model_dump(),
@@ -464,6 +522,9 @@ def chat_interaction(req: ChatRequest):
     db_client._authorize(state, "write")
     if state._etag is None and not demo_mode():
         raise HTTPException(422, "Start with intake and select an assessment model before the interview.")
+    progress = interview_progress(state)
+    if req.version is not None and (req.version != state._etag or req.question_ids != progress["question_ids"]):
+        raise ConcurrentUpdate()
 
     # Security gate: screen every inbound message before it reaches the LLM.
     guard = scan_input(req.message)
@@ -488,15 +549,16 @@ def chat_interaction(req: ChatRequest):
         raise HTTPException(409, "Interview capture is complete. Review the checklist or run analysis.")
     scenario = req.demo_scenario or state.demo_scenario
     message = redact_pii(req.message)
-    progress = interview_progress(state)
     explicit_unknown = message.strip().lower().rstrip(".") in ("unconfirmed", "unknown")
     with assessment_model(state.inference_model) as selection:
         if explicit_unknown:
-            diagnosis = InterviewDiagnosis()
+            diagnosis = InterviewDiagnosis(capture_outcomes={
+                identifier: "unconfirmed" for identifier in progress["question_ids"]})
         else:
             diagnosis = diagnostic_agent.analyze_chat_history(
                 state.chat_history + [{"role": "user", "content": message}],
-                state.enterprise_context, scenario, include_readiness=True)
+                state.enterprise_context, scenario, include_readiness=True, state=state,
+                question_ids=req.question_ids)
         state.inference_model = selection
         state.model_locked = True
     previous_diagnosis = state.interview_diagnosis or state.diagnosis
@@ -506,10 +568,15 @@ def chat_interaction(req: ChatRequest):
         WorkflowDiagnosis.model_validate(redact_data(diagnosis.model_dump())))
     if isinstance(diagnosis, InterviewDiagnosis):
         try:
+            for identifier in diagnosis.answers:
+                if identifier.startswith("fact.") and identifier in diagnosis.capture_outcomes:
+                    state.interview_answers.pop(identifier.split(".", 1)[1], None)
             if explicit_unknown:
                 apply_answers(state, {field["id"]: "unconfirmed" for field in progress["fields"]
                                       if field["question"] in progress["questions"]}, captured=True)
             apply_answers(state, redact_data({key: answer.value for key, answer in diagnosis.answers.items()}), captured=True)
+            apply_answers(state, redact_data({key: diagnosis.answers[key].value
+                for key in diagnosis.capture_corrections if not key.startswith("fact.")}))
             for key, answer in diagnosis.answers.items():
                 if key.startswith("runtime."):
                     source = state.runtime_requirement_sources.get(key.split(".", 1)[1])
@@ -519,8 +586,33 @@ def chat_interaction(req: ChatRequest):
         except ValueError as exc:
             raise InvalidDependencyResponse(model_dependency(state.inference_model)) from exc
     state.demo_scenario = scenario
+    resolve_document_questions(state)
     state.chat_history.append({"role": "user", "content": redact_pii(req.message)})
     response_text = redact_pii(interview_reply(state))
+    capture = []
+    if isinstance(diagnosis, InterviewDiagnosis):
+        current_answers = interview_progress(state)["answers"]
+        catalog = {field["id"]: field for field in interview_fields(state)}
+        capture = [{"field_id": identifier, "label": catalog[identifier]["label"], "status": status,
+                    "value": current_answers.get(identifier) if status == "captured" else None}
+                   for identifier, status in diagnosis.capture_outcomes.items() if identifier in catalog]
+        acknowledged = [f"{item['label']}: {item['value'][:200]}" for item in capture
+                        if item["status"] == "captured" and item["value"]]
+        unresolved = [item["label"] for item in capture if item["status"] == "needs_confirmation"]
+        unconfirmed = [item["label"] for item in capture if item["status"] == "unconfirmed"]
+        unanswered = [item["label"] for item in capture if item["status"] == "not_answered"
+                      and item["field_id"] in progress["question_ids"]]
+        notices = (["Captured: " + "; ".join(acknowledged) + "."] if acknowledged else [])
+        if unconfirmed:
+            notices.append("Marked unconfirmed: " + ", ".join(unconfirmed) + ".")
+        if unresolved:
+            notices.append("Could not verify: " + ", ".join(unresolved) +
+                           ". Please clarify these answers or use the checklist.")
+        if unanswered:
+            notices.append("Still needed: " + ", ".join(unanswered) +
+                           ". If your reply covered these, clarify with field labels or use the checklist.")
+        if notices:
+            response_text = "\n".join(notices) + "\n\n" + response_text
     if demo_mode():
         label = f"[Demo fixture: {scenario}] " if scenario else "Demo mode: "
         response_text = (label + "Uses the selected fictional fixture for suitability, not extraction from free text. "
@@ -528,7 +620,7 @@ def chat_interaction(req: ChatRequest):
     state.chat_history.append({"role": "assistant", "content": response_text})
     db_client.save_workflow_state(state)
     return {"status": "success", "response": response_text, "message": message, "guardrail": guard.model_dump(),
-            "interview": interview_response(state)}
+            "interview": interview_response(state), "capture": capture}
 
 
 @router.post("/analyze/{session_id}")

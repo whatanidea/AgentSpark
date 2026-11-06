@@ -11,13 +11,14 @@ from fastapi import HTTPException
 from pydantic import ValidationError
 
 from app.security.guardrails import redact_pii, scan_input
-from app.utils.document_models import DocumentExtraction, DocumentField, DocumentMetadata
+from app.utils.document_models import DocumentExtraction, DocumentField, DocumentMetadata, DocumentSource
 from app.utils.interview import interview_fields, apply_answers
 from app.utils.models import WorkflowState
 from app.utils.llm import get_chat_llm, structured_call, model_dependency
 from app.utils.errors import InvalidDependencyResponse
 from app.utils.runtime import demo_mode
 from app.utils.processing import report_stage
+from app.utils.answer_values import explicit_option as _explicit_option, supported_count
 
 _readers = BoundedSemaphore(2)
 logger = logging.getLogger(__name__)
@@ -44,6 +45,12 @@ def document_fields(state: WorkflowState) -> list[dict]:
     return list(fields.values())
 
 
+def _supported_count(candidate: DocumentField) -> bool:
+    return supported_count(candidate.value,
+        " ".join([candidate.quote, *(quote.quote for quote in candidate.supporting_quotes)]),
+        candidate.count_basis, candidate.field_id)
+
+
 def validate_fields(state: WorkflowState, candidates: list[DocumentField]):
     catalog = {field["id"]: field for field in document_fields(state)}
     for candidate in candidates:
@@ -52,10 +59,12 @@ def validate_fields(state: WorkflowState, candidates: list[DocumentField]):
             raise ValueError("A document proposal uses an unsupported field or exceeds its field limit.")
         if spec["options"] and candidate.value not in spec["options"]:
             raise ValueError(f"{spec['label']} must use one of its listed values.")
-        if not candidate.edited and spec["kind"] == "number" and not re.search(
-                r"(?<![0-9])" + re.escape(candidate.value) + r"(?![0-9])", candidate.quote):
-            raise ValueError("A document count must be explicitly present in its source quote, or marked as a human edit.")
-        if not candidate.edited and spec["options"] and candidate.value.lower() not in candidate.quote.lower():
+        if spec["kind"] != "number" and candidate.count_basis != "literal":
+            raise ValueError("Count derivations apply only to numeric fields.")
+        if not candidate.edited and spec["kind"] == "number" and not _supported_count(candidate):
+            raise ValueError("A document count needs literal digits, matching number words, or cited consecutive decision ordinals.")
+        quoted_text = " ".join([candidate.quote, *(quote.quote for quote in candidate.supporting_quotes)])
+        if not candidate.edited and spec["options"] and not _explicit_option(candidate.value, quoted_text):
             raise ValueError("A document rating or option must be explicit in its source quote, or marked as a human edit.")
         if candidate.value.lower() in ("unknown", "unconfirmed"):
             raise ValueError("Unknown facts must remain unresolved, not become document proposals.")
@@ -76,15 +85,28 @@ def _checked_candidates(state: WorkflowState, candidates: list[DocumentField],
     for candidate in candidates:
         feedback = {"field_id": candidate.field_id, "value": candidate.value,
                     "quote": candidate.quote, "location": candidate.location}
-        matches = [unit for unit in units if unit["location"] == candidate.location]
-        pattern = r"\s+".join(re.escape(token) for token in candidate.quote.split())
-        exact = next((match.group() for unit in matches
-                      if (match := re.search(pattern, unit["text"])) is not None), None)
-        if not exact or len(exact) > 500:
+        if not scan_input(candidate.value).safe:
+            issues.append({**feedback, "reason": "Use workflow facts, not instruction-override content."})
+            continue
+        if redact_pii(candidate.value) != candidate.value:
+            issues.append({**feedback, "reason": "Use only the PII-redacted source content in proposed values."})
+            continue
+        excerpts = [candidate, *candidate.supporting_quotes]
+        exact_quotes = []
+        for excerpt in excerpts:
+            pattern = r"\s+".join(re.escape(token) for token in excerpt.quote.split())
+            exact = next((match.group() for unit in units if unit["location"] == excerpt.location
+                          and (match := re.search(pattern, unit["text"])) is not None), None)
+            if not exact or len(exact) > 500:
+                break
+            exact_quotes.append(exact)
+        if len(exact_quotes) != len(excerpts):
             issues.append({**feedback, "reason":
                            "Use an exact contiguous quote and its exact source location, or omit this proposal."})
             continue
-        grounded = candidate.model_copy(update={"quote": exact, "edited": False})
+        grounded = candidate.model_copy(update={"quote": exact_quotes[0], "value": redact_pii(candidate.value), "edited": False,
+            "supporting_quotes": [quote.model_copy(update={"quote": text})
+                                 for quote, text in zip(candidate.supporting_quotes, exact_quotes[1:])]})
         try:
             validate_fields(state, [grounded])
         except ValidationError:
@@ -161,7 +183,9 @@ def preview_document(data: bytes, filename: str, state: WorkflowState) -> dict:
             "process counts into measured current-state counts. Skip unknown, missing or ambiguous facts. "
             "Use exact catalog options; comma-separated explicit lists and nonnegative digit-only counts. "
             "Every selected option, including runtime options, must literally appear in its quote. "
-            "A count's digits must literally appear in its quote; spelled-out numbers are not digit evidence. "
+            "Counts may use literal digits, number_words, or decision_ordinals as count_basis. "
+            "decision_ordinals is ONLY for counting explicitly named first/second/etc human decision points; "
+            "cite each one using supporting_quotes. Never count future pilot limits as current workflow facts. "
             "Preferred region requires a lowercase region code without spaces, not a region display name. "
             "Quotes must be contiguous source text: do not join separate sentences, shorten with ellipses, "
             "or remove words, punctuation or hyphens. Use a short excerpt, never a whole paragraph. "
@@ -189,7 +213,7 @@ def preview_document(data: bytes, filename: str, state: WorkflowState) -> dict:
                 " A previous extraction failed source validation. Correct ONLY fields in the supplied "
                 "catalog using the validation feedback; other supported fields are already preserved. "
                 "Copy quotes verbatim; do not paraphrase quotations. "
-                "If a count or catalog option is not explicit, OMIT it rather than guess. "
+                "If a count lacks supported digits/number words/decision ordinals or an option is not explicit, OMIT it. "
                 "The feedback includes each previous invalid value and quote and the specific reason. "
                 "Do not return the same invalid proposal again. A field may be omitted even when it "
                 "seems semantically reasonable: explicit source evidence and the field format are mandatory. "
@@ -225,4 +249,5 @@ def preview_document(data: bytes, filename: str, state: WorkflowState) -> dict:
     conflicts = sorted({identifier for identifier in identifiers if identifiers.count(identifier) > 1})
     return {"metadata": metadata.model_dump(), "candidates": [item.model_dump() for item in candidates],
             "fields": catalog, "conflicting_fields": conflicts, "warnings": source["warnings"],
+            "source": DocumentSource(metadata=metadata, units=units).model_dump(),
             "verification": "proposals_unapproved"}

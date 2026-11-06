@@ -192,7 +192,9 @@ class DocumentIntakeTests(unittest.TestCase):
                                      "Unretained appendix: private-extra-that-is-not-a-field"])
         self.assertEqual(response.status_code, 200, response.text)
         self.assertNotIn("fictional@example.com", response.text)
-        self.assertNotIn("private-extra-that-is-not-a-field", response.text)
+        self.assertIn("private-extra-that-is-not-a-field", response.json()["source"]["units"][-1]["text"])
+        self.assertFalse(any("private-extra-that-is-not-a-field" in field["value"]
+                             for field in response.json()["candidates"]))
         self.assertIn("no AI model", response.text)
         llm.assert_not_called()
         with self.assertRaises(WorkflowNotFound):
@@ -320,8 +322,9 @@ class DocumentIntakeTests(unittest.TestCase):
         self.assertEqual(effective_diagnosis(state).evidence["workflow_name"].source, "document")
 
     def test_upload_limit_is_narrow_and_unauthorized_readers_do_not_parse(self):
-        for path in ("/api/v1/intake", "/api/v1/intake/document-preview/"):
+        for path in ("/api/v1/chat", "/api/v1/intake/document-preview/"):
             self.assertEqual(self.client.post(path, content=b"x" * 65537).status_code, 413)
+        self.assertEqual(self.client.post("/api/v1/intake", content=b"x" * (384 * 1024 + 1)).status_code, 413)
         self.assertEqual(self.preview(data=b"x" * (MAX_FILE_BYTES + 1)).status_code, 413)
         valid = pdf(["Steps: 7"])
         self.assertEqual(self.preview(kind="pdf", data=valid + b" " * (MAX_FILE_BYTES - len(valid))).status_code, 200)
