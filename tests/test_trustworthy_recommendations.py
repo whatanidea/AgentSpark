@@ -609,6 +609,8 @@ class Phase3APITests(unittest.TestCase):
                 score, rec, intelligence=intel, context=context, mapping=mapping, governance=governance,
                 roi=roi, diagnosis=diagnosis)
         payload = json.loads(generate.call_args.args[2])
+        self.assertIn("outside the\nsynchronous request", generate.call_args.args[1])
+        self.assertIn("ambiguous publication", generate.call_args.args[1])
         self.assertEqual(payload["workflow"], intel.model_dump())
         self.assertEqual(payload["context"], context.model_dump())
         self.assertEqual(payload["cloud_mapping"], mapping)

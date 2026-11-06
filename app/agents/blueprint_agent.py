@@ -74,6 +74,9 @@ component keys from cloud_mapping (systems means the supplied external integrati
 Adjacent steps must form a connected handoff: produces must exactly match the next receives.
 A human step is mandatory when requires_hitl is true;
 standard software must not have an ai step. The view grants no new execution authority.
+Human oversight does not imply a runtime wait. If the reported work does not wait for approval,
+deliver the permitted draft before later human oversight and label that oversight outside the
+synchronous request. Do not invent blocking approval or long-lived execution from requires_hitl.
 Include exactly two choices, one compute and one database, with an alternative verbatim from the
 supplied service_catalog and a concrete trade-off. Keep infrastructure choices conditional where
 requirements are unconfirmed; do not invent always-on, SQL/ACID, scale or integration requirements.

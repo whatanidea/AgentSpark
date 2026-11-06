@@ -26,6 +26,8 @@ generated code remains illustrative and untested, not a production implementatio
 Runtime alternative explanations distinguish unknown durability needs from a
 cloud mismatch. Question-bound interview answers are not silently copied to other
 fields; unresolved requirements still require explicit confirmation.
+Human oversight in a responsibility flow does not establish a blocking runtime
+wait. Reported request-bound draft delivery must remain separate from later review.
 
 No model, deployment, resource, permission or public-signup changes are introduced.
 
