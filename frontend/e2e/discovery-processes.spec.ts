@@ -1,4 +1,5 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
+import { join } from "node:path";
 
 type Identity = { identity: string; token: string };
 type Fixture = {
@@ -71,6 +72,126 @@ async function cleanup(request: APIRequestContext, value: Fixture, child = "") {
   expect((await request.delete(`/api/v1/engagements/${value.engagement}?version=${encodeURIComponent(record.version)}`,
     { headers: value.headers })).ok()).toBe(true);
 }
+
+async function nominateAlignment(page: Page, kind: "stakeholder" | "owner" | "decision", identity: string) {
+  await page.getByRole("button", { name: kind === "stakeholder" ? "Nominate stakeholder" :
+    kind === "owner" ? "Nominate accountable owner" : "Record decision needed", exact: true }).click();
+  await page.getByRole("button", { name: "Load alignment team members", exact: true }).click();
+  await page.getByRole("combobox", { name: "Assigned person", exact: true }).selectOption(identity);
+  await page.getByRole("textbox", { name: "Recorded person label", exact: true }).fill("Fictional claims lead");
+  if (kind === "decision") {
+    await page.getByRole("textbox", { name: "Decision needed", exact: true }).fill("Who owns pilot support?");
+    await page.getByRole("textbox", { name: "Basis for decision responsibility", exact: true }).fill("Workshop nomination for discovery only");
+    await page.getByRole("textbox", { name: "Decision next action", exact: true }).fill("Review the support model");
+  }
+  await page.getByRole("button", { name: "Save alignment record", exact: true }).click();
+  await expect(page.getByRole("status").filter({ hasText: "Alignment saved." })).toBeVisible();
+}
+
+test("stakeholder alignment records self-attributed conditions, ownership and decisions without consensus", async ({ page, browser }, testInfo) => {
+  const value = await fixture(page.request);
+  const actorContext = await browser.newContext({ viewport: page.viewportSize() || { width: 1280, height: 720 },
+    isMobile: testInfo.project.name === "mobile-safari", hasTouch: testInfo.project.name === "mobile-safari" });
+  try {
+    await open(page, value.owner, value);
+    await page.getByRole("button", { name: "Start stakeholder alignment", exact: true }).click();
+    await expect(page.getByRole("region", { name: "Alignment brief", exact: true })).toBeVisible();
+    await nominateAlignment(page, "stakeholder", value.operator.identity);
+    await nominateAlignment(page, "owner", value.operator.identity);
+    await nominateAlignment(page, "decision", value.operator.identity);
+    const actor = await actorContext.newPage();
+    await open(actor, value.operator, value);
+    await expect(actor.getByRole("button", { name: "Nominate stakeholder", exact: true })).toBeDisabled();
+    await expect(actor.getByRole("button", { name: "Record owner decision", exact: true })).toBeDisabled();
+    await actor.getByRole("button", { name: "Accept Business owner responsibility", exact: true }).click();
+    await expect(actor.getByRole("region", { name: "Alignment brief", exact: true })).toContainText("Accepted for current scope");
+    await actor.getByRole("button", { name: "Accept decision responsibility", exact: true }).click();
+    await actor.getByRole("button", { name: "Record owner decision", exact: true }).click();
+    await actor.getByRole("textbox", { name: "Owner decision outcome", exact: true }).fill("Investigate a support model; do not launch yet");
+    await actor.getByRole("textbox", { name: "Decision rationale", exact: true }).fill("Operational support has not been agreed");
+    await actor.getByRole("textbox", { name: "Agreed next action", exact: true }).fill("Gather operational evidence");
+    await actor.getByRole("button", { name: "Save alignment record", exact: true }).click();
+    await expect(actor.getByRole("region", { name: "Alignment brief", exact: true })).toContainText("Owner decision recorded");
+    await actor.getByRole("button", { name: "Record Business position", exact: true }).click();
+    await actor.getByRole("combobox", { name: "My stakeholder position", exact: true }).selectOption("conditional");
+    await actor.getByRole("textbox", { name: "Position rationale", exact: true }).fill("Support discovery, not production approval");
+    await actor.getByRole("textbox", { name: "Conditions / objections to address", exact: true }).fill("No autonomous payment; validate data access");
+    await actor.getByRole("button", { name: "Save alignment record", exact: true }).click();
+    const brief = actor.getByRole("region", { name: "Alignment brief", exact: true });
+    await expect(brief).toContainText("Support with conditions");
+    await expect(brief).toContainText("No autonomous payment; validate data access");
+    await expect(brief).toContainText("No current position recorded");
+    const saved = await (await page.request.get(`/api/v1/engagements/${value.engagement}`, { headers: value.headers })).json();
+    expect(saved.alignment.missing_functions).toHaveLength(4);
+    expect(saved.alignment.accepted_owners).toHaveLength(1);
+    expect(saved.alignment.current_decisions).toHaveLength(1);
+    expect(saved.expires_at).toBe(value.initialExpiry);
+    expect(await actor.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+    if (process.env.AGENTSPARK_ALIGNMENT_RESULTS) {
+      await actor.locator("#discovery-alignment").screenshot({
+        path: join(process.env.AGENTSPARK_ALIGNMENT_RESULTS, `alignment-${testInfo.project.name}.png`),
+      });
+    }
+  } finally { await actorContext.close(); await cleanup(page.request, value); }
+});
+
+test("stakeholder alignment retains stale drafts, guards navigation and freezes conditions at handoff", async ({ page, browser }) => {
+  const value = await fixture(page.request);
+  const actorContext = await browser.newContext({ viewport: page.viewportSize() || { width: 1280, height: 720 } });
+  let child = "";
+  try {
+    let record = await (await page.request.get(`/api/v1/engagements/${value.engagement}`, { headers: value.headers })).json();
+    record = await json(page.request, "post", `/engagements/${value.engagement}/alignment`, value.headers, { version: record.version });
+    record = await json(page.request, "post", `/engagements/${value.engagement}/alignment/stakeholders`, value.headers,
+      { version: record.version, identity_id: value.operator.identity, function: "business" });
+    const actor = await actorContext.newPage();
+    await open(actor, value.operator, value);
+    await actor.getByRole("button", { name: "Record Business position", exact: true }).click();
+    await actor.getByRole("textbox", { name: "Position rationale", exact: true }).fill("A draft that must survive a conflict");
+    await expect(actor.getByRole("textbox", { name: "Business objective", exact: true })).toBeDisabled();
+    record = await json(page.request, "put", `/engagements/${value.engagement}`, value.headers,
+      { version: record.version, engagement: { ...record.engagement, objective: "Changed business outcome" } });
+    await actor.getByRole("button", { name: "Save alignment record", exact: true }).click();
+    await expect(actor.getByRole("alert").filter({ hasText: "Discovery changed" }).first()).toBeVisible();
+    await expect(actor.getByRole("textbox", { name: "Position rationale", exact: true })).toHaveValue("A draft that must survive a conflict");
+    actor.once("dialog", dialog => dialog.dismiss());
+    await actor.getByRole("button", { name: "Home", exact: true }).click();
+    await expect(actor.getByRole("textbox", { name: "Position rationale", exact: true })).toHaveValue("A draft that must survive a conflict");
+    await actor.getByRole("button", { name: "Discard alignment draft", exact: true }).click();
+    await actor.getByRole("button", { name: "Browser process discovery", exact: true }).click();
+    await actor.getByRole("button", { name: "Record Business position", exact: true }).click();
+    await actor.getByRole("combobox", { name: "My stakeholder position", exact: true }).selectOption("conditional");
+    await actor.getByRole("textbox", { name: "Position rationale", exact: true }).fill("Investigate only");
+    await actor.getByRole("textbox", { name: "Conditions / objections to address", exact: true }).fill("No external publication without a separate decision");
+    const positionSaved = actor.waitForResponse(response => response.url().endsWith("/position") && response.request().method() === "POST");
+    await actor.getByRole("button", { name: "Save alignment record", exact: true }).click();
+    expect((await positionSaved).ok()).toBe(true);
+    await expect(actor.getByRole("status").filter({ hasText: "Alignment saved." })).toBeVisible();
+    record = await (await page.request.get(`/api/v1/engagements/${value.engagement}`, { headers: value.headers })).json();
+    const opportunity = crypto.randomUUID();
+    record = await json(page.request, "put", `/engagements/${value.engagement}`, value.headers,
+      { version: record.version, engagement: { ...record.engagement, opportunities: [
+        { id: opportunity, title: "Investigate claims assistance", problem: "Understand rework",
+          status: "selected", source_ids: [], ratings: null },
+      ] } });
+    await open(page, value.owner, value);
+    await page.getByRole("combobox", { name: "Opportunity to review", exact: true }).selectOption(opportunity);
+    await page.getByRole("combobox", { name: "Assessment target cloud", exact: true }).selectOption("azure");
+    await page.getByRole("checkbox", { name: /I reviewed this hypothesis, sources and organisational alignment/ }).check();
+    const completion = page.waitForResponse(response => response.url().endsWith(`/opportunities/${opportunity}/handoff`) && response.request().method() === "POST");
+    await page.getByRole("button", { name: "Create or resume assessment handoff", exact: true }).click();
+    const handoff = await (await completion).json();
+    child = handoff.session_id;
+    await page.getByText(/^Discovery origin:/).click();
+    const frozen = page.getByRole("region", { name: "Alignment brief", exact: true });
+    await expect(frozen).toContainText("No external publication without a separate decision");
+    expect(handoff.engagement.handoffs[0].origin.alignment.missing_functions).toHaveLength(4);
+    const childState = await (await page.request.get(`/api/v1/sessions/${child}`, { headers: value.headers })).json();
+    expect(childState.discovery_origin.alignment.record.stakeholders[0].positions).toHaveLength(1);
+    expect(childState.workflow_intelligence).toBeNull();
+    expect(childState.interview_answers).toEqual({});
+  } finally { await actorContext.close(); await cleanup(page.request, value, child); }
+});
 
 test("authenticated step drafts persist, reviewers resolve sources, and five alternatives retain process handoff provenance", async ({ page, browser }) => {
   const value = await fixture(page.request);

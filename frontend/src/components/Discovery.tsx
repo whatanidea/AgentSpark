@@ -7,13 +7,13 @@ import DiscoveryGuide from "./DiscoveryGuide";
 const empty = (): DiscoveryEngagement => ({
   title: "", objective: "", business_units: "", sponsor: "", engagement_owner: "",
   required_topics: "", excluded_topics: "", starts_on: "", ends_on: "", status: "planned",
-  contributions: [], opportunities: [], assessment_ids: [],
+  contributions: [], opportunities: [], assessment_ids: [], success_measures: "",
 });
 const textFields = [
   ["title", "Engagement title", 200], ["objective", "Business objective", 2000],
   ["business_units", "Business units in scope", 1000], ["sponsor", "Sponsor", 200],
   ["engagement_owner", "Engagement owner", 200], ["required_topics", "Required topics", 2000],
-  ["excluded_topics", "Excluded topics", 2000],
+  ["excluded_topics", "Excluded topics", 2000], ["success_measures", "Proposed success measures (unknown allowed)", 1000],
 ] as const;
 const roles = { business_operator: "Business operator", process_owner: "Process owner", technical_owner: "Technical owner" } as const;
 
@@ -164,8 +164,8 @@ export default function Discovery({ canCreate, onOpen, onBusyChange, onManageAcc
           Expires {new Date(record.expires_at).toLocaleString()}.</p>}
         <fieldset disabled={busy || !canWrite} className="grid md:grid-cols-2 gap-4">
           {textFields.map(([key, label, max]) => <label key={key} className="text-sm font-semibold">{label}
-            <textarea className="form-control mt-1" value={draft[key]} maxLength={max}
-              required={!["required_topics", "excluded_topics"].includes(key)}
+            <textarea className="form-control mt-1" value={draft[key] || ""} maxLength={max}
+              required={!["required_topics", "excluded_topics", "success_measures"].includes(key)}
               onChange={event => update(key, event.target.value)} />
           </label>)}
           <label>Status<select className="form-control" value={draft.status}

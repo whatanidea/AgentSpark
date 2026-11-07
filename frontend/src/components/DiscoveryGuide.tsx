@@ -3,7 +3,7 @@ import { Button, Card } from "./ui";
 
 const sections: [DiscoverySection, string][] = [
   ["overview", "Overview"], ["processes", "Processes"], ["people", "People & inputs"],
-  ["evidence", "Evidence"], ["opportunities", "Opportunities"], ["findings", "Findings"],
+  ["alignment", "Alignment"], ["evidence", "Evidence"], ["opportunities", "Opportunities"], ["findings", "Findings"],
 ];
 
 export function visitDiscoverySection(section: DiscoverySection) {

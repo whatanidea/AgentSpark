@@ -19,12 +19,17 @@ from app.utils.discovery import (
 from app.utils.model_catalog import assessment_model, model_definition
 from app.utils.discovery_engagement import engagement_overview, discovery_findings
 from app.utils.discovery_playbooks import PLAYBOOKS
+from app.utils.discovery_alignment import (
+    active_member, alignment_snapshot, charter_digest, decision_digest, position_digest, snapshot_content,
+)
 from app.utils.pdf_report import build_discovery_findings_pdf
 from app.utils.models import (
     CloudProvider, DiscoveryEngagement, DiscoveryHandoff, DiscoveryOpportunity, DiscoveryOrigin,
     DiscoveryParticipant, DiscoverySource, DiscoverySynthesis, EnterpriseContext, EvidenceEntry, SessionId, WorkflowState,
     DiscoveryProcess, DiscoveryTask, DiscoveryBaseline, DiscoverySourceReview, DiscoveryAlternative, DiscoveryAlternativeKind,
     DiscoveryRatings,
+    DiscoveryAlignment, DiscoveryStakeholder, DiscoveryOwnership, DiscoveryDecision,
+    DiscoveryAcceptance, DiscoveryPosition, DiscoveryDecisionOutcome, DiscoveryFunction, DiscoveryOwnershipRole,
 )
 
 from app.utils.processing import ProcessingRoute, report_stage
@@ -60,6 +65,50 @@ class GenerationRequest(VersionRequest):
 class HandoffRequest(GenerationRequest):
     target_cloud: CloudProvider
     reviewed: bool
+    alignment_reviewed: bool = False
+
+
+class AlignmentNominationRequest(VersionRequest):
+    identity_id: SessionId
+    label: str = Field(default="", max_length=200)
+
+
+class StakeholderNominationRequest(AlignmentNominationRequest):
+    function: DiscoveryFunction
+
+
+class OwnershipNominationRequest(AlignmentNominationRequest):
+    role: DiscoveryOwnershipRole
+
+
+class AlignmentPositionRequest(VersionRequest):
+    position: Literal["support", "conditional", "more_evidence", "object"]
+    rationale: str = Field(min_length=1, max_length=1000)
+    conditions: str = Field(default="", max_length=1000)
+    source_ids: list[Annotated[str, Field(min_length=1, max_length=200)]] = Field(default_factory=list, max_length=20)
+
+
+class DecisionNominationRequest(AlignmentNominationRequest):
+    question: str = Field(min_length=1, max_length=1000)
+    authority_basis: str = Field(min_length=1, max_length=1000)
+    next_action: str = Field(min_length=1, max_length=1000)
+    due_on: str = Field(default="", max_length=10)
+    source_ids: list[Annotated[str, Field(min_length=1, max_length=200)]] = Field(default_factory=list, max_length=20)
+    replaces_id: SessionId | None = None
+
+    @field_validator("due_on")
+    @classmethod
+    def canonical_due_date(cls, value):
+        from datetime import date
+        if value and date.fromisoformat(value).isoformat() != value:
+            raise ValueError("Decision due date must use YYYY-MM-DD.")
+        return value
+
+
+class DecisionOutcomeRequest(VersionRequest):
+    outcome: str = Field(min_length=1, max_length=1000)
+    rationale: str = Field(min_length=1, max_length=1000)
+    next_action: str = Field(min_length=1, max_length=1000)
 
 
 class ProcessRequest(VersionRequest):
@@ -173,9 +222,11 @@ def response(state):
     participant = next((item for item in state.discovery_participants if item.identity_id == identity), None)
     member = tenant_directory.get(state.organization_id, f"member-{identity}") if participant and state.organization_id else None
     synthesis = state.discovery_synthesis
+    alignment = alignment_snapshot(state)
     return {"id": state.session_id, "version": state._etag,
             "engagement": state.discovery.model_dump(mode="json"),
-            "overview": engagement_overview(state), "playbooks": list(PLAYBOOKS.values()),
+            "alignment": alignment,
+            "overview": engagement_overview(state, alignment=alignment), "playbooks": list(PLAYBOOKS.values()),
             "permissions": permissions, "expires_at": state.expires_at.isoformat(),
             "retention": {"days": RETENTION_DAYS,
                           "created_at": state.discovery_created_at.isoformat() if state.discovery_created_at else None,
@@ -303,15 +354,150 @@ def renew_engagement(engagement_id: SessionId, req: VersionRequest):
     return response(state)
 
 
-def active_member(state: WorkflowState, identity: str):
-    if not state.organization_id or not state.team_id:
-        raise HTTPException(409, "Use an organization/team workspace and its existing invitation flow for participants.")
-    member = tenant_directory.get(state.organization_id, f"member-{identity}")
-    grant = tenant_directory.get(state.organization_id, f"grant-{state.team_id}-{identity}")
-    if not member or not member.active or (member.role not in ("owner", "admin") and (
-            not grant or not grant.active or grant.generation != member.generation or not grant.roles)):
+def alignment_state(engagement_id, version, action="write"):
+    state = checked_state(engagement_id, version, action)
+    if state.discovery_alignment is None:
+        raise HTTPException(409, "Start stakeholder alignment before recording assignments or decisions.")
+    return state
+
+
+def nominated(state, identity, label=""):
+    member = active_member(state, identity)
+    return {"id": str(uuid4()), "identity_id": identity, "label": label, "membership_generation": member.generation,
+            "nominated_by": principal_context.get().owner_id, "nominated_at": datetime.now(timezone.utc)}
+
+
+def owned_assignment(state, collection, assignment_id):
+    entry = next((item for item in getattr(state.discovery_alignment, collection) if item.id == assignment_id), None)
+    if entry is None:
         raise WorkflowNotFound()
-    return member
+    if entry.identity_id != principal_context.get().owner_id:
+        raise HTTPException(403, "Only the assigned person can record their position, acceptance or decision.")
+    if entry.withdrawn or active_member(state, entry.identity_id).generation != entry.membership_generation:
+        raise HTTPException(403, "This nomination is inactive; request a fresh nomination.")
+    if collection == "decisions" and any(item.replaces_id == entry.id for item in state.discovery_alignment.decisions):
+        raise HTTPException(409, "This decision has been superseded; use the replacement decision.")
+    return entry
+
+
+def alignment_references(state, source_ids):
+    known = {source.id for source in discovery_sources(state)}
+    if len(set(source_ids)) != len(source_ids) or not set(source_ids).issubset(known):
+        raise HTTPException(422, "Reference unique current source IDs; use the existing source review workflow for clarification.")
+
+
+@router.post("/engagements/{engagement_id}/alignment")
+def start_alignment(engagement_id: SessionId, req: VersionRequest):
+    state = checked_state(engagement_id, req.version)
+    active_member(state, principal_context.get().owner_id)
+    if state.discovery_alignment is None:
+        state.discovery_alignment = DiscoveryAlignment()
+        db_client.save_workflow_state(state)
+    return response(state)
+
+
+@router.post("/engagements/{engagement_id}/alignment/stakeholders")
+def nominate_stakeholder(engagement_id: SessionId, req: StakeholderNominationRequest):
+    state = alignment_state(engagement_id, req.version)
+    req = safe_payload(req)
+    if len(state.discovery_alignment.stakeholders) >= 20:
+        raise HTTPException(422, "At most 20 stakeholder nominations, including history, can be recorded.")
+    member = active_member(state, req.identity_id)
+    if any(item.identity_id == req.identity_id and item.function == req.function and not item.withdrawn and
+           item.membership_generation == member.generation for item in state.discovery_alignment.stakeholders):
+        raise HTTPException(409, "This person already has a current nomination for that perspective.")
+    state.discovery_alignment.stakeholders.append(DiscoveryStakeholder(
+        **nominated(state, req.identity_id, req.label), function=req.function))
+    db_client.save_workflow_state(state)
+    return response(state)
+
+
+@router.post("/engagements/{engagement_id}/alignment/owners")
+def nominate_owner(engagement_id: SessionId, req: OwnershipNominationRequest):
+    state = alignment_state(engagement_id, req.version)
+    req = safe_payload(req)
+    if len(state.discovery_alignment.owners) >= 20:
+        raise HTTPException(422, "At most 20 ownership nominations, including history, can be recorded.")
+    nomination = nominated(state, req.identity_id, req.label)
+    for item in state.discovery_alignment.owners:
+        if item.role == req.role:
+            item.withdrawn = True
+    state.discovery_alignment.owners.append(DiscoveryOwnership(**nomination, role=req.role))
+    db_client.save_workflow_state(state)
+    return response(state)
+
+
+@router.post("/engagements/{engagement_id}/alignment/{collection}/{assignment_id}/withdraw")
+def withdraw_alignment_nomination(engagement_id: SessionId, collection: Literal["stakeholders", "owners"],
+                                  assignment_id: SessionId, req: VersionRequest):
+    state = alignment_state(engagement_id, req.version)
+    entry = next((item for item in getattr(state.discovery_alignment, collection) if item.id == assignment_id), None)
+    if entry is None:
+        raise WorkflowNotFound()
+    entry.withdrawn = True
+    db_client.save_workflow_state(state)
+    return response(state)
+
+
+@router.post("/engagements/{engagement_id}/alignment/stakeholders/{assignment_id}/position")
+def record_alignment_position(engagement_id: SessionId, assignment_id: SessionId, req: AlignmentPositionRequest):
+    state = alignment_state(engagement_id, req.version, "read")
+    entry = owned_assignment(state, "stakeholders", assignment_id)
+    req = safe_payload(req)
+    if req.position == "conditional" and not req.conditions.strip():
+        raise HTTPException(422, "Support with conditions requires explicit conditions.")
+    alignment_references(state, req.source_ids)
+    if len(entry.positions) >= 10:
+        raise HTTPException(422, "At most 10 attributed positions per nomination can be recorded.")
+    entry.positions.append(DiscoveryPosition(**req.model_dump(exclude={"version"}),
+                           context_digest=position_digest(state), recorded_at=datetime.now(timezone.utc)))
+    db_client.save_workflow_state(state, action="read")
+    return response(state)
+
+
+@router.post("/engagements/{engagement_id}/alignment/{collection}/{assignment_id}/accept")
+def accept_alignment_responsibility(engagement_id: SessionId, collection: Literal["owners", "decisions"],
+                                    assignment_id: SessionId, req: VersionRequest):
+    state = alignment_state(engagement_id, req.version, "read")
+    entry = owned_assignment(state, collection, assignment_id)
+    if len(entry.acceptances) >= 10:
+        raise HTTPException(422, "At most 10 attributed acceptances per nomination can be recorded.")
+    digest = decision_digest(state, entry) if collection == "decisions" else charter_digest(state)
+    entry.acceptances.append(DiscoveryAcceptance(context_digest=digest, recorded_at=datetime.now(timezone.utc)))
+    db_client.save_workflow_state(state, action="read")
+    return response(state)
+
+
+@router.post("/engagements/{engagement_id}/alignment/decisions")
+def nominate_decision(engagement_id: SessionId, req: DecisionNominationRequest):
+    state = alignment_state(engagement_id, req.version)
+    req = safe_payload(req)
+    if len(state.discovery_alignment.decisions) >= 20:
+        raise HTTPException(422, "At most 20 decisions, including replacements, can be recorded.")
+    alignment_references(state, req.source_ids)
+    if req.replaces_id and (not any(item.id == req.replaces_id for item in state.discovery_alignment.decisions) or
+                           any(item.replaces_id == req.replaces_id for item in state.discovery_alignment.decisions)):
+        raise HTTPException(422, "Replace an existing decision that has not already been superseded.")
+    state.discovery_alignment.decisions.append(DiscoveryDecision(**nominated(state, req.identity_id, req.label),
+        **req.model_dump(exclude={"version", "identity_id", "label"})))
+    db_client.save_workflow_state(state)
+    return response(state)
+
+
+@router.post("/engagements/{engagement_id}/alignment/decisions/{assignment_id}/outcome")
+def record_decision_outcome(engagement_id: SessionId, assignment_id: SessionId, req: DecisionOutcomeRequest):
+    state = alignment_state(engagement_id, req.version, "read")
+    entry = owned_assignment(state, "decisions", assignment_id)
+    digest = decision_digest(state, entry)
+    if not entry.acceptances or entry.acceptances[-1].context_digest != digest:
+        raise HTTPException(409, "Accept decision responsibility for the current scope before recording an outcome.")
+    if len(entry.outcomes) >= 10:
+        raise HTTPException(422, "At most 10 attributed outcomes per decision can be recorded.")
+    req = safe_payload(req)
+    entry.outcomes.append(DiscoveryDecisionOutcome(**req.model_dump(exclude={"version"}),
+                          context_digest=digest, recorded_at=datetime.now(timezone.utc)))
+    db_client.save_workflow_state(state, action="read")
+    return response(state)
 
 
 @router.get("/engagements/{engagement_id}/eligible-participants")
@@ -558,6 +744,9 @@ def create_handoff(engagement_id: SessionId, opportunity_id: SessionId, req: Han
     state = checked_state(engagement_id, req.version)
     if not req.reviewed:
         raise HTTPException(422, "Review the opportunity and its unverified source evidence before handoff.")
+    alignment = alignment_snapshot(state)
+    if alignment is not None and not req.alignment_reviewed:
+        raise HTTPException(422, "Review organisational alignment, including unresolved conditions, before assessment handoff.")
     opportunity = next((item for item in state.discovery.opportunities if item.id == opportunity_id), None)
     if opportunity is None:
         raise WorkflowNotFound()
@@ -577,6 +766,8 @@ def create_handoff(engagement_id: SessionId, opportunity_id: SessionId, req: Han
     model = model_definition(req.model_id)
     reservation = next((item for item in state.discovery_handoffs if item.origin.opportunity_id == opportunity_id), None)
     if reservation:
+        if snapshot_content(reservation.origin.alignment) != snapshot_content(alignment):
+            raise HTTPException(409, "The alignment snapshot changed. Create a new opportunity instead of rewriting frozen provenance.")
         if (reservation.origin.title != opportunity.title or reservation.origin.problem != opportunity.problem
                 or reservation.context.target_cloud != req.target_cloud or reservation.model != model
                 or reservation.origin.processes != processes
@@ -604,7 +795,7 @@ def create_handoff(engagement_id: SessionId, opportunity_id: SessionId, req: Han
             processes=processes, alternatives=opportunity.alternatives,
             preferred_alternative=opportunity.preferred_alternative,
             source_reviews=[review for review in state.discovery_source_reviews
-                            if set(review.source_ids).intersection(opportunity.source_ids)])
+                            if set(review.source_ids).intersection(opportunity.source_ids)], alignment=alignment)
         context = EnterpriseContext(business_domain=state.discovery.business_units[:200],
                                     pain_points=opportunity.problem, target_cloud=req.target_cloud)
         reservation = DiscoveryHandoff(

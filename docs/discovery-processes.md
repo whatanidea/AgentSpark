@@ -1,5 +1,57 @@
 # Process-led discovery
 
+## Stakeholder alignment and discovery decisions
+
+In a saved team engagement, **Start stakeholder alignment** enables an optional
+alignment layer. The existing objective, units, sponsor/lead, scope and exclusions
+form the shared charter; proposed success measures may remain unknown.
+
+Contributors nominate existing team identities for Business, IT, Risk,
+Compliance/Privacy and Operations perspectives. Business perspective is separate
+from application permissions. Only the assigned person records support, support
+with explicit conditions, a need for evidence, or objection. Missing, stale and
+inactive inputs are not agreement. Person labels are facilitator notes, not
+identity verification; attribution uses the authenticated platform identity.
+
+Executive sponsor, business owner and operational owner are nominated separately.
+Only the named active member accepts responsibility for the current charter.
+Text sponsor/owner fields alone never establish accepted accountability.
+
+Each decision records a question, nominated decision owner, recorded authority
+basis, source references, next action and optional ISO due date. Only that person,
+after accepting the current decision remit, records an outcome, rationale and next
+action. This records a discovery decision, not corporate authority, regulatory
+clearance or permission to implement. Owner outcomes do not erase stakeholder
+objections. Existing source reviews continue to handle evidence disagreements.
+
+Charter/process/source/review changes stale affected positions, owner acceptances
+and outcomes. New/replaced decisions and outcome edits require fresh stakeholder
+positions. Acceptances, positions and outcomes retain bounded attributed history.
+Withdrawn nominations remain historical; owner reassignment withdraws the old
+nomination. Replace/reassign a decision with a linked immutable replacement rather
+than altering its original remit. Membership revocation removes response authority;
+changed membership generations require fresh nominations.
+
+The visual alignment brief shows the outcome, functional positions, open
+decisions, accepted owners and next actions without an alignment percentage.
+Findings PDF starts with a one-page excerpted brief, followed by the exact snapshot
+including all conditions, identities, evidence references and history. Large
+snapshots remain in the reference; excerpts never substitute for full evidence.
+
+Assessment handoff requires explicit review of alignment, including unresolved
+conditions. It freezes the exact alignment snapshot alongside existing provenance;
+it does not populate readiness or grant execution authority. Changed alignment
+requires a new opportunity rather than rewriting an existing handoff. Legacy
+engagements and historical decisions do not acquire fabricated agreement.
+
+All routes require the current saved version and normal workspace authorization.
+Assignments, acceptance and history are server-owned; the general engagement
+save cannot forge them. Viewer assignees can record only their own positions,
+acceptances and decisions without gaining general write or reviewer access.
+At most 20 nominations of each kind and 10 history entries per nomination are
+retained within the existing document budget. No new service, model call,
+permission, public invitation path or automatic retention renewal is introduced.
+
 Inside an existing discovery engagement, add a process card before choosing technology:
 owner, goal, bounded scope, systems, volume/period, baseline pain and ordered work steps.
 Use “unconfirmed” for unknowns; a filled form is not verified evidence.
@@ -101,8 +153,10 @@ for independent browser identities; it is never imported by the production entry
 CI runs that configuration separately with
 `npm --prefix frontend run test:e2e -- --config playwright.discovery.config.ts`.
 The default configuration explicitly excludes `discovery-processes.spec.ts`, preserving
-its existing local-demo suite. The custom configuration selects only that authenticated
-specification and starts its separate signed-auth fixture server.
+its existing local-demo suite. The custom configuration runs authenticated process
+journeys and desktop/mobile stakeholder alignment journeys in that specification.
+It starts a separate signed-auth fixture server; set `AGENTSPARK_DISCOVERY_E2E_PORT`
+to an unused port when an existing preview occupies the default 8768.
 # Guided Discovery engagements
 
 The engagement command centre derives activity checks and next actions from the

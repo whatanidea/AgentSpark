@@ -31,13 +31,13 @@ test("guided discovery keeps drafts across stages and exports standalone non-AI 
     const navigation = page.getByRole("navigation", { name: "Discovery stages" });
     await navigation.getByRole("button", { name: "3. People & inputs", exact: true }).click();
     await expect(page.locator("#discovery-people")).toBeFocused();
-    await navigation.getByRole("button", { name: "4. Evidence", exact: true }).click();
+    await navigation.getByRole("button", { name: "5. Evidence", exact: true }).click();
     await expect(page.locator("#discovery-evidence")).toBeFocused();
     await navigation.getByRole("button", { name: "1. Overview", exact: true }).click();
     await expect(guideQuestion).toHaveValue("Preserve this unsaved facilitator response");
     await expect(page.getByRole("button", { name: "Export discovery findings PDF", exact: true })).toBeDisabled();
     await expect(page.getByText("Overview reflects the last saved record.", { exact: false })).toBeVisible();
-    await navigation.getByRole("button", { name: "6. Findings", exact: true }).click();
+    await navigation.getByRole("button", { name: "7. Findings", exact: true }).click();
     await expect(page.locator("#discovery-findings")).toBeFocused();
     await page.getByLabel("Discovery conclusion", { exact: true }).selectOption("improve_process");
     await page.getByLabel("Conclusion rationale and proposed next steps", { exact: true }).fill("Clarify ownership before buying AI tools.");
