@@ -49,6 +49,10 @@ def raw_discovery_sources(state: WorkflowState) -> list[DiscoverySource]:
         raise ValueError("Discovery payload is required.")
     sources = [DiscoverySource(id=f"note.{note.id}", label=f"Manual {note.role} note; unverified",
                                statement=note.statement) for note in state.discovery.contributions]
+    if state.discovery.success_measures:
+        sources.append(DiscoverySource(id="charter.success_measures",
+            label="Proposed success measures; facilitator-recorded, unverified",
+            statement=state.discovery.success_measures))
     if state.discovery.playbook_id:
         from app.utils.discovery_playbooks import PLAYBOOKS
         playbook = PLAYBOOKS[state.discovery.playbook_id]

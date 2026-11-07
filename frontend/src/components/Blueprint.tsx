@@ -10,6 +10,7 @@ import RuntimeDecisionSummary, { runtimeDecisionMarkdown } from "./RuntimeDecisi
 import ExecutiveBriefSummary, { executiveBriefMarkdown } from "./ExecutiveBrief";
 import ROIReport, { roiMarkdown } from "./ROIReport";
 import AgenticAdoption, { adoptionMarkdown } from "./AgenticAdoption";
+import { alignmentMarkdown } from "./AlignmentBrief";
 
 export default function Blueprint({ sessionId, active, canReview, secureReview, onRefresh, onBusyChange }: any) {
   const [bp, setBp] = useState<any>(null);
@@ -100,6 +101,7 @@ ${bp.status !== "rejected" ? architectureViewMarkdown(bp.architecture_view, bp.c
 ${bp.assessment_limitations || "Region availability, model access, residency and prices are unverified. AgentSpark remains Azure-hosted."}
 ${bp.demo_scenario ? `Fictional demo fixture: ${bp.demo_scenario}; not extracted customer facts.` : ""}
 
+${bp.discovery_origin?.alignment ? alignmentMarkdown(bp.discovery_origin.alignment) : ""}
 ${bp.discovery_origin ? `## Discovery origin - unverified frozen snapshot\n\`\`\`json\n${JSON.stringify(bp.discovery_origin, null, 2)}\n\`\`\`\n` : ""}
 ## Selected cloud service candidates
 \`\`\`json

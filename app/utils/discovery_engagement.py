@@ -14,7 +14,8 @@ LIMITATIONS = (
 )
 
 
-def engagement_overview(state: WorkflowState, today=None) -> dict:
+def engagement_overview(state: WorkflowState, today=None, alignment=None) -> dict:
+    from app.utils.discovery_alignment import alignment_snapshot
     engagement = state.discovery
     if engagement is None:
         raise ValueError("Discovery payload is required.")
@@ -93,9 +94,21 @@ def engagement_overview(state: WorkflowState, today=None) -> dict:
                     " Outstanding activity and evidence gaps remain visible; this conclusion is not execution approval."}]
     if not actions:
         actions = [{"section": "findings", "message": "Discuss the findings and agree the next separately scoped action; no execution is authorized."}]
+    if alignment is None and state.discovery_alignment is not None:
+        alignment = alignment_snapshot(state)
+    if alignment:
+        incomplete = bool(alignment.missing_functions or alignment.unaccepted_owners or alignment.open_decisions)
+        detail = (f"{len(alignment.missing_functions)} perspectives without current positions; "
+                  f"{len(alignment.unaccepted_owners)} responsibilities not accepted; "
+                  f"{len(alignment.open_decisions)} decisions remain open. Recorded positions are not consensus.")
+        checks.append({"id": "alignment", "section": "alignment", "label": "Alignment positions and responsibilities recorded",
+                       "complete": not incomplete, "detail": detail})
+        if incomplete:
+            actions.insert(0, {"section": "alignment", "message": "Review missing or stale positions, accepted ownership and open decisions. " + detail})
     first = actions[0]["section"]
     stages = {"overview": "Frame the engagement", "processes": "Gather process inputs", "people": "Gather stakeholder inputs",
-              "evidence": "Review evidence", "opportunities": "Compare opportunities", "findings": "Discuss findings"}
+              "evidence": "Review evidence", "opportunities": "Compare opportunities", "findings": "Discuss findings",
+              "alignment": "Align stakeholders and decisions"}
     return {"stage": stages[first], "checks": checks, "next_actions": actions,
             "documented_checks": sum(bool(check["complete"]) for check in checks), "total_checks": len(checks),
             "pending_requests": len(pending), "overdue_requests": len(overdue),
@@ -106,10 +119,12 @@ def engagement_overview(state: WorkflowState, today=None) -> dict:
 
 
 def discovery_findings(state: WorkflowState) -> dict:
+    from app.utils.discovery_alignment import alignment_snapshot
     engagement = state.discovery
     if engagement is None:
         raise ValueError("Discovery payload is required.")
-    overview = engagement_overview(state)
+    alignment = alignment_snapshot(state)
+    overview = engagement_overview(state, alignment=alignment)
     current = state.discovery_synthesis is not None and state.discovery_synthesis.source_digest == source_digest(state)
     return {
         "report_version": "discovery-findings-v1", "engagement_id": state.session_id,
@@ -120,6 +135,7 @@ def discovery_findings(state: WorkflowState) -> dict:
         "participation": [{"role": item.role, "status": item.status, "identity_id": item.identity_id}
                           for item in state.discovery_participants],
         "requests": [item.model_dump(mode="json", exclude={"answers", "evidence"}) for item in state.discovery_tasks],
+        "alignment": alignment.model_dump(mode="json") if alignment else None,
         "synthesis_status": "current" if current else "stale_withheld" if state.discovery_synthesis else "not_generated",
         "synthesis": state.discovery_synthesis.model_dump(mode="json") if current else None,
         "sources": [source.model_dump(mode="json") for source in discovery_sources(state)],

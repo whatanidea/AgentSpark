@@ -1,4 +1,5 @@
 import type { DiscoveryOrigin } from "../api";
+import AlignmentBrief from "./AlignmentBrief";
 
 const alternativeNames = {
   unchanged: "Leave unchanged", process_improvement: "Process improvement",
@@ -7,6 +8,8 @@ const alternativeNames = {
 
 export default function DiscoveryOriginSummary({ origin }: { origin: DiscoveryOrigin }) {
   return <section aria-label="Reviewed discovery provenance" className="space-y-3 break-words">
+    {origin.alignment && <><p className="notice">Frozen organisational alignment at assessment handoff. Later engagement changes do not rewrite this snapshot.</p>
+      <AlignmentBrief snapshot={origin.alignment} /></>}
     {(origin.processes || []).map(process => <article key={process.id}>
       <h3 className="font-semibold">Process: {process.title}</h3>
       <p>Owner: {process.process_owner}. Goal: {process.goal}</p>

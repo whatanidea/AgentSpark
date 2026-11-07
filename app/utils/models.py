@@ -729,6 +729,84 @@ class DiscoverySynthesis(BaseModel):
     generated_at: datetime
 
 
+DiscoveryFunction = Literal["business", "it", "risk", "compliance_privacy", "operations"]
+DiscoveryOwnershipRole = Literal["executive_sponsor", "business_owner", "operational_owner"]
+
+
+class DiscoveryAcceptance(BaseModel):
+    context_digest: str
+    recorded_at: datetime
+
+
+class DiscoveryPosition(DiscoveryAcceptance):
+    position: Literal["support", "conditional", "more_evidence", "object"]
+    rationale: str = Field(min_length=1, max_length=1000)
+    conditions: str = Field(default="", max_length=1000)
+    source_ids: List[str] = Field(default_factory=list, max_length=20)
+
+
+class DiscoveryNomination(BaseModel):
+    id: SessionId
+    identity_id: SessionId
+    label: str = Field(default="", max_length=200)
+    membership_generation: str
+    nominated_by: SessionId
+    nominated_at: datetime
+    withdrawn: bool = False
+
+
+class DiscoveryStakeholder(DiscoveryNomination):
+    function: DiscoveryFunction
+    positions: List[DiscoveryPosition] = Field(default_factory=list, max_length=10)
+
+
+class DiscoveryOwnership(DiscoveryNomination):
+    role: DiscoveryOwnershipRole
+    acceptances: List[DiscoveryAcceptance] = Field(default_factory=list, max_length=10)
+
+
+class DiscoveryDecisionOutcome(DiscoveryAcceptance):
+    outcome: str = Field(min_length=1, max_length=1000)
+    rationale: str = Field(min_length=1, max_length=1000)
+    next_action: str = Field(min_length=1, max_length=1000)
+
+
+class DiscoveryDecision(DiscoveryNomination):
+    question: str = Field(min_length=1, max_length=1000)
+    authority_basis: str = Field(min_length=1, max_length=1000)
+    next_action: str = Field(min_length=1, max_length=1000)
+    due_on: str = ""
+    source_ids: List[str] = Field(default_factory=list, max_length=20)
+    replaces_id: Optional[SessionId] = None
+    acceptances: List[DiscoveryAcceptance] = Field(default_factory=list, max_length=10)
+    outcomes: List[DiscoveryDecisionOutcome] = Field(default_factory=list, max_length=10)
+
+
+class DiscoveryAlignment(BaseModel):
+    stakeholders: List[DiscoveryStakeholder] = Field(default_factory=list, max_length=20)
+    owners: List[DiscoveryOwnership] = Field(default_factory=list, max_length=20)
+    decisions: List[DiscoveryDecision] = Field(default_factory=list, max_length=20)
+
+
+class DiscoveryAlignmentSnapshot(BaseModel):
+    rules_version: Literal["discovery-alignment-v1"] = "discovery-alignment-v1"
+    source_version: str
+    recorded_at: datetime
+    charter: Dict[str, str]
+    record: DiscoveryAlignment
+    context_digest: str
+    current_positions: List[SessionId]
+    inactive_assignments: List[SessionId]
+    accepted_owners: List[SessionId]
+    accepted_decisions: List[SessionId]
+    current_decisions: List[SessionId]
+    superseded_decisions: List[SessionId]
+    missing_functions: List[DiscoveryFunction]
+    unaccepted_owners: List[DiscoveryOwnershipRole]
+    open_decisions: List[SessionId]
+    limitations: str
+
+
 class DiscoveryOrigin(BaseModel):
     engagement_id: SessionId
     opportunity_id: SessionId
@@ -743,6 +821,7 @@ class DiscoveryOrigin(BaseModel):
     alternatives: List[DiscoveryAlternative] = Field(default_factory=list, max_length=5)
     preferred_alternative: Optional[DiscoveryAlternativeKind] = None
     source_reviews: List[DiscoverySourceReview] = Field(default_factory=list, max_length=50)
+    alignment: Optional[DiscoveryAlignmentSnapshot] = None
 
 
 class DiscoveryHandoff(BaseModel):
@@ -775,6 +854,7 @@ class DiscoveryEngagement(BaseModel):
     discovery_outcome: Optional[Literal["gather_more_evidence", "improve_process", "conventional_automation",
                                         "bounded_ai_pilot", "do_not_proceed"]] = None
     outcome_rationale: str = Field(default="", max_length=2000)
+    success_measures: str = Field(default="", max_length=1000)
 
     @model_validator(mode="after")
     def valid_engagement(self):
@@ -807,6 +887,7 @@ class WorkflowState(BaseModel):
     discovery_origin: Optional[DiscoveryOrigin] = None
     discovery_tasks: List[DiscoveryTask] = Field(default_factory=list, max_length=50)
     discovery_source_reviews: List[DiscoverySourceReview] = Field(default_factory=list, max_length=50)
+    discovery_alignment: Optional[DiscoveryAlignment] = None
     owner_id: str = "local-demo"
     organization_id: Optional[SessionId] = None
     team_id: Optional[SessionId] = None

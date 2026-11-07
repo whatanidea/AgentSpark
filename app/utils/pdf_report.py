@@ -96,7 +96,7 @@ class _Report:
         else:
             self.paragraph(data)
 
-    def table(self, rows):
+    def table(self, rows, compact=False):
         columns = max(len(row) for row in rows)
         cells = [[Paragraph(_text(value), self.small) for value in row] +
                  [Paragraph("", self.small)] * (columns - len(row)) for row in rows]
@@ -107,7 +107,8 @@ class _Report:
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ("GRID", (0, 0), (-1, -1), 0.4, colors.HexColor("#cbd5e1")),
             ("LEFTPADDING", (0, 0), (-1, -1), 6), ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-            ("TOPPADDING", (0, 0), (-1, -1), 6), ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+            ("TOPPADDING", (0, 0), (-1, -1), 3 if compact else 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 3 if compact else 6),
         ]))
         self.story.extend([table, Spacer(1, 8)])
 
@@ -146,13 +147,69 @@ class _Report:
             self.table(table)
 
 
+def _alignment_brief(report, snapshot):
+    def compact(value, limit=110):
+        text = " ".join(str(value or "Not supplied").split())
+        return text if len(text) <= limit else text[:limit - 3] + "..."
+    data = snapshot["record"]
+    charter = snapshot["charter"]
+    report.paragraph("Stakeholder Alignment Brief", report.title)
+    report.paragraph("DISCOVERY DECISIONS - NOT IMPLEMENTATION APPROVAL", report.small)
+    report.table([["Shared outcome", "Positions", "Open decisions", "Accepted owners", "Next actions"]], compact=True)
+    report.field("Outcome", compact(charter["objective"], 130))
+    report.field("Scope", compact(charter["business_units"], 40) + " / " + compact(charter["required_topics"], 60))
+    report.field("Exclusions", compact(charter["excluded_topics"], 70))
+    report.field("Proposed measures", compact(charter["success_measures"] or "Unknown / not supplied", 80))
+    positions = {"support": "Support", "conditional": "With conditions",
+                 "more_evidence": "Need evidence", "object": "Object"}
+    rows = [["Function", "Current positions - not consensus"]]
+    for function, label in (("business", "Business"), ("it", "IT"), ("risk", "Risk"),
+                            ("compliance_privacy", "Compliance / Privacy"), ("operations", "Operations")):
+        entries = [item for item in data["stakeholders"] if item["function"] == function and
+                   item["id"] in snapshot["current_positions"]]
+        counts = {kind: sum(item["positions"][-1]["position"] == kind for item in entries) for kind in positions}
+        rows.append([label, "; ".join(f"{positions[kind]}: {count}" for kind, count in counts.items() if count)
+                     if entries else "No current position; missing, stale or inactive input is not agreement."])
+    report.table(rows, compact=True)
+    rows = [["Responsibility", "Owner acceptance for current scope"]]
+    for role, label in (("executive_sponsor", "Executive sponsor"), ("business_owner", "Business owner"),
+                        ("operational_owner", "Operational owner")):
+        entries = [item for item in data["owners"] if item["role"] == role and not item["withdrawn"]]
+        owner = entries[-1] if entries else None
+        rows.append([label, compact(owner["label"] or owner["identity_id"][:12], 30) + " - " +
+            ("Accepted" if owner["id"] in snapshot["accepted_owners"] else "Not accepted / inactive")
+            if owner else "Not nominated"])
+    report.table(rows, compact=True)
+    decisions = [item for item in data["decisions"] if item["id"] not in snapshot["superseded_decisions"]]
+    report.field("Open decisions", len(snapshot["open_decisions"]))
+    if decisions:
+        rows = [["Decision / accountable person", "Status and next action (excerpt)"]]
+        for item in sorted(decisions, key=lambda item: item["id"] not in snapshot["open_decisions"])[:3]:
+            current = item["id"] in snapshot["current_decisions"]
+            next_action = item["outcomes"][-1]["next_action"] if current else item["next_action"]
+            rows.append([compact(item["question"], 45) + " / " + compact(item["label"] or item["identity_id"][:12], 15),
+                         ("Owner decision recorded. " if current else "Open. ") + compact(next_action, 45)])
+        report.table(rows, compact=True)
+    else:
+        report.paragraph("No decisions recorded; this does not establish that no blockers exist.", report.small)
+    report.paragraph("Missing input is not agreement. Owner decisions do not remove objections or conditions. "
+                     "Labels, measures and authority bases are recorded claims. Brief excerpts and up to three decisions "
+                     "are shown; all positions, conditions, references and attributed history follow in the exact snapshot.", report.small)
+
+
 def build_discovery_findings_pdf(snapshot: dict) -> bytes:
     report = _Report(accent=colors.HexColor("#6d28d9"))
+    if snapshot.get("alignment"):
+        _alignment_brief(report, snapshot["alignment"])
+        report.story.append(PageBreakIfNotEmpty())
     report.paragraph("AgentSpark Discovery Findings", report.title)
     report.paragraph("DISCUSSION DOCUMENT - NOT IMPLEMENTATION APPROVAL", report.h2)
     report.paragraph(snapshot["limitations"])
     report.heading("Engagement scope and discussion guide")
     report.details(snapshot["scope"])
+    if snapshot.get("alignment"):
+        report.heading("Exact alignment snapshot and attributed history")
+        report.details(snapshot["alignment"])
     report.heading("Participation and outstanding requests")
     report.details({"participation": snapshot["participation"], "requests": snapshot["requests"]})
     report.heading("Activity checks and evidence gaps")
@@ -226,6 +283,8 @@ def _assessment_reference(report, snapshot: dict):
     report.field("Analysis ID", snapshot["analysis_id"])
     if snapshot.get("discovery_origin"):
         report.heading("Discovery origin - unverified source snapshot")
+        if snapshot["discovery_origin"].get("alignment"):
+            _alignment_brief(report, snapshot["discovery_origin"]["alignment"])
         report.details(snapshot["discovery_origin"])
     if snapshot.get("document_intake"):
         report.heading("Document context - human-reviewed, not independently verified")

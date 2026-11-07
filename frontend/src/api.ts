@@ -31,8 +31,37 @@ export type DiscoveryEngagement = {
   playbook_answers?: Record<string, string>;
   discovery_outcome?: "gather_more_evidence" | "improve_process" | "conventional_automation" | "bounded_ai_pilot" | "do_not_proceed" | null;
   outcome_rationale?: string;
+  success_measures?: string;
 };
-export type DiscoverySection = "overview" | "processes" | "people" | "evidence" | "opportunities" | "findings";
+export type DiscoverySection = "overview" | "processes" | "people" | "alignment" | "evidence" | "opportunities" | "findings";
+export type AlignmentFunction = "business" | "it" | "risk" | "compliance_privacy" | "operations";
+export type AlignmentOwnerRole = "executive_sponsor" | "business_owner" | "operational_owner";
+export type AlignmentAcceptance = { context_digest: string; recorded_at: string };
+export type AlignmentPositionInput = {
+  position: "support" | "conditional" | "more_evidence" | "object"; rationale: string; conditions: string; source_ids: string[];
+};
+export type AlignmentNominationInput = { identity_id: string; label: string };
+export type AlignmentNomination = AlignmentNominationInput & {
+  id: string; membership_generation: string; nominated_by: string; nominated_at: string; withdrawn: boolean;
+};
+export type AlignmentDecisionInput = AlignmentNominationInput & {
+  question: string; authority_basis: string; next_action: string; due_on: string; source_ids: string[]; replaces_id: string | null;
+};
+export type AlignmentOutcomeInput = { outcome: string; rationale: string; next_action: string };
+export type AlignmentSnapshot = {
+  rules_version: "discovery-alignment-v1"; source_version: string; recorded_at: string; context_digest: string;
+  charter: Record<string, string>;
+  record: {
+    stakeholders: (AlignmentNomination & { function: AlignmentFunction; positions: (AlignmentPositionInput & AlignmentAcceptance)[] })[];
+    owners: (AlignmentNomination & { role: AlignmentOwnerRole; acceptances: AlignmentAcceptance[] })[];
+    decisions: (AlignmentNomination & AlignmentDecisionInput & {
+      acceptances: AlignmentAcceptance[]; outcomes: (AlignmentOutcomeInput & AlignmentAcceptance)[];
+    })[];
+  };
+  current_positions: string[]; inactive_assignments: string[]; accepted_owners: string[]; accepted_decisions: string[];
+  current_decisions: string[]; superseded_decisions: string[]; missing_functions: AlignmentFunction[];
+  unaccepted_owners: AlignmentOwnerRole[]; open_decisions: string[]; limitations: string;
+};
 export type DiscoveryPlaybook = {
   id: NonNullable<DiscoveryEngagement["playbook_id"]>; title: string; description: string;
   questions: { id: string; label: string; role: Exclude<InterviewRole, "all"> }[];
@@ -85,6 +114,7 @@ export type DiscoveryOrigin = {
   sources: DiscoveryProcessSource[]; priority: DiscoveryPriority; reviewed_by: string; reviewed_at: string;
   processes?: DiscoveryProcess[]; alternatives?: DiscoveryAlternative[];
   preferred_alternative?: DiscoveryAlternativeKind | null; source_reviews?: DiscoverySourceReview[];
+  alignment?: AlignmentSnapshot | null;
 };
 export type DiscoveryParticipant = {
   identity_id: string; role: Exclude<InterviewRole, "all">; assigned_by: string; assigned_at: string;
@@ -93,6 +123,7 @@ export type DiscoveryParticipant = {
 export type DiscoveryRecord = {
   id: string; version: string; engagement: DiscoveryEngagement; permissions: Permissions; expires_at: string;
   overview?: DiscoveryOverview; playbooks?: DiscoveryPlaybook[];
+  alignment?: AlignmentSnapshot | null;
   assessments: { session_id: string; title: string; status: string }[]; unavailable_assessments: string[];
   progress: { contributions: number; opportunities: number; assessments: number }; limitations: string;
   retention: { days: number; created_at: string | null; policy: string };
@@ -577,6 +608,22 @@ export const api = {
     request(`/engagements/${encodeURIComponent(id)}?${new URLSearchParams({ version })}`, "DELETE"),
   renewEngagement: (id: string, version: string): Promise<DiscoveryRecord> =>
     post(`/engagements/${encodeURIComponent(id)}/renew`, { version }),
+  startAlignment: (id: string, version: string): Promise<DiscoveryRecord> =>
+    post(`/engagements/${encodeURIComponent(id)}/alignment`, { version }),
+  nominateAlignmentStakeholder: (id: string, version: string, value: AlignmentNominationInput & { function: AlignmentFunction }): Promise<DiscoveryRecord> =>
+    post(`/engagements/${encodeURIComponent(id)}/alignment/stakeholders`, { version, ...value }),
+  nominateAlignmentOwner: (id: string, version: string, value: AlignmentNominationInput & { role: AlignmentOwnerRole }): Promise<DiscoveryRecord> =>
+    post(`/engagements/${encodeURIComponent(id)}/alignment/owners`, { version, ...value }),
+  nominateAlignmentDecision: (id: string, version: string, value: AlignmentDecisionInput): Promise<DiscoveryRecord> =>
+    post(`/engagements/${encodeURIComponent(id)}/alignment/decisions`, { version, ...value }),
+  recordAlignmentPosition: (id: string, assignment: string, version: string, value: AlignmentPositionInput): Promise<DiscoveryRecord> =>
+    post(`/engagements/${encodeURIComponent(id)}/alignment/stakeholders/${encodeURIComponent(assignment)}/position`, { version, ...value }),
+  acceptAlignmentResponsibility: (id: string, collection: "owners" | "decisions", assignment: string, version: string): Promise<DiscoveryRecord> =>
+    post(`/engagements/${encodeURIComponent(id)}/alignment/${collection}/${encodeURIComponent(assignment)}/accept`, { version }),
+  withdrawAlignmentNomination: (id: string, collection: "owners" | "stakeholders", assignment: string, version: string): Promise<DiscoveryRecord> =>
+    post(`/engagements/${encodeURIComponent(id)}/alignment/${collection}/${encodeURIComponent(assignment)}/withdraw`, { version }),
+  recordAlignmentOutcome: (id: string, assignment: string, version: string, value: AlignmentOutcomeInput): Promise<DiscoveryRecord> =>
+    post(`/engagements/${encodeURIComponent(id)}/alignment/decisions/${encodeURIComponent(assignment)}/outcome`, { version, ...value }),
   eligibleParticipants: (id: string, cursor = ""): Promise<DirectoryPage<{ identity_id: string }>> =>
     get(`/engagements/${encodeURIComponent(id)}/eligible-participants?${new URLSearchParams({ cursor })}`),
   assignParticipant: (id: string, identity: string, version: string, role: Exclude<InterviewRole, "all">): Promise<DiscoveryRecord> =>
@@ -607,7 +654,7 @@ export const api = {
   handoffOpportunity: (id: string, opportunity: string, version: string, model_id: InferenceModel["id"],
     target_cloud: CloudProvider, reviewed: boolean): Promise<{ session_id: string; engagement: DiscoveryRecord }> =>
     post(`/engagements/${encodeURIComponent(id)}/opportunities/${encodeURIComponent(opportunity)}/handoff`,
-      { version, model_id, target_cloud, reviewed }),
+      { version, model_id, target_cloud, reviewed, alignment_reviewed: reviewed }),
   executiveBriefPdf: async (id: string, version: string): Promise<Blob> =>
     (await requestResponse(`/sessions/${encodeURIComponent(id)}/executive-brief/pdf?${new URLSearchParams({ version })}`)).blob(),
   evidence: (id: string): Promise<EvidenceRegisterResponse> => get(`/sessions/${encodeURIComponent(id)}/evidence`),

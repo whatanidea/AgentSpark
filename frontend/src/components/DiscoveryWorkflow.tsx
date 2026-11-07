@@ -3,6 +3,7 @@ import { api, type CloudProvider, type DiscoveryParticipant, type DiscoveryRatin
   type InferenceModel, type ModelCatalog } from "../api";
 import { Button, Card } from "./ui";
 import DiscoveryProcesses from "./DiscoveryProcesses";
+import DiscoveryAlignment from "./DiscoveryAlignment";
 
 const roles = { business_operator: "Business operator", process_owner: "Process owner", technical_owner: "Technical owner" } as const;
 const ratingLabels = { value: "Business value", feasibility: "Feasibility", evidence_confidence: "Evidence confidence",
@@ -32,15 +33,16 @@ export default function DiscoveryWorkflow({ record, blocked, onChange, onBusyCha
   const [message, setMessage] = useState("");
   const [working, setWorking] = useState(false);
   const [processDirty, setProcessDirty] = useState(false);
+  const [alignmentDirty, setAlignmentDirty] = useState(false);
   const mine = record.participation.participants.find(item => item.identity_id === record.participation.identity_id);
   const selected = record.engagement.opportunities.find(item => item.id === opportunityId);
   const contributionDirty = JSON.stringify(answers) !== JSON.stringify(mine?.answers || {});
   const ratingsDirty = JSON.stringify(ratings) !== JSON.stringify(selected?.ratings || emptyRatings());
   const busy = blocked || working;
   useLayoutEffect(() => {
-    onDirtyChange(contributionDirty || ratingsDirty || processDirty);
+    onDirtyChange(contributionDirty || ratingsDirty || processDirty || alignmentDirty);
     return () => onDirtyChange(false);
-  }, [contributionDirty, ratingsDirty, processDirty, onDirtyChange]);
+  }, [contributionDirty, ratingsDirty, processDirty, alignmentDirty, onDirtyChange]);
 
   useEffect(() => {
     let alive = true;
@@ -55,11 +57,11 @@ export default function DiscoveryWorkflow({ record, blocked, onChange, onBusyCha
   }, [record.version, opportunityId]);
   useEffect(() => {
     const beforeUnload = (event: BeforeUnloadEvent) => {
-      if (contributionDirty || ratingsDirty) { event.preventDefault(); event.returnValue = ""; }
+      if (contributionDirty || ratingsDirty || alignmentDirty) { event.preventDefault(); event.returnValue = ""; }
     };
     window.addEventListener("beforeunload", beforeUnload);
     return () => window.removeEventListener("beforeunload", beforeUnload);
-  }, [contributionDirty, ratingsDirty]);
+  }, [contributionDirty, ratingsDirty, alignmentDirty]);
 
   async function run(action: () => Promise<void>) {
     setWorking(true); onBusyChange(true); setError(""); setMessage("");
@@ -90,15 +92,17 @@ export default function DiscoveryWorkflow({ record, blocked, onChange, onBusyCha
       onChange(result.engagement); await onOpen(result.session_id);
     });
   }
-  const dirty = contributionDirty || ratingsDirty || processDirty;
+  const dirty = contributionDirty || ratingsDirty || processDirty || alignmentDirty;
   return <section className="space-y-5 break-words min-w-0" aria-label="Discovery selling workflow">
     {error && <p role="alert" className="notice text-rose-700">{error}</p>}
     {message && <p role="status" className="notice">{message}</p>}
     <div id="discovery-processes" tabIndex={-1} className="scroll-mt-6">
-      <DiscoveryProcesses record={record} blocked={busy || contributionDirty || ratingsDirty}
+      <DiscoveryProcesses record={record} blocked={busy || contributionDirty || ratingsDirty || alignmentDirty}
         onChange={onChange} onBusyChange={onBusyChange} onDirtyChange={setProcessDirty} />
     </div>
-    <fieldset disabled={processDirty} className="space-y-5 min-w-0">
+    <DiscoveryAlignment record={record} blocked={busy || contributionDirty || ratingsDirty || processDirty}
+      onChange={onChange} onBusyChange={onBusyChange} onDirtyChange={setAlignmentDirty} />
+    <fieldset disabled={processDirty || alignmentDirty} className="space-y-5 min-w-0">
     <Card title="Engagement retention">
       <p>{record.retention.policy}</p>
       <p className="text-xs mt-2">Expires {new Date(record.expires_at).toLocaleString()}.
@@ -249,7 +253,9 @@ export default function DiscoveryWorkflow({ record, blocked, onChange, onBusyCha
         <option value="">Choose an explicit target</option><option value="azure">Azure</option><option value="aws">AWS</option>
       </select></label>
       <label className="flex gap-2 mt-3"><input type="checkbox" checked={reviewed} disabled={busy || dirty}
-        onChange={event => setReviewed(event.target.checked)} />I reviewed this hypothesis and its sources; this does not confirm facts or authorize execution.</label>
+        onChange={event => setReviewed(event.target.checked)} />{record.alignment
+          ? "I reviewed this hypothesis, sources and organisational alignment, including unresolved conditions; this does not authorize execution."
+          : "I reviewed this hypothesis and its sources; this does not confirm facts or authorize execution."}</label>
       <Button disabled={busy || dirty || !record.permissions.write || !reviewed || !cloud || !model || selected.status !== "selected" ||
         (selected.source_ids.length > 0 && !record.synthesis_current)}
         onClick={() => void handoff()}>Create or resume assessment handoff</Button>
