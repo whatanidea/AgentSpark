@@ -383,9 +383,7 @@ test("Home discovery library isolates identities and workspace changes and opens
     await expect(panel).toContainText("Browser process discovery");
     await expect(panel).not.toContainText("Owner personal Home discovery");
     await expect(panel).not.toContainText("Other identity Home discovery");
-    await page.getByRole("button", { name: "Organizations & teams", exact: true }).click();
-    await page.getByRole("button", { name: "Use personal workspace", exact: true }).click();
-    await page.getByRole("tab", { name: "Discovery engagements", exact: true }).click();
+    await page.getByRole("combobox", { name: "Workspace organization", exact: true }).selectOption("");
     panel = page.getByRole("tabpanel", { name: "Discovery engagements", exact: true });
     await expect(panel.locator("tbody tr")).toHaveCount(1);
     await expect(panel).toContainText("Owner personal Home discovery");
@@ -410,6 +408,61 @@ test("Home discovery library isolates identities and workspace changes and opens
     for (const [record, headers] of [[personal, ownerHeaders], [other, operatorHeaders]] as const) {
       const current = await (await page.request.get(`/api/v1/engagements/${record.id}`, { headers })).json();
       expect((await page.request.delete(`/api/v1/engagements/${record.id}?${new URLSearchParams({ version: current.version })}`, { headers })).ok()).toBe(true);
+    }
+    await cleanup(page.request, value);
+  }
+});
+
+test("Home workspace filter selects real membership after sign-in, scopes new discovery and enforces viewer access", async ({ page, browser }) => {
+  const value = await fixture(page.request);
+  const viewerContext = await browser.newContext();
+  let created = "";
+  async function selectTeam(target: Page, subject: Identity) {
+    await target.goto("/workspace");
+    await target.getByLabel("Access token", { exact: true }).fill(subject.token);
+    await target.getByRole("button", { name: "Connect securely", exact: true }).click();
+    await expect(target.getByRole("heading", { name: "Home", exact: true })).toBeVisible();
+    await target.getByRole("combobox", { name: "Workspace organization", exact: true }).selectOption(value.organization);
+    await target.getByRole("combobox", { name: "Workspace team", exact: true }).selectOption(value.team);
+    await target.getByRole("tab", { name: "Discovery engagements", exact: true }).click();
+    await expect(target.getByRole("tabpanel", { name: "Discovery engagements", exact: true })).toContainText("Browser process discovery");
+  }
+  try {
+    await selectTeam(page, value.owner);
+    await page.getByRole("button", { name: /^New discovery engagement/ }).click();
+    await page.getByRole("textbox", { name: "Engagement title", exact: true }).fill("Home-selected team discovery");
+    await page.getByRole("textbox", { name: "Business objective", exact: true }).fill("Validate selected team scope");
+    await page.getByRole("textbox", { name: "Business units in scope", exact: true }).fill("Fictional banking operations");
+    await page.getByRole("textbox", { name: "Sponsor", exact: true }).fill("Fictional sponsor");
+    await page.getByRole("textbox", { name: "Engagement owner", exact: true }).fill("Fictional discovery lead");
+    const response = page.waitForResponse(result => result.url().endsWith("/api/v1/engagements") && result.request().method() === "POST");
+    await page.getByRole("button", { name: "Save discovery engagement", exact: true }).click();
+    const saved = await response;
+    expect(saved.ok()).toBe(true);
+    const record = await saved.json();
+    created = record.id;
+    expect(saved.request().headers()["x-organization-id"]).toBe(value.organization);
+    expect(saved.request().headers()["x-team-id"]).toBe(value.team);
+    expect((await page.request.get(`/api/v1/engagements/${created}`, { headers: value.headers })).ok()).toBe(true);
+    expect((await page.request.get(`/api/v1/engagements/${created}`,
+      { headers: { Authorization: "Bearer " + value.owner.token } })).status()).toBe(404);
+    await page.getByRole("button", { name: "Home", exact: true }).click();
+    await page.getByRole("tab", { name: "Discovery engagements", exact: true }).click();
+    await expect(page.getByRole("tabpanel", { name: "Discovery engagements", exact: true })).toContainText("Home-selected team discovery");
+    await page.getByRole("combobox", { name: "Workspace organization", exact: true }).selectOption("");
+    await expect(page.getByRole("tabpanel", { name: "Discovery engagements", exact: true })).not.toContainText("Home-selected team discovery");
+    expect(await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1"))).toBeNull();
+    const viewer = await viewerContext.newPage();
+    await selectTeam(viewer, value.operator);
+    await expect(viewer.getByRole("button", { name: /^New discovery engagement/ })).toBeDisabled();
+    await viewer.getByRole("tab", { name: "Workflow library", exact: true }).click();
+    await expect(viewer.getByRole("button", { name: /^Create workflow/ })).toBeDisabled();
+  } finally {
+    await viewerContext.close();
+    if (created) {
+      const record = await (await page.request.get(`/api/v1/engagements/${created}`, { headers: value.headers })).json();
+      expect((await page.request.delete(`/api/v1/engagements/${created}?version=${encodeURIComponent(record.version)}`,
+        { headers: value.headers })).ok()).toBe(true);
     }
     await cleanup(page.request, value);
   }

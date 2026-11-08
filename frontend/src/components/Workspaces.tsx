@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from "react";
-import { api, inviteLink, parseInviteCode, type DirectoryMember, type DirectoryPage, type Invite, type Organization, type Team, type TeamRole, type WorkspaceSelection } from "../api";
+import { api, inviteLink, parseInviteCode, teamWorkspace, type DirectoryMember, type DirectoryPage, type Invite, type Organization, type Team, type TeamRole, type WorkspaceSelection } from "../api";
 import { Button, Card, Pill } from "./ui";
 
 const empty = <T,>(): DirectoryPage<T> => ({ items: [], next_cursor: null });
@@ -162,11 +162,7 @@ export default function Workspaces({ identity, demo, onSelect, onBusyChange, onU
           {teams.items.map(team => <div key={team.team_id} className="flex flex-wrap items-center justify-between gap-3 border border-zinc-200 rounded p-4">
             <div><p className="font-semibold text-sm">{team.name}</p><p className="text-xs text-zinc-500 mt-1">{team.permissions.join(" / ")}</p></div>
             <div className="flex gap-2 flex-wrap">
-              <Button variant="ghost" disabled={busy} onClick={() => onSelect({
-                organization_id: organization, team_id: team.team_id, organization_name: selected.name, team_name: team.name,
-                permissions: { read: team.permissions.includes("read"), write: team.permissions.includes("write"),
-                  review: team.permissions.includes("review"), delete: team.permissions.includes("delete") },
-              })}>Use {team.name}</Button>
+              <Button variant="ghost" disabled={busy} onClick={() => onSelect(teamWorkspace(selected, team))}>Use {team.name}</Button>
               {admin && <Button variant="ghost" disabled={busy} onClick={() => void run(async () => {
                 setGrantTeam(team.team_id); setGrantId(""); setGrantRoles(["viewer"]); setGrantActive(true);
                 setGrants(await api.teamMembers(organization, team.team_id));

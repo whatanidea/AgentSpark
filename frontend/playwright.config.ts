@@ -16,8 +16,8 @@ export default defineConfig({
   use: { baseURL: "http://127.0.0.1:8767", trace: "off", screenshot: "off" },
   projects: [
     { name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile-safari", testMatch: ["**/editorial.spec.ts", "**/portal-design.spec.ts", "**/guided-discovery.spec.ts", "**/home-discovery.spec.ts", "**/document-intake.spec.ts", "**/workflow.spec.ts", "**/inactivity.spec.ts"],
-      grep: /mobile journey fits completely|editorial portal|editorial form controls|positive portfolio|guided discovery|Home discovery library|document intake|guided interview retains|guided interview rejects a stale question batch|business value|agentic adoption|PDF reports|PDF export refreshes|invite onboarding|invite links|invitation-only|visual blueprint|inactivity/,
+    { name: "mobile-safari", testMatch: ["**/editorial.spec.ts", "**/portal-design.spec.ts", "**/guided-discovery.spec.ts", "**/home-discovery.spec.ts", "**/home-workspace.spec.ts", "**/document-intake.spec.ts", "**/workflow.spec.ts", "**/inactivity.spec.ts"],
+      grep: /mobile journey fits completely|editorial portal|editorial form controls|positive portfolio|guided discovery|Home discovery library|Home workspace filter|document intake|guided interview retains|guided interview rejects a stale question batch|business value|agentic adoption|PDF reports|PDF export refreshes|invite onboarding|invite links|invitation-only|visual blueprint|inactivity/,
       use: { browserName: "webkit", viewport: { width: 440, height: 956 }, isMobile: true, hasTouch: true, deviceScaleFactor: 3 } },
   ],
   webServer: {

@@ -98,6 +98,7 @@ export default function App() {
   const [runtime, setRuntime] = useState<Readiness | null>(null);
   const [runtimeError, setRuntimeError] = useState("");
   const [workspace, selectWorkspace] = useState<WorkspaceSelection | null>(null);
+  const [homeLibrary, setHomeLibrary] = useState<"workflows" | "discovery">("workflows");
   const [invitedOrganization, setInvitedOrganization] = useState("");
   const [invitation, setInvitation] = useState(restoreInvitation);
   const pendingInvite = invitation.code;
@@ -162,6 +163,7 @@ export default function App() {
     setTokenProvider(null); setAccessToken(""); setWorkspace(null); selectWorkspace(null);
     setIdentity(null); setSignedInAs(""); setInvitedOrganization(""); setSnapshot(null); forgetPointer();
     setToken(""); setDiscoveryEntry(null); setConfirmDelete(false); setRuntime(null); setRuntimeError("");
+    setHomeLibrary("workflows");
     setMessage(reason); setBusy(true);
     void signInModule().then(module => module.signOutLocally())
       .catch(() => setMessage(`${reason} The local sign-in client could not be reset. Reload before signing in again.`.trim()))
@@ -265,6 +267,7 @@ export default function App() {
     try {
       if (sessionId && !["workspaces", "discovery"].includes(next)) await refreshSession();
       if (next === "discovery") setDiscoveryEntry(null);
+      if (next === "home") setHomeLibrary("workflows");
       setView(next); setConfirmDelete(false);
     } catch (e) {
       if (e instanceof ApiError && e.status === 404) {
@@ -334,7 +337,8 @@ export default function App() {
     forgetPointer(); setSnapshot(null); setView("intake"); setConfirmDelete(false);
     setMessage("New workflow. The previous server session remains until expiry unless deleted.");
   }
-  function changeWorkspace(value: WorkspaceSelection | null) {
+  function changeWorkspace(value: WorkspaceSelection | null, library: "workflows" | "discovery" = "workflows") {
+    setHomeLibrary(library);
     setWorkspace(value); selectWorkspace(value); setInvitedOrganization(""); forgetPointer(); setSnapshot(null);
     setView("home"); setConfirmDelete(false); setMessage("");
   }
@@ -543,6 +547,8 @@ export default function App() {
             {view === "home" && <Home key={`${identity.identity}:${workspace?.organization_id || ""}:${workspace?.team_id || ""}`}
               demo={auth?.mode === "local-demo"} retentionDays={auth?.archive_retention_days ?? 30}
               workspaceName={workspace ? `${workspace.organization_name} / ${workspace.team_name}` : undefined}
+              workspace={workspace} initialLibrary={homeLibrary} onWorkspaceSelect={changeWorkspace}
+              onManageAccess={() => void changeView("workspaces")}
               canCreate={workspace?.permissions.write !== false}
               onCreate={newWorkflow} onOpen={openWorkflow} onBusyChange={setBusy}
               onDiscover={(id) => {

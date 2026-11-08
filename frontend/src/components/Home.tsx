@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type ArchivedDecision, type HomeItem, type HomePage, type HomeStatus } from "../api";
+import { api, type ArchivedDecision, type HomeItem, type HomePage, type HomeStatus, type WorkspaceSelection } from "../api";
 import { Button, Card, Pill, Spinner } from "./ui";
 import Icon from "./Icon";
 import Markdown from "./Markdown";
@@ -11,6 +11,9 @@ import AgenticAdoption from "./AgenticAdoption";
 import ExecutiveBriefSummary from "./ExecutiveBrief";
 import HomeDiscovery from "./HomeDiscovery";
 import ArchitectureDiagram from "./ArchitectureDiagram";
+import WorkspaceSelector from "./WorkspaceSelector";
+
+export type HomeLibrary = "workflows" | "discovery";
 
 const STATUS: Record<HomeStatus, { label: string; tone: "positive" | "red" | "amber" | "slate" }> = {
   draft: { label: "Draft / clarification", tone: "slate" },
@@ -20,9 +23,12 @@ const STATUS: Record<HomeStatus, { label: string; tone: "positive" | "red" | "am
 };
 const date = (value: string) => value ? new Date(value).toLocaleString() : "Time unavailable";
 
-export default function Home({ demo, retentionDays, workspaceName, canCreate, onCreate, onDiscover, onOpen, onDeleted, onBusyChange }: {
+export default function Home({ demo, retentionDays, workspaceName, workspace, initialLibrary, canCreate, onCreate, onDiscover, onOpen, onDeleted, onBusyChange, onWorkspaceSelect, onManageAccess }: {
   demo: boolean; retentionDays: number; onCreate: () => void;
   workspaceName?: string; canCreate: boolean;
+  workspace: WorkspaceSelection | null; initialLibrary: HomeLibrary;
+  onWorkspaceSelect: (value: WorkspaceSelection | null, library: HomeLibrary) => void;
+  onManageAccess: () => void;
   onDiscover: (id?: string) => void;
   onOpen: (session: string) => Promise<void>; onDeleted: (session: string) => void;
   onBusyChange: (busy: boolean) => void;
@@ -34,7 +40,7 @@ export default function Home({ demo, retentionDays, workspaceName, canCreate, on
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [revision, setRevision] = useState(0);
-  const [library, setLibrary] = useState<"workflows" | "discovery">("workflows");
+  const [library, setLibrary] = useState<HomeLibrary>(initialLibrary);
 
   useEffect(() => {
     onBusyChange(busy);
@@ -42,13 +48,14 @@ export default function Home({ demo, retentionDays, workspaceName, canCreate, on
   }, [busy, onBusyChange]);
 
   useEffect(() => {
+    if (library !== "workflows") return;
     let cancelled = false;
     setBusy(true); setError(""); setPage(null);
     api.home(status).then(result => { if (!cancelled) setPage(result); })
       .catch((e: Error) => { if (!cancelled) setError(e.message); })
       .finally(() => { if (!cancelled) setBusy(false); });
     return () => { cancelled = true; };
-  }, [status, revision]);
+  }, [library, status, revision]);
 
   async function more() {
     if (!page?.next_cursor) return;
@@ -96,7 +103,8 @@ export default function Home({ demo, retentionDays, workspaceName, canCreate, on
           {library === "discovery" ? "New discovery engagement" : "Create workflow"} <span aria-hidden="true">+</span>
         </Button>}
     </header>
-    {!workspaceName && <p className="notice">Team engagements, workflows and pending reviews are listed in their team workspace. Select your team under Organizations &amp; teams to view them.</p>}
+    <WorkspaceSelector selection={workspace} disabled={busy || !!deleting}
+      onSelect={value => onWorkspaceSelect(value, library)} onManageAccess={onManageAccess} />
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
       {[
         [demo ? "Shared local demo" : workspaceName ? "Team-scoped access" : "Owner-isolated access",
