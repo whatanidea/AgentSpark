@@ -106,7 +106,8 @@ test("public feature refresh visual proofs and collections fit narrow screens an
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${path} at ${width}px`).toBe(true);
       await expect(page.locator(".premium-page-visual")).toBeVisible();
     }
-    expect(await page.evaluate(() => document.getAnimations().filter(animation => animation.playState === "running").length)).toBe(0);
+    await expect.poll(() => page.evaluate(() => document.getAnimations().filter(animation => animation.playState === "running").length),
+      { message: `Reduced-motion animations must settle to zero on ${path}` }).toBe(0);
   }
   await page.goto("/platform/architecture");
   const flow = page.getByRole("list", { name: "Proposed invoice assistance architecture" });
