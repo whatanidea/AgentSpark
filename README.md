@@ -155,6 +155,8 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   not change the signed-in workspace or imply deployment or pilot readiness.
   `/workspace` is the private entry boundary; legacy root assessment restoration
   remains supported. Browser Back and overview actions protect unsaved discovery.
+  Home library keyboard navigation preserves selected-tab focus during loading;
+  tabs and creation actions remain unavailable until the current operation settles.
   Unknown public URLs show a clear not-found page; unknown `/api` paths remain
   JSON 404 responses rather than being rewritten to the public website.
 - **Assess a workflow:** use up to 10 grouped interview rounds for suitability and
