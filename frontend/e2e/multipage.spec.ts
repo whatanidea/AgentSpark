@@ -8,15 +8,22 @@ const pages = [
   ["/consulting/workflow-pilot", "Workflow Pilot & Implementation", "Prove the workflow before scaling the investment."],
   ["/consulting/adoption", "AI Adoption & Optimization", "Make adoption a capability. Not a launch event."],
   ["/about", "About", "Better decisions before bigger commitments."],
+  ["/platform", "Platform overview", "Shared intent. Clear evidence. A better next decision."],
   ["/platform/discovery", "Discovery & stakeholder input", "Hear the people who know the work."],
+  ["/platform/alignment", "Stakeholder alignment & decisions", "Agreement is not a meeting note."],
   ["/platform/prioritization", "Synthesis & prioritization", "Build a shortlist you can explain."],
-  ["/platform/assessment", "Assessment & executive decisions", "Turn a hypothesis into a reviewed decision."],
-  ["/platform/architecture", "Architecture & review", "A reviewable architecture. Not automatic execution."],
+  ["/platform/assessment", "Assessment & executive decisions", "Less text. More decision value."],
+  ["/platform/architecture", "Architecture & review", "See how the design fits together."],
+  ["/platform/workspaces", "Organizations & team workspaces", "The right work. In the right workspace."],
+  ["/solutions", "Solutions overview", "Different teams. The same need for clarity."],
   ["/solutions/transformation", "Transformation teams", "Build the shortlist before the backlog."],
   ["/solutions/operations", "Finance & operations", "Start with the friction people recognize."],
-  ["/solutions/advisory", "Consultancies & advisory teams", "Structure the conversation with your clients."],
+  ["/solutions/advisory", "Consultancies & advisory teams", "A client recommendation they can inspect."],
+  ["/resources", "Resources overview", "Explore the product. Prepare the conversation."],
   ["/resources/how-it-works", "How it works", "From business question to clearer next step."],
   ["/resources/example-assessment", "Illustrative assessment", "Explore the work before signing in."],
+  ["/resources/decision-guide", "Decision review guide", "Five questions before the next commitment."],
+  ["/resources/whats-new", "Platform capabilities", "A clearer path from discovery to decision."],
   ["/resources/trust", "Trust & limitations", "Know what is supported. Know what is still unknown."],
 ] as const;
 
@@ -75,14 +82,14 @@ test("discovery invitation animates once, replays accessibly and stays static on
   expect(writes).toEqual([]);
 });
 
-test("homepage explains exactly two use cases with original examples, outputs and clear limits", async ({ page }) => {
+test("solutions overview explains two use cases with original examples, outputs and clear limits", async ({ page }) => {
   const calls: string[] = [];
   page.on("request", request => {
     if (request.url().includes("/api/") || request.url().endsWith("/ready"))
       calls.push(`${request.method()} ${new URL(request.url()).pathname}`);
   });
-  await page.goto("/");
-  await expect(page.getByText("AI consulting & an evidence-led assessment platform", { exact: true })).toBeVisible();
+  await page.goto("/solutions");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Different teams. The same need for clarity.");
   const useCases = page.getByRole("region", { name: "Understand the work. Prepare the next step.", exact: true });
   await expect(useCases.getByRole("article")).toHaveCount(2);
   const readiness = useCases.getByRole("article", { name: "AI readiness", exact: true });
@@ -200,6 +207,9 @@ test("homepage has a bounded product story with manual stages, stable layout and
   await page.clock.fastForward(60000);
   await expect(preview.getByRole("tab", { name: /Discover/ })).toHaveAttribute("aria-selected", "true");
   await preview.getByRole("tab", { name: /Discover/ }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(preview.getByRole("tabpanel", { name: /Align/ })).toBeVisible();
+  expect((await preview.boundingBox())!.height).toBeCloseTo(height, 0);
   await page.keyboard.press("ArrowRight");
   await expect(preview.getByRole("tabpanel", { name: /Prioritize/ })).toBeVisible();
   expect((await preview.boundingBox())!.height).toBeCloseTo(height, 0);

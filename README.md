@@ -53,13 +53,13 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
 - **Make an executive decision:** inspect a source-linked executive brief with
   an advisory decision, illustrative capacity value, gaps and next action.
   Export Markdown or a one-page PDF without confusing suitability with pilot readiness.
-- **Explore before signing in:** the concise public homepage links to 16 focused
+- **Explore before signing in:** the public homepage links to focused
   Consulting, About, Platform, Solutions and Resources pages. Each submenu has a dedicated URL,
   page title and active-navigation state; direct links, refresh and browser history
   work without discarding a restored assessment. The public experience uses an
-  original process-to-opportunity hero, a visitor-controlled four-stage product
+  original process-to-opportunity hero, a visitor-controlled five-stage product
   reconstruction, illustrated product/solution pages and grouped visual menus.
-  Discover, Prioritize, Prepare and Decide previews are fictional and make no
+  Discover, Align, Prioritize, Prepare and Decide previews are fictional and make no
   model calls or saved records. Keyboard tabs, finite entry motion and reduced-motion
   settings keep the experience accessible. The premium redesign replaces
   the previous 2000px homepage limit with six bounded sections and a 4800px desktop
@@ -71,7 +71,7 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   a human-reviewed next step. Its background and stage highlights play once on entry
   and settle within five seconds; keyboard-accessible replay is optional. Small
   mobile screens and reduced-motion settings use a static illustration.
-  Its original AI readiness and Process intelligence use-case cards explain data,
+  The Solutions overview's AI readiness and Process intelligence cards explain data,
   ownership and pilot gaps alongside process steps and improvement alternatives.
   Both remain visible without autoplay and use clearly fictional previews, not
   measured customer results, organizational monitoring or process-mining claims.
@@ -128,6 +128,21 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   Platform pages show the fictional discovery walkthrough and explicit source/rating
   limitations. `/resources/example-assessment` preserves the claims, invoice and
   onboarding explorer, readiness gaps, capacity assumptions and Azure/AWS candidates.
+  `/platform`, `/solutions` and `/resources` provide browsable overview pages.
+  The focused homepage leads with the new capabilities and product walkthrough;
+  the earlier detailed readiness/process examples now live in Solutions instead
+  of extending the homepage.
+  The homepage capability cards and product walkthrough surface stakeholder
+  alignment, concise outcome-led decisions, connected visual blueprints and Home
+  organization/team selection. `/platform/alignment` distinguishes nominations
+  from signed-in acceptance and silence from agreement; `/platform/workspaces`
+  explains scoped libraries, permissions and the five-minute per-tab idle policy,
+  including draft/active-work delays. Solutions pages connect an illustrative
+  business problem to reviewable outputs. The Resources collection links to
+  examples, supported capabilities, trust boundaries and a five-question decision
+  review guide; it does not claim downloadable files or customer results that do
+  not exist. Every preview is fictional and read-only. Existing consulting entry,
+  opt-in scheduling, authenticated discovery and private workspace behavior remain.
   `/platform/architecture` includes a fictional invoice-assistance diagram that
   separates inputs, AI suggestions, human approval and authorized business actions.
   It distinguishes AgentSpark's advisory blueprint from integrations, controls

@@ -5,9 +5,9 @@ import { MarketingIcon, publicVisual } from "./MarketingVisuals";
 
 const menus = {
   Consulting: PUBLIC_PAGES.filter(page => page.section === "Consulting"),
-  Platform: PUBLIC_PAGES.filter(page => page.section === "Platform"),
-  Solutions: PUBLIC_PAGES.filter(page => page.section === "Solutions"),
-  Resources: PUBLIC_PAGES.filter(page => page.section === "Resources"),
+  Platform: PUBLIC_PAGES.filter(page => page.section === "Platform" && page.path !== "/platform"),
+  Solutions: PUBLIC_PAGES.filter(page => page.section === "Solutions" && page.path !== "/solutions"),
+  Resources: PUBLIC_PAGES.filter(page => page.section === "Resources" && page.path !== "/resources"),
 } as const;
 type Menu = keyof typeof menus;
 
@@ -52,7 +52,7 @@ export default function LandingNavigation({ disabled, signedIn, onWorkspace, onB
           <div id={`marketing-${name.toLowerCase()}`} className="marketing-dropdown" hidden={open !== name}>
             <div className="premium-menu-feature" aria-hidden="true">
               <span className="premium-category-label">{name === "Consulting" ? "STRATEGY THROUGH ADOPTION" : name === "Platform" ? "FROM DISCOVERY TO DECISION" : name === "Solutions" ? "BUILT AROUND YOUR WORK" : "EXPLORE WITH CLARITY"}</span>
-              <strong>{name === "Consulting" ? "Build the capability. Not just the pilot." : name === "Platform" ? "The work comes first." : name === "Solutions" ? "One process. A clearer next step." : "See what a decision needs."}</strong>
+              <strong>{name === "Consulting" ? "Build the capability. Not just the pilot." : name === "Platform" ? "Align. Assess. Decide." : name === "Solutions" ? "The outcome comes first." : "Prepare a better conversation."}</strong>
               <div className="premium-menu-map"><MarketingIcon name="process" /><span /><MarketingIcon name="evidence" /><span /><MarketingIcon name="decision" /></div>
               <small>Evidence-led. Human-reviewed.</small>
             </div>
@@ -61,6 +61,9 @@ export default function LandingNavigation({ disabled, signedIn, onWorkspace, onB
               <NavLink to={page.path} onClick={close}><span className="premium-menu-icon"><MarketingIcon name={publicVisual(page).icon} /></span>
                 <div><strong>{page.name}<span aria-hidden="true">↗</span></strong><small>{page.summary}</small></div></NavLink>
             </li>)}</ul>
+            {name !== "Consulting" && <NavLink className="public-menu-overview" to={`/${name.toLowerCase()}`} onClick={close}>
+              {name} overview <span aria-hidden="true">↗</span>
+            </NavLink>}
             </div>
           </div>
         </div>)}
