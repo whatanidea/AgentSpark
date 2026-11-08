@@ -50,6 +50,10 @@ export default function useInactivitySignOut(identity: string, unsaved: boolean,
     }
     function activity(event: Event) {
       if (!event.isTrusted) return;
+      // Keep warning actions mounted until their click handler renews or ends access.
+      if ((event.type.startsWith("pointer") || event.type === "touchstart")
+        && event.target instanceof Element
+        && event.target.closest('[role="alert"][aria-label="Inactivity warning"]')) return;
       if (event instanceof PointerEvent) {
         const moved = !pointer || pointer.x !== event.clientX || pointer.y !== event.clientY;
         pointer = { x: event.clientX, y: event.clientY };

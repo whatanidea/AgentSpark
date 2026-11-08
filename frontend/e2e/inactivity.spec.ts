@@ -52,7 +52,10 @@ test("inactivity warns at four minutes and signs out at exactly five despite rea
 test("inactivity Stay signed in and trusted keyboard activity restart the full timeout", async ({ page }) => {
   await connect(page);
   await page.clock.runFor(4 * MINUTE);
-  await page.getByRole("button", { name: "Stay signed in", exact: true }).click();
+  const stay = page.getByRole("button", { name: "Stay signed in", exact: true });
+  await stay.hover();
+  await expect(warning(page)).toBeVisible();
+  await stay.click();
   await expect(warning(page)).toHaveCount(0);
   await page.clock.runFor(4 * MINUTE - 1);
   await expect(warning(page)).toHaveCount(0);
