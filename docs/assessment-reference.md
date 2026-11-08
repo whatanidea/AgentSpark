@@ -604,7 +604,20 @@ complete interactive SSO experience.
 ### Personal Home and decision archive
 
 Home lists the selected personal or team workspace's workflows with draft, pending review, approved,
-and rejected filters. Open an active workflow to continue it, or open a finalized
+and rejected filters. **Choose your workspace** on Home lets you select an
+organization you belong to, then an accessible team, without opening administration.
+Selecting an organization alone does not switch scope: choose a team to apply it.
+Select **Personal workspace** to return to your own records. Organization and team
+lists support paging and explicit retry when directory loading fails.
+
+The selected workspace applies to both **Workflow library** and **Discovery
+engagements**, and the active library stays selected when switching from Home.
+New enterprise intakes and discoveries use that workspace; viewer teams remain
+read-only. This changes scope, not membership, and never moves existing records
+or combines data across organizations. **Manage access** opens the existing
+organization/team administration page for invitations and permissions.
+
+Open an active workflow to continue it, or open a finalized
 decision to see a read-only snapshot with its reviewer, comments, and decision
 time. Automated policy outcomes are explicitly distinguished from human reviews.
 Quick Start topics use icons, not letter monograms.

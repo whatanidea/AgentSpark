@@ -187,6 +187,14 @@ export function setWorkspace(value: typeof workspace) { workspace = value; }
 export type DirectoryPage<T> = { items: T[]; next_cursor: string | null };
 export type Organization = { organization_id: string; name: string; role: "owner" | "admin" | "member" };
 export type Team = { team_id: string; name: string; permissions: (keyof Permissions)[] };
+export function teamWorkspace(organization: Organization, team: Team): WorkspaceSelection {
+  return {
+    organization_id: organization.organization_id, organization_name: organization.name,
+    team_id: team.team_id, team_name: team.name,
+    permissions: { read: team.permissions.includes("read"), write: team.permissions.includes("write"),
+      review: team.permissions.includes("review"), delete: team.permissions.includes("delete") },
+  };
+}
 export type TeamRole = "contributor" | "reviewer" | "viewer";
 export type DirectoryMember = {
   identity_id: string; role: "owner" | "admin" | "member"; roles: TeamRole[];
