@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { api, type ImplementationReadinessReport, type ImplementationReadinessResponse,
   type PilotPlan, type ReadinessAssessment, type ReadinessCheckId, type ReadinessCheckInput, type ReadinessReviewContext } from "../api";
 import { Button, Card, Pill, Spinner } from "./ui";
@@ -108,8 +108,9 @@ ${JSON.stringify(report, null, 2)}
 `;
 }
 
-export default function ImplementationReadiness({ sessionId, hasAnalysis, onRefresh, onBusyChange }: {
+export default function ImplementationReadiness({ sessionId, hasAnalysis, onRefresh, onBusyChange, onUnsavedChange }: {
   sessionId: string; hasAnalysis: boolean; onRefresh: () => Promise<void>; onBusyChange: (value: boolean) => void;
+  onUnsavedChange?: (dirty: boolean) => void;
 }) {
   const [saved, setSaved] = useState<ImplementationReadinessResponse | null>(null);
   const [draft, setDraft] = useState<ReadinessAssessment | null>(null);
@@ -117,6 +118,7 @@ export default function ImplementationReadiness({ sessionId, hasAnalysis, onRefr
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  useLayoutEffect(() => { onUnsavedChange?.(dirty); return () => onUnsavedChange?.(false); }, [dirty, onUnsavedChange]);
   function accept(value: ImplementationReadinessResponse) {
     setSaved(value); setDraft(draftFrom(value)); setDirty(false);
   }

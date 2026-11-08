@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { api, uid, type EvidenceInput, type EvidenceEntry, type EvidenceReport, type EvidenceRegisterResponse } from "../api";
 import { Button, Card, Spinner } from "./ui";
 
@@ -76,17 +76,25 @@ export function evidenceMarkdown(report?: EvidenceReport | null): string {
   return `## Evidence register, findings and outstanding validation\n${report?.limitations || "No evidence-register snapshot in this historical assessment."}\n\n\`\`\`json\n${JSON.stringify(report ?? null, null, 2)}\n\`\`\`\n`;
 }
 
-export default function EvidenceRegister({ sessionId, hasAnalysis, onRefresh, onBusyChange }: {
+export default function EvidenceRegister({ sessionId, hasAnalysis, onRefresh, onBusyChange, onUnsavedChange }: {
   sessionId: string; hasAnalysis: boolean; onRefresh: () => Promise<void>; onBusyChange: (value: boolean) => void;
+  onUnsavedChange?: (dirty: boolean) => void;
 }) {
   const [register, setRegister] = useState<EvidenceRegisterResponse | null>(null);
   const [draft, setDraft] = useState<EvidenceInput>(empty);
+  const [savedDraft, setSavedDraft] = useState(draft);
   const [editing, setEditing] = useState(false);
   const [confirmationId, setConfirmationId] = useState("");
   const [method, setMethod] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const dirty = editing || !!confirmationId || JSON.stringify(draft) !== JSON.stringify(savedDraft);
+  useLayoutEffect(() => { onUnsavedChange?.(dirty); return () => onUnsavedChange?.(false); }, [dirty, onUnsavedChange]);
+  function clearDraft() {
+    const next = empty();
+    setDraft(next); setSavedDraft(next); setEditing(false);
+  }
   useEffect(() => {
     if (!sessionId) return;
     let cancelled = false;
@@ -107,7 +115,7 @@ export default function EvidenceRegister({ sessionId, hasAnalysis, onRefresh, on
       const value = entries
         ? await api.saveEvidence(sessionId, register.revision, entries)
         : await api.confirmEvidence(sessionId, confirmationId, register.revision, method.trim());
-      setRegister(value); setDraft(empty()); setEditing(false); setConfirmationId(""); setMethod("");
+      setRegister(value); clearDraft(); setConfirmationId(""); setMethod("");
       await onRefresh();
       setMessage("Evidence saved. Rerun analysis to include the current register.");
     } catch (e) { setError(e instanceof Error ? e.message : "Evidence save failed. Reload before retrying."); }
@@ -117,7 +125,7 @@ export default function EvidenceRegister({ sessionId, hasAnalysis, onRefresh, on
     if ((draft.statement || confirmationId) && !window.confirm("Discard the current entry form and reload evidence?")) return;
     setBusy(true); onBusyChange(true); setError(""); setMessage("");
     try {
-      setRegister(await api.evidence(sessionId)); setDraft(empty()); setEditing(false); setConfirmationId(""); setMethod("");
+      setRegister(await api.evidence(sessionId)); clearDraft(); setConfirmationId(""); setMethod("");
       await onRefresh();
     } catch (e) { setError(e instanceof Error ? e.message : "Could not reload evidence."); }
     finally { setBusy(false); onBusyChange(false); }
@@ -186,7 +194,7 @@ export default function EvidenceRegister({ sessionId, hasAnalysis, onRefresh, on
               </select></label>
             <p className="text-xs text-zinc-600">Editing content removes any previous confirmation. Changes clear current analysis and approval, not archived decisions.</p>
             <Button type="submit" disabled={!draft.statement.trim() || (!editing && register.entries.length >= 50)}>Save evidence entry</Button>
-            {editing && <Button variant="ghost" onClick={() => { setDraft(empty()); setEditing(false); }}>Cancel edit</Button>}
+            {editing && <Button variant="ghost" onClick={clearDraft}>Cancel edit</Button>}
           </fieldset>
         </form>
       </Card>}

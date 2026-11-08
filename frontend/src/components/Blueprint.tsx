@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { api } from "../api";
 import { Card, Button, Spinner } from "./ui";
 import Markdown from "./Markdown";
@@ -12,13 +12,15 @@ import ROIReport, { roiMarkdown } from "./ROIReport";
 import AgenticAdoption, { adoptionMarkdown } from "./AgenticAdoption";
 import { alignmentMarkdown } from "./AlignmentBrief";
 
-export default function Blueprint({ sessionId, active, canReview, secureReview, onRefresh, onBusyChange }: any) {
+export default function Blueprint({ sessionId, active, canReview, secureReview, onRefresh, onBusyChange, onUnsavedChange }: any) {
   const [bp, setBp] = useState<any>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
   const [reviewer, setReviewer] = useState("");
   const [note, setNote] = useState("");
   const authorizedReview = canReview && bp?.permissions?.review === true;
+  const dirty = note.length > 0 || reviewer.length > 0;
+  useLayoutEffect(() => { onUnsavedChange?.(dirty); return () => onUnsavedChange?.(false); }, [dirty, onUnsavedChange]);
 
   useEffect(() => {
     if (!active || !sessionId) return;

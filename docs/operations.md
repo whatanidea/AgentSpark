@@ -663,6 +663,34 @@ configured by `AUTH_SPA_CLIENT_ID`, `AUTH_SPA_AUTHORITY` and `AUTH_SPA_SCOPE`;
 tokens are held in memory only and the pop-up returns to the blank `/auth-redirect.html`). For scripted tests, get a token with
 `az account get-access-token --tenant <tenant-id> --scope api://<AUTH_AUDIENCE>/access_as_user`
 and use "Use an access token instead".
+
+Authenticated browser tabs sign out locally after five minutes without trusted
+pointer, keyboard, input, touch or scroll activity. A warning appears after four
+minutes with a countdown, **Stay signed in** and **Sign out now**. Readiness polls,
+processing heartbeats, focus changes and other tabs do not extend this deadline.
+Visibility/focus restoration checks elapsed wall-clock time before allowing a
+suspended tab to resume.
+
+Automatic sign-out pauses while an unsaved discovery/alignment/process draft,
+intake/document draft, interview reply/checklist, evidence/confirmation,
+readiness checklist, review note or workspace administration draft exists.
+The warning explains this exception after the deadline; a draft can therefore
+keep a tab signed in indefinitely. Active operations also delay sign-out until
+they finish. Genuine activity starts a fresh five-minute window; saving or
+discarding a draft does not itself extend time without user activity. Nothing is
+silently submitted, including stakeholder positions, acceptances and decisions.
+An actual API 401 still clears access immediately, even with drafts.
+
+Sign-out clears application tokens, the silent-token provider, MSAL's in-memory
+cache, the workflow pointer and displayed private state. Late authenticated
+responses cannot restore a signed-out identity. Saved server records and their
+retention are unchanged; pending invitation codes retain their existing
+tab-local lifetime. This is a per-tab browser control, not server-side bearer
+token revocation or global Entra logout. Local unauthenticated demo mode is
+excluded because there is no private sign-in session to end. Validate thresholds
+with `frontend/e2e/inactivity.spec.ts` using Playwright's clock; the mocked OIDC
+UI fixture does not prove live Entra sign-in or token revocation.
+
 Personal-workflow reviewers need the reviewer app role (value `AgentSense.Reviewer`,
 display name `AgentSpark Reviewer` for updated registrations; older registrations
 may still display `AgentSense Reviewer`) assigned in the

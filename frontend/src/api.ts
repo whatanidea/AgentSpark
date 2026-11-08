@@ -3,9 +3,10 @@
 const BASE = "/api/v1";
 let accessToken = "";
 let tokenProvider: (() => Promise<string>) | null = null;
-export function setAccessToken(token: string) { accessToken = token; }
+let authenticationVersion = 0;
+export function setAccessToken(token: string) { accessToken = token; authenticationVersion++; }
 /** When set, each request asks the provider for a current token (silently refreshed by MSAL). */
-export function setTokenProvider(provider: typeof tokenProvider) { tokenProvider = provider; }
+export function setTokenProvider(provider: typeof tokenProvider) { tokenProvider = provider; authenticationVersion++; }
 export type Permissions = { read: boolean; write: boolean; review: boolean; delete: boolean };
 export type CloudProvider = "azure" | "aws";
 export type InterviewRole = "all" | "business_operator" | "process_owner" | "technical_owner";
@@ -445,13 +446,14 @@ function processing(update: ProcessingUpdate) {
   window.dispatchEvent(new CustomEvent<ProcessingUpdate>(PROCESSING_EVENT, { detail: update }));
 }
 
-async function readProcessingResponse(response: Response, id: string, label: string): Promise<Response> {
+async function readProcessingResponse(response: Response, id: string, label: string, requireCurrentSignIn: () => void): Promise<Response> {
   if (!response.body) throw new ApiError(0, "The processing stream is unavailable. Reload saved state before retrying.");
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
   let result: Response | null = null;
   function consume(line: string) {
+    requireCurrentSignIn();
     if (!line.trim()) return;
     const event: unknown = JSON.parse(line);
     if (!event || typeof event !== "object" || !("kind" in event)) {
@@ -475,6 +477,7 @@ async function readProcessingResponse(response: Response, id: string, label: str
   try {
     while (true) {
       const chunk = await reader.read();
+      requireCurrentSignIn();
       buffer += decoder.decode(chunk.value, { stream: !chunk.done });
       if (buffer.length > 2 * 1024 * 1024) throw new ApiError(0, "The processing response exceeded safe limits.");
       const lines = buffer.split("\n");
@@ -504,6 +507,10 @@ export function uid(): string {
 }
 
 async function requestResponse(path: string, method = "GET", body?: unknown, file?: File): Promise<Response> {
+  const version = authenticationVersion;
+  const requireCurrentSignIn = () => {
+    if (version !== authenticationVersion) throw new ApiError(0, "Sign-in changed while the request was running. Sign in and reload saved state before retrying.");
+  };
   const id = uid();
   const track = method !== "GET";
   const stream = method === "POST" && (path === "/intake" || path.startsWith("/intake/document-preview?") ||
@@ -516,6 +523,7 @@ async function requestResponse(path: string, method = "GET", body?: unknown, fil
   if (track) processing({ id, label, phase: "start", stage: "Preparing a secure request" });
   try {
   const token = tokenProvider ? (await tokenProvider().catch(() => "")) || accessToken : accessToken;
+  requireCurrentSignIn();
   if (track) processing({ id, label, phase: "stage", stage: file ? "Uploading the document" : "Sending the request" });
   const readiness = path === "/ready";
   let r = await fetch(`${readiness ? "" : BASE}${path}`, {
@@ -527,8 +535,10 @@ async function requestResponse(path: string, method = "GET", body?: unknown, fil
       ...(token ? { Authorization: "Bearer " + token } : {}) },
     body: file || (body === undefined ? undefined : JSON.stringify(body)),
   });
+  requireCurrentSignIn();
   if (!r.ok && !(readiness && r.status === 503)) {
     const error = await r.json().catch(() => null);
+    requireCurrentSignIn();
     const detail = typeof error?.detail === "string" ? error.detail
       : Array.isArray(error?.detail) ? error.detail.map((e: any) => `${e.loc?.slice(1).join(".")}: ${e.msg}`).join("; ")
       : "Request failed. Please retry.";
@@ -539,8 +549,9 @@ async function requestResponse(path: string, method = "GET", body?: unknown, fil
     throw new ApiError(r.status, `${r.status}: ${detail}`);
   }
   if (stream && r.headers.get("content-type")?.includes("application/x-ndjson")) {
-    r = await readProcessingResponse(r, id, label);
+    r = await readProcessingResponse(r, id, label, requireCurrentSignIn);
   }
+  requireCurrentSignIn();
   if (track) processing({ id, label, phase: "complete" });
   return r;
   } catch (error) {
@@ -551,7 +562,10 @@ async function requestResponse(path: string, method = "GET", body?: unknown, fil
   }
 }
 async function request(path: string, method = "GET", body?: unknown) {
-  return (await requestResponse(path, method, body)).json();
+  const version = authenticationVersion;
+  const result = await (await requestResponse(path, method, body)).json();
+  if (version !== authenticationVersion) throw new ApiError(0, "Sign-in changed while the response was loading. Sign in and reload saved state before retrying.");
+  return result;
 }
 const get = (path: string) => request(path);
 const post = (path: string, body: unknown) => request(path, "POST", body);

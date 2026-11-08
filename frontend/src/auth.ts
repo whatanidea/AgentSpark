@@ -35,6 +35,9 @@ export async function currentToken(): Promise<string> {
   }
 }
 
-export function signOutLocally() { account = null; }
+export async function signOutLocally() {
+  account = null;
+  await client?.clearCache();
+}
 
 export function accountLabel() { return account?.username || account?.name || ""; }

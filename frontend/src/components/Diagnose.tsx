@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { api, type DemoScenario, type InterviewProgress, type InterviewRole } from "../api";
 import { Card, Button } from "./ui";
 
@@ -6,13 +6,14 @@ type Msg = { role: "user" | "assistant"; content: string; blocked?: boolean };
 type Props = {
   sessionId: string; context?: Record<string, string>; initialHistory?: Msg[]; demoMode: boolean;
   hasAnalysis: boolean; onRefresh: () => Promise<void>; onBusyChange: (busy: boolean) => void; goNext: () => void;
+  onUnsavedChange?: (dirty: boolean) => void;
 };
 const SUGGESTION = "Fictional invoice example: We process 500 invoices/day across Finance and Legal. " +
   "There are 6 decision points, we use SAP, Email and DocuSign, 25 exceptions/week need manual review, " +
   "and compliance sensitivity is High.";
 
 export default function Diagnose({ sessionId, context, initialHistory = [], demoMode, hasAnalysis,
-  onRefresh, onBusyChange, goNext }: Props) {
+  onRefresh, onBusyChange, goNext, onUnsavedChange }: Props) {
   const [history, setHistory] = useState<Msg[]>(initialHistory);
   const [progress, setProgress] = useState<InterviewProgress | null>(null);
   const [answers, setAnswers] = useState<Record<string, string>>({});
@@ -25,6 +26,8 @@ export default function Diagnose({ sessionId, context, initialHistory = [], demo
   const [showChecklist, setShowChecklist] = useState(false);
   const [showAll, setShowAll] = useState(false);
   const [showOtherRoles, setShowOtherRoles] = useState(false);
+  const unsaved = dirty || text.length > 0;
+  useLayoutEffect(() => { onUnsavedChange?.(unsaved); return () => onUnsavedChange?.(false); }, [unsaved, onUnsavedChange]);
 
   function accept(value: InterviewProgress) {
     setProgress(value);
