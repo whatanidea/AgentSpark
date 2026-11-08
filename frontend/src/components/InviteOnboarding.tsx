@@ -3,10 +3,11 @@ import { api, type AuthConfig, type Identity, type InvitePreview, type InviteRed
 import { Button, Card } from "./ui";
 
 export default function InviteOnboarding({ code, warning, auth, identity, accountLabel, starting, busy, message,
-  onSignIn, onSwitchAccount, onJoined, onCancel }: {
+  onSignIn, onSwitchAccount, onJoined, onCancel, onBusyChange }: {
   code: string; warning: string; auth: AuthConfig | null; identity: Identity | null; accountLabel: string;
   starting: boolean; busy: boolean; message: string; onSignIn: (email: string) => Promise<void>;
   onSwitchAccount: () => void; onJoined: (result: InviteRedemption) => void; onCancel: () => void;
+  onBusyChange?: (busy: boolean) => void;
 }) {
   const [preview, setPreview] = useState<InvitePreview | null>(null);
   const [email, setEmail] = useState("");
@@ -73,10 +74,10 @@ export default function InviteOnboarding({ code, warning, auth, identity, accoun
               {" "}Accepting adds the access shown above to this account. It does not authorize business actions or deployments.</p>
             <div className="flex flex-wrap gap-3">
               <Button disabled={working} onClick={async () => {
-                setJoining(true); setError("");
+                setJoining(true); onBusyChange?.(true); setError("");
                 try { onJoined(await api.redeemInvite(code)); }
                 catch (e) { setError(e instanceof Error ? e.message : "Could not accept the invitation. Retry."); }
-                finally { setJoining(false); }
+                finally { setJoining(false); onBusyChange?.(false); }
               }}>{joining ? "Opening your workspace..." : "Accept invitation"}</Button>
               {auth?.mode === "oidc" && <Button variant="ghost" disabled={working} onClick={onSwitchAccount}>Use a different account</Button>}
             </div>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { api, uid, type DocumentApproval, type InferenceModel, type ModelCatalog } from "../api";
 import { Card, Button } from "./ui";
 import Icon, { type IconName } from "./Icon";
@@ -46,26 +46,30 @@ const SAMPLE_PRESENTATION: Record<string, { name: string; detail: string; icon: 
   payroll: { name: "Payroll Calculation", detail: "A standard-software alternative", icon: "payroll" },
 };
 
-export default function Intake({ sessionId, initialContext, initialModel, modelLocked, onSaved, onBusyChange, onUnsavedChange }: any) {
+export default function Intake({ sessionId, initialContext, initialModel, modelLocked, onSaved, onBusyChange, onUnsavedChange, onDraftChange }: any) {
   const [form, setForm] = useState<any>({ ...EMPTY, ...initialContext });
+  const [savedForm, setSavedForm] = useState({ ...EMPTY, ...initialContext });
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
   const [mode, setMode] = useState<"demo" | "live" | null>(null);
   const [confirmChange, setConfirmChange] = useState(false);
   const [catalog, setCatalog] = useState<ModelCatalog | null>(null);
   const [modelId, setModelId] = useState<InferenceModel["id"] | "">(initialModel?.id || "");
+  const [savedModelId, setSavedModelId] = useState<InferenceModel["id"] | "">(initialModel?.id || "");
   const [draftId] = useState<string>(sessionId || uid());
   const [documentMode, setDocumentMode] = useState(false);
   const [document, setDocument] = useState<DocumentApproval | null>(null);
   const [overwrite, setOverwrite] = useState(false);
   const [touched, setTouched] = useState<Set<string>>(new Set());
   useEffect(() => () => { onUnsavedChange?.(false); }, [onUnsavedChange]);
+  const dirty = JSON.stringify(form) !== JSON.stringify(savedForm) || modelId !== savedModelId;
+  useLayoutEffect(() => { onDraftChange?.(dirty); return () => onDraftChange?.(false); }, [dirty, onDraftChange]);
 
   useEffect(() => {
     api.health().then((health) => setMode(health.mode)).catch((e: Error) => setMsg(e.message));
     api.models().then(result => {
       setCatalog(result);
-      if (result.mode === "demo") setModelId("demo");
+      if (result.mode === "demo") { setModelId("demo"); setSavedModelId("demo"); }
     }).catch((e: Error) => setMsg(`Model catalog could not be loaded: ${e.message}`));
   }, []);
 
@@ -102,6 +106,7 @@ export default function Intake({ sessionId, initialContext, initialModel, modelL
       const saved = await api.intake({ session_id: sid, ...form, ...(modelId ? { model_id: modelId } : {}),
         ...(approval ? { document: approval, demo_scenario: null } : {}) });
       setForm({ ...saved.enterprise_context, demo_scenario: form.demo_scenario });
+      setSavedForm({ ...saved.enterprise_context, demo_scenario: form.demo_scenario }); setSavedModelId(modelId);
       onUnsavedChange?.(false);
       await onSaved(sid, Boolean(approval && saved.interview && saved.interview.missing_facts.length === 0), saved.interview?.version);
     } catch (e: any) {

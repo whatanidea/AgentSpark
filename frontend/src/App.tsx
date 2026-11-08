@@ -18,6 +18,7 @@ import EvidenceRegister from "./components/EvidenceRegister";
 import ImplementationReadiness from "./components/ImplementationReadiness";
 import Icon from "./components/Icon";
 import { Button, Card } from "./components/ui";
+import useInactivitySignOut from "./useInactivitySignOut";
 
 type View = "home" | "intake" | "diagnose" | "evidence" | "readiness" | "analyze" | "blueprint" | "workspaces" | "portfolio" | "discovery";
 const NAV: { id: View; label: string }[] = [
@@ -79,6 +80,8 @@ export default function App() {
   const [discoveryUnsaved, setDiscoveryUnsaved] = useState(false);
   const discoveryUnsavedRef = useRef(false);
   const [documentUnsaved, setDocumentUnsaved] = useState(false);
+  const [editorUnsaved, setEditorUnsaved] = useState(false);
+  const updateEditorUnsaved = useCallback((dirty: boolean) => setEditorUnsaved(dirty), []);
   const [intakeEntry, setIntakeEntry] = useState(0);
   const documentUnsavedRef = useRef(false);
   const updateDocumentUnsaved = useCallback((dirty: boolean) => {
@@ -155,6 +158,38 @@ export default function App() {
     }
   }, []);
 
+  const disconnect = useCallback((reason = "") => {
+    setTokenProvider(null); setAccessToken(""); setWorkspace(null); selectWorkspace(null);
+    setIdentity(null); setSignedInAs(""); setInvitedOrganization(""); setSnapshot(null); forgetPointer();
+    setToken(""); setDiscoveryEntry(null); setConfirmDelete(false); setRuntime(null); setRuntimeError("");
+    setMessage(reason); setBusy(true);
+    void signInModule().then(module => module.signOutLocally())
+      .catch(() => setMessage(`${reason} The local sign-in client could not be reset. Reload before signing in again.`.trim()))
+      .finally(() => setBusy(false));
+  }, []);
+  const signOutForInactivity = useCallback(() => {
+    disconnect("Signed out after 5 minutes of inactivity. Saved records remain intact. Sign in again to continue.");
+    setView("home"); setShowLanding(false);
+    void navigate("/workspace", { replace: true });
+  }, [disconnect, navigate]);
+  const unsaved = discoveryUnsaved || documentUnsaved || editorUnsaved;
+  const { warning, staySignedIn } = useInactivitySignOut(
+    auth?.mode === "oidc" ? identity?.identity || "" : "", unsaved, busy, signOutForInactivity,
+  );
+  const inactivityNotice = warning && <section role="alert" aria-label="Inactivity warning"
+    className="fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-xl rounded border border-brand-200 bg-white p-5 shadow-lg space-y-3">
+    <h2 className="font-semibold">Your session is inactive</h2>
+    {warning.paused === "draft" ? <p>Automatic sign-out is paused because you have unsaved work. Save or discard your drafts, or choose Stay signed in. Unsaved work does not extend an expired access token.</p>
+      : warning.paused === "operation" ? <p>Automatic sign-out is waiting for the current operation to finish.</p>
+      : <p aria-live="off">Automatic sign-out in {Math.floor(warning.remainingSeconds / 60)}:{String(warning.remainingSeconds % 60).padStart(2, "0")}. Unsaved drafts will pause sign-out.</p>}
+    <div className="flex flex-wrap gap-3">
+      <Button onClick={staySignedIn}>Stay signed in</Button>
+      <Button variant="ghost" disabled={busy} onClick={() => {
+        if (!unsaved || window.confirm("Sign out and discard unsaved changes? Saved records remain intact.")) signOutForInactivity();
+      }}>Sign out now</Button>
+    </div>
+  </section>;
+
   useEffect(() => {
     let alive = true;
     api.authConfig().then(async (config) => {
@@ -193,10 +228,14 @@ export default function App() {
     const active = !!identity?.platform_access && (!showLanding || !!pendingInvite);
     if (active) void refresh();
     const interval = active ? window.setInterval(refresh, 30000) : undefined;
-    const expire = () => { setTokenProvider(null); void signInModule().then((m) => m.signOutLocally()); setAccessToken(""); setWorkspace(null); selectWorkspace(null); setInvitedOrganization(""); setIdentity(null); setSignedInAs(""); setSnapshot(null); setView("intake"); setMessage("Access expired. Sign in again; tokens are never saved in browser storage."); };
+    const expire = () => {
+      if (!identity) return;
+      disconnect("Access expired. Sign in again; tokens are never saved in browser storage.");
+      setView("intake");
+    };
     window.addEventListener("agentsense-auth-expired", expire);
     return () => { alive = false; clearInterval(interval); window.removeEventListener("agentsense-auth-expired", expire); };
-  }, [showLanding, pendingInvite, identity?.platform_access]);
+  }, [showLanding, pendingInvite, identity?.platform_access, disconnect]);
 
   useEffect(() => {
     const onHash = () => { const incoming = takeInviteFromUrl(); if (incoming) setInvitation(incoming); };
@@ -258,12 +297,6 @@ export default function App() {
           : `Microsoft sign-in failed. ${text}`);
     } finally { setBusy(false); }
   }
-  function disconnect() {
-    setTokenProvider(null); setAccessToken(""); setWorkspace(null); selectWorkspace(null);
-    setIdentity(null); setSignedInAs(""); setInvitedOrganization(""); setSnapshot(null); forgetPointer(); setMessage("");
-    void signInModule().then(module => module.signOutLocally())
-      .catch(() => setMessage("The local sign-in client could not be reset. Reload before signing in again."));
-  }
   function clearInvitation() {
     setInvitation({ code: "", warning: "" });
     window.history.replaceState(window.history.state, "", window.location.pathname + window.location.search);
@@ -317,18 +350,19 @@ export default function App() {
     void changeView(next);
   }
 
-  if (pendingInvite) return <InviteOnboarding code={pendingInvite} warning={invitation.warning}
+  if (pendingInvite) return <>{inactivityNotice}<InviteOnboarding code={pendingInvite} warning={invitation.warning}
     auth={auth} identity={identity} accountLabel={signedInAs} starting={starting} busy={busy} message={message}
-    onSignIn={signInWithMicrosoft} onSwitchAccount={disconnect} onJoined={finishInvitation}
-    onCancel={() => { setMessage(clearInvitation()); setShowLanding(false); void navigate("/workspace", { replace: true }); }} />;
+    onSignIn={signInWithMicrosoft} onSwitchAccount={() => disconnect()} onJoined={finishInvitation} onBusyChange={setBusy}
+    onCancel={() => { setMessage(clearInvitation()); setShowLanding(false); void navigate("/workspace", { replace: true }); }} /></>;
 
-  if (showLanding) return <Suspense fallback={<div role="status" className="min-h-screen grid place-items-center">Loading product overview…</div>}><Landing
+  if (showLanding) return <>{inactivityNotice}<Suspense fallback={<div role="status" className="min-h-screen grid place-items-center">Loading product overview…</div>}><Landing
     onStart={() => enterFromWebsite(sessionId ? "home" : "intake")}
     onWorkspace={() => enterFromWebsite("home")}
     onDiscover={() => enterFromWebsite("discovery")}
-    disabled={busy || starting} hasSession={!!sessionId} signedIn={!!identity} message={message} /></Suspense>;
+    disabled={busy || starting} hasSession={!!sessionId} signedIn={!!identity} message={message} /></Suspense></>;
 
   if (identity && !identity.platform_access) return <main className="min-h-screen bg-canvas px-4 py-12">
+    {inactivityNotice}
     <div className="max-w-xl mx-auto space-y-5">
       <p className="text-xl font-bold">AgentSpark</p>
       <Card>
@@ -359,7 +393,7 @@ export default function App() {
             catch (e) { setMessage(e instanceof Error ? e.message : "Access could not be checked. Retry."); }
             finally { setBusy(false); }
           }}>Check access again</Button>
-          <Button variant="ghost" disabled={busy} onClick={disconnect}>Use a different account</Button>
+          <Button variant="ghost" disabled={busy} onClick={() => disconnect()}>Use a different account</Button>
         </div>
       </Card>
     </div>
@@ -431,6 +465,7 @@ export default function App() {
         </div>
       </aside>
       <main id="main-content" className="flex-1 min-w-0 bg-canvas" aria-busy={busy}>
+        {inactivityNotice}
         <div className="min-h-16 border-b border-line bg-white flex items-center justify-between flex-wrap gap-3 px-5 md:px-10 py-4">
           <p className="text-xs text-zinc-500">Workspace <span className="mx-2 text-zinc-300">/</span> <span className="font-medium text-zinc-700">{NAV.find((n) => n.id === view)?.label.replace(/^\d · /, "")}</span></p>
           <span className="max-w-full break-words text-[11px] font-medium text-brand-800 bg-brand-50 border border-brand-100 rounded-sm px-3 py-1">{workspace ? `${workspace.organization_name} / ${workspace.team_name}` : "Personal workspace"}</span>
@@ -500,7 +535,7 @@ export default function App() {
             </section>
           ) : <div key={sessionId || "new"}>
             {view === "workspaces" && <Workspaces identity={identity.identity} demo={auth?.mode === "local-demo"}
-              onSelect={changeWorkspace} onBusyChange={setBusy} initialOrganizationId={workspace?.organization_id || invitedOrganization} />}
+              onSelect={changeWorkspace} onBusyChange={setBusy} onUnsavedChange={updateEditorUnsaved} initialOrganizationId={workspace?.organization_id || invitedOrganization} />}
             {view === "discovery" && <Discovery canCreate={workspace?.permissions.write !== false}
               initialEngagementId={discoveryEntry?.id} createNew={discoveryEntry?.createNew}
               onOpen={openWorkflow} onBusyChange={setBusy} onUnsavedChange={updateDiscoveryUnsaved}
@@ -534,19 +569,19 @@ export default function App() {
                   setView("analyze");
                 }
               }}
-              onBusyChange={setBusy} onUnsavedChange={updateDocumentUnsaved} /></fieldset>}
+              onBusyChange={setBusy} onUnsavedChange={updateDocumentUnsaved} onDraftChange={updateEditorUnsaved} /></fieldset>}
             {view === "diagnose" && <fieldset disabled={!canWrite} className="min-w-0"><Diagnose sessionId={sessionId} context={snapshot?.enterprise_context}
               demoMode={runtime?.mode === "demo"}
               hasAnalysis={!!snapshot?.analysis_id}
-              initialHistory={snapshot?.chat_history} onRefresh={refreshSession} onBusyChange={setBusy} goNext={() => void changeView("analyze")} /></fieldset>}
+              initialHistory={snapshot?.chat_history} onRefresh={refreshSession} onBusyChange={setBusy} onUnsavedChange={updateEditorUnsaved} goNext={() => void changeView("analyze")} /></fieldset>}
             {view === "evidence" && <EvidenceRegister sessionId={sessionId} hasAnalysis={!!snapshot?.analysis_id}
-              onRefresh={refreshSession} onBusyChange={setBusy} />}
+              onRefresh={refreshSession} onBusyChange={setBusy} onUnsavedChange={updateEditorUnsaved} />}
             {view === "readiness" && <ImplementationReadiness sessionId={sessionId} hasAnalysis={!!snapshot?.analysis_id}
-              onRefresh={refreshSession} onBusyChange={setBusy} />}
+              onRefresh={refreshSession} onBusyChange={setBusy} onUnsavedChange={updateEditorUnsaved} />}
             {view === "analyze" && <fieldset disabled={!canWrite} className="min-w-0"><Analyze sessionId={sessionId} active initialSnapshot={snapshot}
               onRefresh={refreshSession} onBusyChange={setBusy} goNext={() => void changeView("blueprint")} /></fieldset>}
             {view === "blueprint" && <Blueprint sessionId={sessionId} active canReview={snapshot?.permissions.review === true}
-              secureReview={auth?.mode === "oidc"} onRefresh={refreshSession} onBusyChange={setBusy} />}
+              secureReview={auth?.mode === "oidc"} onRefresh={refreshSession} onBusyChange={setBusy} onUnsavedChange={updateEditorUnsaved} />}
             {view === "portfolio" && <Portfolio />}
           </div>}
         </div>

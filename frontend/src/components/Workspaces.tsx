@@ -1,12 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { api, inviteLink, parseInviteCode, type DirectoryMember, type DirectoryPage, type Invite, type Organization, type Team, type TeamRole, type WorkspaceSelection } from "../api";
 import { Button, Card, Pill } from "./ui";
 
 const empty = <T,>(): DirectoryPage<T> => ({ items: [], next_cursor: null });
 
-export default function Workspaces({ identity, demo, onSelect, onBusyChange, inviteCode = "", onInviteHandled, initialOrganizationId = "" }: {
+export default function Workspaces({ identity, demo, onSelect, onBusyChange, onUnsavedChange, inviteCode = "", onInviteHandled, initialOrganizationId = "" }: {
   identity: string; demo: boolean; onSelect: (value: WorkspaceSelection | null) => void;
   onBusyChange: (busy: boolean) => void; inviteCode?: string; onInviteHandled?: () => void; initialOrganizationId?: string;
+  onUnsavedChange?: (dirty: boolean) => void;
 }) {
   const [organizations, setOrganizations] = useState(empty<Organization>);
   const [organization, setOrganization] = useState("");
@@ -28,6 +29,8 @@ export default function Workspaces({ identity, demo, onSelect, onBusyChange, inv
   const [inviteRoles, setInviteRoles] = useState<TeamRole[]>(["contributor"]);
   const [inviteHours, setInviteHours] = useState(168);
   const [inviteUses, setInviteUses] = useState(1);
+  const inviteDraft = JSON.stringify([inviteRole, inviteTeam, inviteRoles, inviteHours, inviteUses]);
+  const [savedInviteDraft, setSavedInviteDraft] = useState(inviteDraft);
   const [createdLink, setCreatedLink] = useState("");
   const [joinCode, setJoinCode] = useState(inviteCode);
   useEffect(() => { if (inviteCode) setJoinCode(inviteCode); }, [inviteCode]);
@@ -36,6 +39,8 @@ export default function Workspaces({ identity, demo, onSelect, onBusyChange, inv
   const [message, setMessage] = useState("");
   const selected = organizations.items.find(item => item.organization_id === organization);
   const admin = selected?.role === "owner" || selected?.role === "admin";
+  const dirty = !!(organizationName || teamName || memberId || grantId || joinCode) || (admin && inviteDraft !== savedInviteDraft);
+  useLayoutEffect(() => { onUnsavedChange?.(dirty); return () => onUnsavedChange?.(false); }, [dirty, onUnsavedChange]);
 
   async function run(action: () => Promise<void>) {
     setBusy(true); onBusyChange(true); setError(""); setMessage("");
@@ -49,6 +54,7 @@ export default function Workspaces({ identity, demo, onSelect, onBusyChange, inv
     setMemberId(""); setGrantId(""); setMemberRole("member"); setMemberActive(true);
     setGrantRoles(["viewer"]); setGrantActive(true); setInvites(empty()); setCreatedLink(""); setInviteTeam("");
     setInviteRole("member");
+    setSavedInviteDraft(JSON.stringify(["member", "", inviteRoles, inviteHours, inviteUses]));
     const role = entries.find(item => item.organization_id === id)?.role;
     const manager = role === "owner" || role === "admin";
     const [nextTeams, nextMembers, nextInvites] = await Promise.all([
@@ -193,6 +199,7 @@ export default function Workspaces({ identity, demo, onSelect, onBusyChange, inv
               ...(inviteTeam ? { team_id: inviteTeam, team_roles: inviteRoles } : {}),
             });
             setCreatedLink(inviteLink(created.code));
+            setSavedInviteDraft(inviteDraft);
             setInvites(await api.invites(organization));
           });
         }}>
