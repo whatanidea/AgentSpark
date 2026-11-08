@@ -15,12 +15,12 @@ test("editorial journey, product stages and technology boundaries explain capabi
   await page.getByRole("link", { name: "Explore the product", exact: false }).click();
   const showcase = page.getByRole("region", { name: "See the work. Then decide what changes.", exact: true });
   await expect(showcase.getByRole("tabpanel", { name: /Discover/ })).toContainText("Clarification needed");
-  for (const name of ["Prioritize", "Prepare", "Decide"]) {
+  for (const name of ["Align", "Prioritize", "Prepare", "Decide"]) {
     await showcase.getByRole("tab", { name: new RegExp(name) }).click();
     await expect(showcase.getByRole("tabpanel", { name: new RegExp(name) })).toBeVisible();
     await expect(showcase).toContainText("fictional and unverified");
   }
-  await expect(showcase).toContainText("Customer implementation and authorization remain separate");
+  await expect(showcase).toContainText("Review is advisory, not execution permission");
   await expect(showcase.locator(".premium-product-screen")).toHaveCSS("background-color", "rgb(31, 32, 39)");
   const technology = page.getByRole("region", { name: "Your decisions first. The stack follows.", exact: true });
   await expect(technology.getByRole("article")).toHaveCount(3);
@@ -42,7 +42,7 @@ test("product tabs expose consistent ARIA relationships and full keyboard naviga
   await page.goto("/");
   const tabs = page.getByRole("tablist", { name: "Product walkthrough stages" });
   await tabs.getByRole("tab", { name: /Discover/ }).focus();
-  for (const [key, name] of [["ArrowRight", "Prioritize"], ["End", "Decide"], ["ArrowRight", "Discover"], ["ArrowLeft", "Decide"], ["Home", "Discover"]]) {
+  for (const [key, name] of [["ArrowRight", "Align"], ["ArrowRight", "Prioritize"], ["End", "Decide"], ["ArrowRight", "Discover"], ["ArrowLeft", "Decide"], ["Home", "Discover"]]) {
     await page.keyboard.press(key);
     const tab = tabs.getByRole("tab", { name: new RegExp(name) });
     await expect(tab).toBeFocused();
@@ -68,7 +68,12 @@ test("premium layouts, menus and diagrams fit mobile, tablet and desktop without
           expect((await tab.boundingBox())!.height).toBeGreaterThanOrEqual(44);
       } else {
         await expect(page.locator(".premium-page-visual")).toBeVisible();
-        await expect(page.locator(".premium-visual-nodes li")).toHaveCount(4);
+        if (path === "/platform/assessment") {
+          await expect(page.locator(".proof-verdict")).toContainText("Investigate further");
+          await expect(page.locator(".proof-decision-facts > div")).toHaveCount(4);
+        } else if (path === "/platform/architecture") {
+          await expect(page.locator(".proof-connected-flow li")).toHaveCount(4);
+        } else await expect(page.locator(".premium-visual-nodes li")).toHaveCount(4);
       }
     }
   }
@@ -81,7 +86,7 @@ test("premium layouts, menus and diagrams fit mobile, tablet and desktop without
   expect(box.x).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width).toBeLessThanOrEqual(1440);
   await expect(menu.locator(".premium-menu-feature")).toBeVisible();
-  await expect(menu.getByRole("link")).toHaveCount(4);
+  await expect(menu.getByRole("link")).toHaveCount(7);
 });
 
 test("workflow review opens the protected existing discovery flow without a fake booking or saved inquiry", async ({ page }) => {

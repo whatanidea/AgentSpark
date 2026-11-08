@@ -14,6 +14,7 @@ import ConsultationBooking from "./ConsultationBooking";
 import { MarketingIcon, PageVisual } from "./MarketingVisuals";
 import { SignalField } from "./EditorialExperience";
 import { publicPage } from "./publicPages";
+import { FeaturedCapabilities, PublicCollection, SolutionStory } from "./PublicCollections";
 import "./Landing.css";
 import "./Marketing.css";
 import "./Premium.css";
@@ -66,7 +67,6 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
   const page = publicPage(pathname);
   const home = page?.path === "/";
   const examplePage = page?.path === "/resources/example-assessment";
-  const howPage = page?.path === "/resources/how-it-works";
   const trustPage = page?.path === "/resources/trust";
   const consultingPage = page?.section === "Consulting";
   const title = useRef<HTMLHeadingElement>(null);
@@ -111,7 +111,7 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
             <span>INDEPENDENT THINKING / PRACTICAL DELIVERY</span></div>
           <h1 ref={title} tabIndex={-1} id="landing-title">Your business.<br /><span>AI-native by design.</span></h1>
           <div className="editorial-hero-bottom">
-            <p>We help SMEs turn AI ambition into better ways of working. Find the opportunity. Equip your people. Prove a workflow. Build the capability to keep improving.</p>
+            <p>We help SMEs turn AI ambition into better ways of working. Align the people. Find the opportunity. Review the evidence and visual blueprint before committing to change.</p>
             <div><div className="landing-actions">
               <button className="landing-button landing-button-primary" onClick={bookConsultation}>Book a consultation <span aria-hidden="true">↗</span></button>
               <Link className="landing-button landing-button-secondary" to="/consulting">Explore consulting <span aria-hidden="true">↗</span></Link>
@@ -143,20 +143,23 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
       </section>}
 
       {home && <aside className="premium-proof-strip landing-container" aria-label="What the platform makes visible">
-        <div><MarketingIcon name="people" /><span>People who know the process</span></div>
-        <div><MarketingIcon name="evidence" /><span>Evidence behind the opportunity</span></div>
-        <div><MarketingIcon name="decision" /><span>Human-reviewed next steps</span></div>
+        <div><MarketingIcon name="people" /><span>Stakeholder positions &amp; accepted ownership</span></div>
+        <div><MarketingIcon name="evidence" /><span>Outcome-led, source-linked recommendations</span></div>
+        <div><MarketingIcon name="blueprint" /><span>Visual blueprints &amp; human-reviewed decisions</span></div>
       </aside>}
+      {(home || page?.path === "/platform" || page?.path === "/resources/whats-new") && <FeaturedCapabilities />}
+      {(home || page?.path === "/platform" || page?.path === "/resources/how-it-works") && <ProductShowcase />}
       {home && <HomeConsulting disabled={disabled} onDiscover={onDiscover} onBook={bookConsultation} />}
-      {home && <ProductShowcase />}
-      {home && <HomeUseCases />}
+      {page?.path === "/solutions" && <HomeUseCases />}
       {home && <TechnologyBoundaries />}
       {consultingPage && <ConsultingContent path={page.path} disabled={disabled} onDiscover={onDiscover} onBook={bookConsultation} />}
 
       {page?.path === "/platform/architecture" && <section data-reveal className="landing-section landing-container" aria-labelledby="architecture-example-title">
         <ArchitectureIllustration />
       </section>}
-      {!!page?.details.length && <section data-reveal className="landing-section landing-container marketing-page-details" aria-label={`${page.name} capabilities`}>
+      {(page?.path === "/solutions" || page?.path === "/resources") && <PublicCollection page={page} />}
+      {page?.section === "Solutions" && page.path !== "/solutions" && <SolutionStory page={page} />}
+      {!!page?.details.length && page.section !== "Solutions" && <section data-reveal className="landing-section landing-container marketing-page-details" aria-label={`${page.name} capabilities`}>
         <div className="marketing-capabilities">{page.details.map(([heading, text], index) =>
           <article key={heading}><span>0{index + 1}</span><h2>{heading}</h2><p>{text}</p></article>)}</div>
         <Link className="landing-button landing-button-secondary" to="/resources/example-assessment">Explore an illustrative assessment ↗</Link>
@@ -195,21 +198,6 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
         </div>
       </section>}
 
-      {howPage && <section data-reveal id="how-it-works" className="landing-section landing-container" aria-labelledby="how-title">
-        <div className="landing-section-heading"><div><p className="landing-eyebrow">From possibility to a plan</p><h2 id="how-title">Less AI guesswork.<br />More forward motion.</h2></div>
-          <p>A structured path from how work happens today to what a responsible pilot would need.</p></div>
-        <ol className="landing-journey">
-          {[
-            ["Discover", "Listen to the people doing the work", "Record the scope and collect role-based input from active signed-in team members."],
-            ["Prioritize", "Build a source-linked shortlist", "Review generated hypotheses and explicit rating assumptions. Resolve disagreements and unknowns."],
-            ["Assess", "Validate a selected workflow", "Confirm workflow facts, assess suitability, and record integration, data, security and operating gaps."],
-            ["Review", "Decide what comes next", "Review the executive brief and proposed architecture. Export an assessment; approval remains advisory."],
-          ].map(([label, title, detail], index) => <li key={label}>
-            <div className="landing-journey-number">0{index + 1}<span>{label}</span></div><h3>{title}</h3><p>{detail}</p>
-          </li>)}
-        </ol>
-      </section>}
-
       {examplePage && <section data-reveal id="deliverables" className="landing-deliverables" aria-labelledby="deliverables-title">
         <div className="landing-container">
           <div className="landing-section-heading"><div><p className="landing-eyebrow">An assessment you can actually use</p><h2 id="deliverables-title">See the decision.<br />And what sits behind it.</h2></div>
@@ -242,7 +230,7 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
                   <label className="landing-slider-label" htmlFor="example-volume">Illustrative workflows per day <output htmlFor="example-volume">{volume}</output></label>
                   <input id="example-volume" className="landing-slider" type="range" min="10" max="500" step="10" value={volume} onChange={event => setVolume(Number(event.target.value))} />
                   <div className="landing-value"><strong>{new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 }).format(volume * 220 * 3 / 60 * 40)}</strong><span>Illustrative gross annual capacity value</span></div>
-                  <p className="landing-preview-footnote">{volume} workflows/day × 220 days × 3 minutes saved ÷ 60 × $40/hour. Excludes delivery costs, adoption and operating costs; not net savings or a forecast. Actual reports include ROI assumptions and scenarios.</p>
+                  <p className="landing-preview-footnote">{volume} workflows/day × 220 days × 3 minutes saved ÷ 60 × $40/hour. Excludes delivery costs, adoption and operating costs; not net savings or a forecast. Optional value planning separates capacity, cash savings, avoided hiring and service outcomes.</p>
                 </>}
                 {preview === "Blueprint" && <>
                   <h3>Your workflow. A cloud-aligned starting point.</h3>
@@ -261,7 +249,7 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
       {examplePage && <section data-reveal className="landing-section landing-container landing-report-section" aria-labelledby="report-title">
         <div className="landing-report-copy"><p className="landing-eyebrow">Built for the conversation after the demo</p>
           <h2 id="report-title">A report to review.<br />Not another black box.</h2>
-          <p>Bring suitability, implementation gaps, evidence, ROI assumptions and the proposed architecture into one downloadable PDF.</p>
+          <p>Bring the executive decision, intended outcomes, readiness gaps, evidence and visual blueprint into one reviewable PDF. Business-value planning is optional, not a requirement for a recommendation.</p>
           <ul><li>Keep proposed findings separate from verified facts.</li><li>Make approval status and human decisions explicit.</li><li>Share a versioned assessment, not a promise of deployment.</li></ul>
           <button className="landing-button landing-button-secondary" disabled={disabled} onClick={onStart}>Create your assessment report <span aria-hidden="true">↗</span></button>
         </div>
@@ -270,7 +258,7 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
           <span className="landing-report-status">ILLUSTRATIVE · NOT APPROVED</span>
           <h3>Workflow<br />Assessment</h3><p>{example.name}</p>
           <div className="landing-report-rule" />
-          <ol>{["Suitability & rationale", "Evidence & assumptions", "Implementation readiness", "Business case scenarios", "Proposed blueprint & review"].map((item, index) => <li key={item}><span>0{index + 1}</span>{item}</li>)}</ol>
+          <ol>{["Executive decision & next action", "Evidence & assumptions", "Readiness & human boundaries", "Optional business value", "Visual blueprint & review"].map((item, index) => <li key={item}><span>0{index + 1}</span>{item}</li>)}</ol>
           <p className="landing-report-note">This cover is an example, not a generated report. Create an assessment to export your own PDF.</p>
         </article>
       </section>}
@@ -282,6 +270,9 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
           ["Sources stay visible", "Stakeholder statements and generated hypotheses remain unverified. Drafts are excluded from synthesis; source edits mark snapshots stale."],
           ["Assumptions stay explicit", "Priority ratings are assessor judgments, not suitability scores, guaranteed savings or verified confidence."],
           ["People stay accountable", "A reviewed handoff does not confirm diagnostic facts, grant permissions or authorize autonomous execution."],
+          ["Alignment is explicit, not inferred", "Members record their own positions and accept their own nominated responsibilities. Missing replies do not establish agreement. Changes to scope can invalidate current positions, ownership and decisions."],
+          ["Workspace access remains scoped", "Choosing an organization only loads teams; choosing a team changes the active scope. Existing server-enforced permissions determine access. Workspace selection does not move records or grant membership."],
+          ["Inactive tabs normally sign out after five minutes", "A warning appears after four idle minutes. Unsaved drafts and active operations can delay sign-out, potentially indefinitely for drafts. This is per-tab local sign-out, not global Microsoft logout or bearer-token revocation; real token expiry still ends access."],
           ["Retention stays bounded", "New engagements expire after 30 days unless explicitly renewed. Ordinary edits do not extend expiry; assessment and archive copies follow their own retention."],
           ["Consulting is separately scoped", "The assessment platform does not automatically onboard providers or implement workflows. Customer administrators own accounts, contracts and access; delivery responsibilities are agreed in the engagement."],
           ["Scheduling is a separate choice", "Cal.com processes scheduling data when you open its calendar or direct booking link. No scheduler is loaded before that choice; page query parameters and assessment data are not forwarded. Copying instructions does not connect an assistant or book a meeting: review permissions and confirm details yourself. Do not send secrets or confidential customer data."],
@@ -296,10 +287,10 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
         <p>AI consulting. Evidence-led software.<br />One connected approach.</p><small>Human accountability. Customer-owned decisions.</small></div>
       <div><strong>Consulting</strong><Link to="/consulting">Consulting overview</Link><Link to="/consulting/readiness">Opportunity & readiness</Link>
         <Link to="/consulting/workspace-launch">Workspace launch</Link><Link to="/consulting/workflow-pilot">Workflow pilot</Link><Link to="/consulting/adoption">Adoption & optimization</Link></div>
-      <div><strong>Platform</strong><Link to="/platform/discovery">Discovery</Link><Link to="/platform/prioritization">Prioritization</Link>
-        <Link to="/platform/assessment">Assessment</Link><Link to="/platform/architecture">Architecture & review</Link></div>
-      <div><strong>Explore</strong><Link to="/about">About</Link><Link to="/resources/how-it-works">How it works</Link>
-        <Link to="/resources/example-assessment">Example assessment</Link><Link to="/resources/trust">Trust & limitations</Link></div>
+      <div><strong>Platform</strong><Link to="/platform">Platform overview</Link><Link to="/platform/discovery">Discovery</Link><Link to="/platform/alignment">Alignment &amp; decisions</Link>
+        <Link to="/platform/assessment">Assessment</Link><Link to="/platform/architecture">Visual blueprints</Link><Link to="/platform/workspaces">Team workspaces</Link></div>
+      <div><strong>Explore</strong><Link to="/solutions">Solutions</Link><Link to="/resources">Resources</Link><Link to="/about">About</Link>
+        <Link to="/resources/decision-guide">Decision review guide</Link><Link to="/resources/example-assessment">Example assessment</Link><Link to="/resources/trust">Trust & limitations</Link></div>
       <a className="premium-back-top" href="#top">Back to top ↑</a>
     </footer>
     {bookingPath === pathname && <ConsultationBooking onClose={() => setBookingPath(null)} />}

@@ -89,7 +89,7 @@ html, body, #root {
   .action-secondary:hover:not(:disabled) { background: var(--color-brand-50); border-color: var(--color-brand-300); color: var(--color-brand-800); }
   .action-danger { background: #be123c; color: #ffffff; }
   .action-danger:hover:not(:disabled) { background: #9f1239; }
-  .action-button:disabled { background: #f1f0f3; border-color: var(--color-line); color: var(--color-muted); box-shadow: none; cursor: not-allowed; }
+  .action-button:disabled, .action-button[role="tab"][aria-disabled="true"] { background: #f1f0f3; border-color: var(--color-line); color: var(--color-muted); box-shadow: none; cursor: not-allowed; }
   .nav-item {
     display: flex;
     align-items: center;

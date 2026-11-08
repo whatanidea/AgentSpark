@@ -196,13 +196,15 @@ export default function Home({ demo, retentionDays, workspaceName, workspace, in
     </> : <>
       <div role="tablist" aria-label="Workspace libraries" className="flex flex-wrap gap-2">
         {([["workflows", "Workflow library"], ["discovery", "Discovery engagements"]] as const).map(([value, label]) =>
-          <Button key={value} id={`home-${value}-tab`} role="tab" variant="ghost" disabled={busy}
+          <Button key={value} id={`home-${value}-tab`} role="tab" variant="ghost" disabled={busy && library !== value}
+            aria-disabled={busy}
             aria-selected={library === value} aria-controls={`home-${value}-panel`} tabIndex={library === value ? 0 : -1}
             className={library === value ? "bg-brand-50 border-brand-300 text-brand-900" : ""}
-            onClick={() => { setLibrary(value); setError(""); }}
+            onClick={() => { if (!busy) { setLibrary(value); setError(""); } }}
             onKeyDown={event => {
               if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
               event.preventDefault();
+              if (busy) return;
               const next = event.key === "Home" ? "workflows" : event.key === "End" ? "discovery"
                 : value === "workflows" ? "discovery" : "workflows";
               setLibrary(next); setError("");

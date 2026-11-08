@@ -1,5 +1,6 @@
 import type { PublicPage } from "./publicPages";
 import { CONSULTING_OFFERINGS, CONSULTING_OVERVIEW } from "./consultingContent";
+import { AlignmentPreview, BlueprintPreview, DecisionPreview, WorkspacePreview } from "./ProductEvidence";
 
 export type MarketingIconName = "process" | "people" | "evidence" | "readiness" | "blueprint" | "decision" | "cloud" | "lock";
 const paths: Record<MarketingIconName, string> = {
@@ -24,22 +25,36 @@ type Visual = { icon: MarketingIconName; title: string; label: string; items: re
 const visuals: Record<string, Visual> = {
   "/about": { icon: "decision", title: "Business first. Evidence throughout.", label: "Our decision principles",
     items: [["Start with the work", "Not a preferred model"], ["Question the evidence", "Unknowns stay visible"], ["Keep people accountable", "A reviewed next step"]] },
+  "/platform": { icon: "blueprint", title: "One thread from intent to review.", label: "The connected platform journey",
+    items: [["Shared outcomes", "Positions and accepted ownership"], ["Opportunity shortlist", "Sources and transparent assumptions"], ["Outcome-led assessment", "Reasons, readiness and next action"], ["Visual blueprint", "A proposed design to review"]] },
+  "/platform/alignment": { icon: "people", title: "Make the missing agreement visible.", label: "Fictional stakeholder alignment",
+    items: [] },
   "/platform/discovery": { icon: "people", title: "One process. Different perspectives.", label: "Fictional process discovery",
     items: [["Receive invoice", "Operator: repeated entry"], ["Check details", "Technical owner: access unknown"], ["Review exception", "Process owner: clarify ownership"], ["Human decision", "Authority stays with people"]] },
   "/platform/prioritization": { icon: "evidence", title: "The reasoning belongs beside the shortlist.", label: "Fictional opportunity review",
     items: [["Duplicate checks", "Sources S1, S3"], ["Exception routing", "Ownership unresolved"], ["Compare alternatives", "Process change / rules / AI"], ["Review the shortlist", "Unknowns are not zero"]] },
-  "/platform/assessment": { icon: "readiness", title: "An attractive idea is not a ready pilot.", label: "Fictional assessment snapshot",
+  "/platform/assessment": { icon: "readiness", title: "The decision comes before the detail.", label: "Fictional outcome-led assessment",
     items: [["Workflow suitability", "Assess the work"], ["Data access", "Needs validation"], ["Human oversight", "Owner to confirm"], ["Pilot measures", "Baseline needed"]] },
   "/platform/architecture": { icon: "blueprint", title: "Reasoning. Orchestration. Human authority.", label: "Conceptual blueprint preview",
     items: [["Business inputs", "Access to validate"], ["AI assistance", "Proposals, not actions"], ["Workflow controls", "State / retries / escalation"], ["Human approval", "Customer-authorized action"]] },
+  "/platform/workspaces": { icon: "lock", title: "A team-scoped view of the work.", label: "Fictional Home workspace filter",
+    items: [] },
+  "/solutions": { icon: "process", title: "Start with the question that matters.", label: "Illustrative team decision paths",
+    items: [["Transformation", "What should we investigate?"], ["Operations", "Where is work repeated?"], ["Advisory", "Can the client inspect the reasoning?"], ["A shared next step", "Evidence, owners and boundaries"]] },
   "/solutions/transformation": { icon: "decision", title: "Build the investment case before the backlog.", label: "Illustrative transformation engagement",
     items: [["Business objective", "A bounded question"], ["Opportunity shortlist", "Source-linked hypotheses"], ["Readiness review", "Evidence and owners"], ["Investment decision", "A reviewed next step"]] },
   "/solutions/operations": { icon: "process", title: "Follow the work. Find the friction.", label: "Fictional operations workflow",
     items: [["Receive", "Existing business input"], ["Re-enter", "Reported manual handoff"], ["Resolve exception", "Evidence to validate"], ["Approve", "Human authority"]] },
   "/solutions/advisory": { icon: "evidence", title: "A recommendation your client can inspect.", label: "Illustrative advisory deliverables",
     items: [["Stakeholder perspectives", "Submitted sources"], ["Opportunity rationale", "Assumptions visible"], ["Proposed blueprint", "Customer delivery required"], ["Executive brief", "Versioned advisory decision"]] },
-  "/resources/how-it-works": { icon: "process", title: "Four stages. Four different decisions.", label: "The AgentSpark evaluation path",
-    items: [["Discover", "How does work happen?"], ["Prioritize", "Which opportunities deserve review?"], ["Prepare", "What needs validation?"], ["Decide", "What is the next step?"]] },
+  "/resources/how-it-works": { icon: "process", title: "Five stages. A connected decision path.", label: "The AgentSpark evaluation path",
+    items: [["Discover", "How does work happen?"], ["Align", "Which positions and responsibilities are current?"], ["Prioritize", "Which opportunities deserve review?"], ["Prepare", "What needs validation?"], ["Decide", "What is the next step?"]] },
+  "/resources": { icon: "evidence", title: "Understand. Explore. Review.", label: "The resource collection",
+    items: [["Understand the workflow", "A guided product walkthrough"], ["Try a fictional assessment", "No model calls or saved records"], ["Prepare the review", "Outcomes, evidence and ownership"], ["Know the boundaries", "Supported behavior and limitations"]] },
+  "/resources/decision-guide": { icon: "decision", title: "A good review makes unknowns visible.", label: "Decision review questions",
+    items: [["Outcome", "What changes for the business?"], ["Evidence", "What is still unconfirmed?"], ["Ownership", "Who has accepted responsibility?"], ["Next action", "Who decides, and by when?"]] },
+  "/resources/whats-new": { icon: "blueprint", title: "More connection. Less guesswork.", label: "Available platform capabilities",
+    items: [["Stakeholder alignment", "Positions, conditions and ownership"], ["Outcome-led recommendations", "Key value and next action"], ["Visual blueprints", "Connected designs and review reports"], ["Home workspace selection", "Organization and team scope"]] },
   "/resources/example-assessment": { icon: "evidence", title: "Open the example. Follow the evidence.", label: "Fictional assessment, not a customer result",
     items: [["Workflow facts", "Explore three examples"], ["Readiness gaps", "Owners and evidence"], ["Cloud candidates", "Azure / AWS proposals"], ["Executive output", "Illustrative, not approved"]] },
   "/resources/trust": { icon: "lock", title: "Clear boundaries are part of the product.", label: "Product boundaries, not a certification",
@@ -60,12 +75,16 @@ export function publicVisual(page: PublicPage): Visual {
 
 export function PageVisual({ page }: { page: PublicPage }) {
   const visual = publicVisual(page);
-  return <figure className={`premium-page-visual premium-visual-${visual.icon}`} aria-label={visual.label}>
+  const proof = page.path === "/platform/alignment" ? <AlignmentPreview />
+    : page.path === "/platform/assessment" ? <DecisionPreview />
+    : page.path === "/platform/architecture" ? <BlueprintPreview />
+    : page.path === "/platform/workspaces" ? <WorkspacePreview /> : null;
+  return <figure className={`premium-page-visual premium-visual-${visual.icon}${proof ? " premium-proof-visual" : ""}`} aria-label={visual.label}>
     <div className="premium-visual-top"><MarketingIcon name={visual.icon} /><span>{visual.label}</span></div>
     <h2>{visual.title}</h2>
-    <ol className="premium-visual-nodes">{visual.items.map(([title, detail], index) =>
+    {proof ?? <ol className="premium-visual-nodes">{visual.items.map(([title, detail], index) =>
       <li key={title}><span className="premium-node-number">0{index + 1}</span>
-        <div><strong>{title}</strong><small>{detail}</small></div><span aria-hidden="true">↗</span></li>)}</ol>
+        <div><strong>{title}</strong><small>{detail}</small></div><span aria-hidden="true">↗</span></li>)}</ol>}
     <figcaption>{page.section === "Consulting" ? "Illustrative service method. Scope, access and acceptance are agreed with the customer."
       : page.section === "About" || page.path === "/resources/trust" || page.path === "/resources/how-it-works"
       ? "Explore the product below. No connected systems or saved records."

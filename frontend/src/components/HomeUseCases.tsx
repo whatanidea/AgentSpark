@@ -53,8 +53,8 @@ export default function HomeUseCases() {
     <div className="marketing-home-deliverables">
       <h3>What you leave with</h3>
       <ul aria-label="AgentSpark deliverables">
-        <li>Source-linked opportunity shortlist</li><li>Suitability and readiness gaps</li>
-        <li>Proposed architecture</li><li>Executive brief and reviewed next step</li>
+        <li>Stakeholder alignment and accepted responsibilities</li><li>Source-linked opportunities and readiness gaps</li>
+        <li>Connected visual blueprint</li><li>Outcome-led executive brief and next action</li>
       </ul>
     </div>
     <p className="marketing-home-boundary">Based on stakeholder input and reviewed evidence, not automatic system monitoring or process mining.
