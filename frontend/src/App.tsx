@@ -19,6 +19,7 @@ import ImplementationReadiness from "./components/ImplementationReadiness";
 import Icon from "./components/Icon";
 import { Button, Card } from "./components/ui";
 import useInactivitySignOut from "./useInactivitySignOut";
+import { AppearanceControl } from "./Appearance";
 
 type View = "home" | "intake" | "diagnose" | "evidence" | "readiness" | "analyze" | "blueprint" | "workspaces" | "portfolio" | "discovery";
 const NAV: { id: View; label: string }[] = [
@@ -368,7 +369,7 @@ export default function App() {
   if (identity && !identity.platform_access) return <main className="min-h-screen bg-canvas px-4 py-12">
     {inactivityNotice}
     <div className="max-w-xl mx-auto space-y-5">
-      <p className="text-xl font-bold">AgentSpark</p>
+      <div className="flex items-center justify-between gap-3"><p className="text-xl font-bold">AgentSpark</p><AppearanceControl /></div>
       <Card>
         <p className="eyebrow mb-3">Private platform</p>
         <h1 className="text-2xl font-bold">Invitation required</h1>
@@ -409,7 +410,7 @@ export default function App() {
       <aside className="portal-sidebar md:w-64 lg:w-72 shrink-0 border-b md:border-b-0 md:border-r border-white/10 bg-graphite flex flex-col md:sticky md:top-0 md:h-screen md:overflow-y-auto">
         <div className="px-5 py-5 md:px-6 md:pt-7 md:pb-6">
           <div className="flex items-center gap-3">
-            <span className="grid place-items-center h-10 w-10 rounded-sm bg-white text-graphite" aria-hidden="true">
+            <span className="portal-brand-mark grid place-items-center h-10 w-10" aria-hidden="true">
               <svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="m12 2 2.7 7.3L22 12l-7.3 2.7L12 22l-2.7-7.3L2 12l7.3-2.7L12 2Z" fill="currentColor" /></svg>
             </span>
             <div>
@@ -470,9 +471,9 @@ export default function App() {
       </aside>
       <main id="main-content" className="flex-1 min-w-0 bg-canvas" aria-busy={busy}>
         {inactivityNotice}
-        <div className="min-h-16 border-b border-line bg-white flex items-center justify-between flex-wrap gap-3 px-5 md:px-10 py-4">
+        <div className="workspace-toolbar min-h-16 border-b border-line flex items-center justify-between flex-wrap gap-3 px-5 md:px-10 py-4">
           <p className="text-xs text-zinc-500">Workspace <span className="mx-2 text-zinc-300">/</span> <span className="font-medium text-zinc-700">{NAV.find((n) => n.id === view)?.label.replace(/^\d · /, "")}</span></p>
-          <span className="max-w-full break-words text-[11px] font-medium text-brand-800 bg-brand-50 border border-brand-100 rounded-sm px-3 py-1">{workspace ? `${workspace.organization_name} / ${workspace.team_name}` : "Personal workspace"}</span>
+          <div className="workspace-toolbar-actions"><span className="max-w-full break-words text-[11px] font-medium text-brand-800 bg-brand-50 border border-brand-100 rounded-full px-3 py-1">{workspace ? `${workspace.organization_name} / ${workspace.team_name}` : "Personal workspace"}</span><AppearanceControl /></div>
         </div>
         <div className="max-w-7xl mx-auto px-4 md:px-8 lg:px-10 py-7 md:py-9 space-y-6">
           <div className="notice">

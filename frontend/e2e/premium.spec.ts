@@ -11,7 +11,7 @@ test("editorial journey, product stages and technology boundaries explain capabi
   await expect(hero).toContainText("Customer-owned tools");
   await expect(hero).toContainText("Human-reviewed progress");
   await expect(hero).toContainText("Not a connected system or an autonomous workflow");
-  await expect(hero).toHaveCSS("background-color", "rgb(31, 32, 39)");
+  await expect(hero).toHaveCSS("background-color", "rgb(16, 16, 23)");
   await page.getByRole("link", { name: "Explore the product", exact: false }).click();
   const showcase = page.getByRole("region", { name: "See the work. Then decide what changes.", exact: true });
   await expect(showcase.getByRole("tabpanel", { name: /Discover/ })).toContainText("Clarification needed");
@@ -21,7 +21,7 @@ test("editorial journey, product stages and technology boundaries explain capabi
     await expect(showcase).toContainText("fictional and unverified");
   }
   await expect(showcase).toContainText("Review is advisory, not execution permission");
-  await expect(showcase.locator(".premium-product-screen")).toHaveCSS("background-color", "rgb(31, 32, 39)");
+  await expect(showcase.locator(".premium-product-screen")).toHaveCSS("background-color", "rgb(8, 8, 12)");
   const technology = page.getByRole("region", { name: "Your decisions first. The stack follows.", exact: true });
   await expect(technology.getByRole("article")).toHaveCount(3);
   await expect(technology).toContainText("Not connected integrations");

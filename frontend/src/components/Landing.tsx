@@ -20,6 +20,7 @@ import "./Marketing.css";
 import "./Premium.css";
 import "./Consulting.css";
 import "./Editorial.css";
+import "./PublicDesign.css";
 
 type Step = { title: string; kind: "assist" | "rules" | "human"; detail: string; gap: string; azure: string; aws: string };
 type Example = { name: string; icon: IconName; team: string; steps: Step[] };
@@ -100,7 +101,7 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
     return () => { document.title = oldTitle; if (existing) description.content = oldDescription; else description.remove(); };
   }, [page, pathname]);
 
-  return <div ref={site} className="landing multipage-site editorial-site" data-page={page?.path ?? "not-found"}>
+  return <div ref={site} className="landing multipage-site editorial-site concept-site" data-page={page?.path ?? "not-found"}>
     <a className="landing-skip" href="#landing-main">Skip to content</a>
     <LandingNavigation disabled={disabled} signedIn={signedIn} onWorkspace={onWorkspace} onBook={bookConsultation} />
 
@@ -109,7 +110,7 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
         <div className="landing-hero-copy">
           <div className="editorial-hero-meta"><div className="landing-kicker"><span aria-hidden="true" /> AI consulting &amp; an evidence-led assessment platform</div>
             <span>INDEPENDENT THINKING / PRACTICAL DELIVERY</span></div>
-          <h1 ref={title} tabIndex={-1} id="landing-title">Your business.<br /><span>AI-native by design.</span></h1>
+          <h1 ref={title} tabIndex={-1} id="landing-title">Your business.<br /><span><em>AI-native</em> by design.</span></h1>
           <div className="editorial-hero-bottom">
             <p>We help SMEs turn AI ambition into better ways of working. Align the people. Find the opportunity. Review the evidence and visual blueprint before committing to change.</p>
             <div><div className="landing-actions">

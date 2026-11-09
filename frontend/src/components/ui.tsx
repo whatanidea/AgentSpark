@@ -53,7 +53,7 @@ export function Pill({ children, tone = "violet" }: { children: ReactNode; tone?
 }
 
 export function classColor(cls: string) {
-  return { High: "var(--color-brand-600)", Medium: "#92400e", Low: "#c2410c", "Not Suitable": "#be123c" }[cls] || "var(--color-brand-700)";
+  return { High: "var(--color-brand-600)", Medium: "var(--color-warning-text)", Low: "var(--color-warning-text)", "Not Suitable": "var(--color-error-text)" }[cls] || "var(--color-brand-700)";
 }
 
 export function Spinner({ label = "Working…" }: { label?: string }) {

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useLocation } from "react-router-dom";
 import { PUBLIC_PAGES } from "./publicPages";
 import { MarketingIcon, publicVisual } from "./MarketingVisuals";
+import { AppearanceControl } from "../Appearance";
 
 const menus = {
   Consulting: PUBLIC_PAGES.filter(page => page.section === "Consulting"),
@@ -70,6 +71,7 @@ export default function LandingNavigation({ disabled, signedIn, onWorkspace, onB
         <NavLink to="/about" onClick={close}>About</NavLink>
       </nav>
       <div className="marketing-header-actions">
+        <AppearanceControl />
         <button className="marketing-workspace" disabled={disabled} onClick={() => { close(); onWorkspace(); }}>{signedIn ? "Workspace" : "Sign in"}</button>
         <button className="landing-button landing-button-primary marketing-header-cta"
           onClick={() => { close(); onBook(); }}>Book a consultation <span aria-hidden="true">↗</span></button>
