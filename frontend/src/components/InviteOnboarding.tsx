@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type AuthConfig, type Identity, type InvitePreview, type InviteRedemption } from "../api";
 import { Button, Card } from "./ui";
+import { AppearanceControl } from "../Appearance";
 
 export default function InviteOnboarding({ code, warning, auth, identity, accountLabel, starting, busy, message,
   onSignIn, onSwitchAccount, onJoined, onCancel, onBusyChange }: {
@@ -27,8 +28,8 @@ export default function InviteOnboarding({ code, warning, auth, identity, accoun
   const working = busy || joining || starting || loading;
   return <main className="min-h-screen bg-canvas px-4 py-8 md:py-16">
     <div className="max-w-xl mx-auto space-y-6">
-      <a className="text-xl font-bold text-graphite" href="/"
-        onClick={event => { event.preventDefault(); if (!working) onCancel(); }}>AgentSpark</a>
+      <div className="flex items-center justify-between gap-3"><a className="text-xl font-bold text-graphite" href="/"
+        onClick={event => { event.preventDefault(); if (!working) onCancel(); }}>AgentSpark</a><AppearanceControl /></div>
       <Card>
         <p className="eyebrow mb-3">Your workspace invitation</p>
         <h1 className="text-2xl font-bold break-words">{preview ? `Join ${preview.organization_name}` : "Let's get you connected"}</h1>

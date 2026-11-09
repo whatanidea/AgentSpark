@@ -6,11 +6,11 @@ async function openPortal(page: Page) {
 }
 
 async function verifyPalette(page: Page) {
-  await expect(page.locator(".portal-sidebar")).toHaveCSS("background-color", "rgb(31, 32, 39)");
-  await expect(page.getByRole("main")).toHaveCSS("background-color", "rgb(255, 255, 255)");
+  await expect(page.locator(".portal-sidebar")).toHaveCSS("background-color", "rgb(16, 16, 23)");
+  await expect(page.getByRole("main")).toHaveCSS("background-color", "rgb(8, 8, 12)");
   const active = page.locator(".nav-item[aria-current]");
-  await expect(active).toHaveCSS("background-color", "rgb(236, 229, 252)");
-  await expect(active).toHaveCSS("color", "rgb(48, 32, 91)");
+  await expect(active).toHaveCSS("background-color", "rgb(27, 23, 48)");
+  await expect(active).toHaveCSS("color", "rgb(178, 165, 255)");
   const greenAccents = await page.locator(".portal").evaluate(root => {
     const isGreen = (value: string) => {
       const rgb = value.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
@@ -45,8 +45,8 @@ test("editorial form controls retain visible focus, disabled states and accessib
   await page.getByRole("button", { name: "1 · Enterprise Intake", exact: true }).click();
   const field = page.getByLabel("Business Domain", { exact: true });
   await field.focus();
-  await expect(field).toHaveCSS("border-color", "rgb(101, 55, 223)");
-  await expect(field).toHaveCSS("border-radius", "2px");
+  await expect(field).toHaveCSS("border-color", "rgb(178, 165, 255)");
+  await expect(field).toHaveCSS("border-radius", "10px");
   await page.keyboard.press("Tab");
   await expect(page.getByRole("combobox", { name: "Team Size", exact: true })).toBeFocused();
   const submit = page.getByRole("button", { name: "Submit Intake", exact: true });
@@ -56,9 +56,9 @@ test("editorial form controls retain visible focus, disabled states and accessib
   await page.getByLabel("Target cloud", { exact: true }).selectOption("azure");
   await expect(submit).toBeEnabled();
   await expect(submit).toHaveCSS("min-height", "44px");
-  await expect(submit).toHaveCSS("background-color", "rgb(32, 33, 39)");
-  await expect(submit).toHaveCSS("color", "rgb(255, 255, 255)");
-  await expect(page.locator(".surface-card").first()).toHaveCSS("border-radius", "4px");
+  await expect(submit).toHaveCSS("background-color", "rgb(237, 237, 242)");
+  await expect(submit).toHaveCSS("color", "rgb(16, 16, 23)");
+  await expect(page.locator(".surface-card").first()).toHaveCSS("border-radius", "20px");
   await verifyPalette(page);
   const contrast = await page.locator(".nav-item, .action-primary, .eyebrow").evaluateAll(elements => {
     const luminance = (color: string) => {
@@ -87,7 +87,7 @@ test("editorial form controls retain visible focus, disabled states and accessib
   await home.focus();
   await expect(home).toBeFocused();
   await expect(home).toHaveCSS("outline-style", "solid");
-  await expect(home).toHaveCSS("outline-color", "rgb(191, 166, 242)");
+  await expect(home).toHaveCSS("outline-color", "rgb(178, 165, 255)");
 });
 
 test("positive portfolio statuses and score bars use violet while retaining their labels", async ({ page }) => {
@@ -103,7 +103,7 @@ test("positive portfolio statuses and score bars use violet while retaining thei
   await verifyPalette(page);
   const positive = page.getByText("Low Risk", { exact: true }).first();
   await expect(positive).toBeVisible();
-  await expect(positive).toHaveCSS("background-color", "rgb(236, 229, 252)");
-  await expect(positive).toHaveCSS("color", "rgb(48, 32, 91)");
-  await expect(page.getByText("84/100", { exact: true })).toHaveCSS("color", "rgb(101, 55, 223)");
+  await expect(positive).toHaveCSS("background-color", "rgb(41, 34, 63)");
+  await expect(positive).toHaveCSS("color", "rgb(230, 222, 255)");
+  await expect(page.getByText("84/100", { exact: true })).toHaveCSS("color", "rgb(178, 165, 255)");
 });

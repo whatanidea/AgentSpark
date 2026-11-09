@@ -8,7 +8,7 @@ export default defineConfig({
   reporter: [["list"]], globalTeardown: "./e2e/cleanup.ts",
   use: { baseURL: `http://127.0.0.1:${port}`, actionTimeout: 10000, trace: "off", screenshot: "off" },
   projects: [{ name: "chromium", use: { ...devices["Desktop Chrome"] } },
-    { name: "mobile-safari", grep: /stakeholder alignment|Home workspace filter/, use: { ...devices["iPhone 13"] } }],
+    { name: "mobile-safari", grep: /shared appearance|stakeholder alignment|Home workspace filter/, use: { ...devices["iPhone 13"] } }],
   webServer: {
     command: `python -m uvicorn discovery_browser_server:app --app-dir tests --host 127.0.0.1 --port ${port} --no-access-log`,
     cwd: "..", url: `http://127.0.0.1:${port}/health`, reuseExistingServer: false,

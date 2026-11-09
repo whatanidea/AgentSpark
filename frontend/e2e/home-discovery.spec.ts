@@ -35,9 +35,18 @@ test("Home discovery library opens saved work, preserves draft guards and starts
     await page.setViewportSize({ width, height: 900 });
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   }
+  // Observe the loading render before releasing the response so keyboard checks cannot race React's commit.
+  await page.route("**/api/v1/home?*", async route => {
+    await expect(workflowTab).toHaveAttribute("aria-disabled", "true");
+    await route.continue();
+  }, { times: 1 });
+  const workflowRequest = page.waitForRequest(request => new URL(request.url()).pathname === "/api/v1/home");
   await workflowTab.click();
+  const workflowResponse = await (await workflowRequest).response();
+  expect(workflowResponse?.ok()).toBe(true);
+  await workflowResponse?.finished();
   await expect(page.getByRole("button", { name: "Draft / clarification", exact: true })).toHaveAttribute("aria-pressed", "true");
-  await expect(workflowTab).toBeEnabled();
+  await expect(workflowTab).toHaveAttribute("aria-disabled", "false");
   await workflowTab.focus();
   await workflowTab.press("ArrowRight");
   await expect(discoveryTab).toHaveAttribute("aria-selected", "true");

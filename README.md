@@ -17,8 +17,14 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
 
 ## What you can do
 
-- **Use one editorial workspace:** Home, Discovery, assessments and team areas
-  share the public site's graphite, pure-white and violet identity. Violet
+- **Choose a consistent appearance:** public pages, Home, Discovery, assessments
+  and team areas share rounded surfaces, local typography and lavender accents.
+  Choose Dark, Light or System using Appearance in the public header or workspace
+  toolbar. The non-sensitive preference is saved in this browser, follows you
+  between routes and synchronizes between tabs. System follows changes to the OS
+  color scheme; explicit choices take precedence. Dark is the initial default.
+  Storage failures are reported explicitly and do not block access or workflows.
+  No identity or customer data is saved with the appearance preference. Violet
   replaces green accents and positive score/status fills; explicit status labels
   and amber/red warning states remain. The responsive shell retains visible
   keyboard focus, readable forms and existing workflow, permission and data behavior.
@@ -84,6 +90,16 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   motion with a pause/resume control; small screens use a complete vertical
   diagram rather than a cropped desktop canvas. Reduced-motion preferences keep
   the illustration static. No scroll hijacking or third-party motion assets.
+  The approved visual design adds a centered hero, rounded evidence panels and
+  consulting bento cards, with a near-black/lavender theme and a complementary
+  warm light theme. The accessible Appearance control shares a browser-saved
+  preference across the public site and signed-in workspace. All existing copy, real links,
+  five manual product stages and opt-in booking remain intact. Fonts are served
+  locally with their SIL Open Font License notices in `frontend/public/fonts/OFL.txt`.
+  The same design tokens cover navigation, forms, cards, tables, dialogs,
+  discovery, assessments, teams and organization settings. Warning/error labels
+  and business permissions are unchanged; appearance never changes saved facts,
+  consensus, authorization, AI processing or generated report content.
   The homepage product walkthrough lets visitors select fictional reported
   friction and inspect source statements and an advisory next step. It makes no
   model calls, writes, measured-outcome claims or changes to customer systems.

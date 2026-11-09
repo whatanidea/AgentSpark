@@ -1,5 +1,6 @@
 import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 import { join } from "node:path";
+import { expectReadable } from "./appearance";
 
 type Identity = { identity: string; token: string };
 type Fixture = {
@@ -87,6 +88,36 @@ async function nominateAlignment(page: Page, kind: "stakeholder" | "owner" | "de
   await page.getByRole("button", { name: "Save alignment record", exact: true }).click();
   await expect(page.getByRole("status").filter({ hasText: "Alignment saved." })).toBeVisible();
 }
+
+test("shared appearance preserves organization settings and stakeholder alignment drafts in both themes", async ({ page }) => {
+  const value = await fixture(page.request);
+  try {
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await open(page, value.owner, value);
+    await page.getByRole("button", { name: "Organizations & teams", exact: true }).click();
+    const teamName = page.getByRole("textbox", { name: "Team name", exact: true });
+    await teamName.fill("Unsaved fictional team");
+    for (const theme of ["light", "dark"]) {
+      await page.getByRole("combobox", { name: "Appearance", exact: true }).selectOption(theme);
+      await expect(teamName).toHaveValue("Unsaved fictional team");
+      await expectReadable(page.locator(".portal"));
+    }
+    await teamName.fill("");
+    await page.getByRole("button", { name: "Discovery engagements", exact: true }).click();
+    await page.getByRole("button", { name: "Browser process discovery", exact: true }).click();
+    await page.getByRole("button", { name: "Start stakeholder alignment", exact: true }).click();
+    await page.getByRole("button", { name: "Nominate stakeholder", exact: true }).click();
+    const label = page.getByRole("textbox", { name: "Recorded person label", exact: true });
+    await label.fill("Unsaved fictional stakeholder");
+    for (const theme of ["light", "dark"]) {
+      await page.getByRole("combobox", { name: "Appearance", exact: true }).selectOption(theme);
+      await expect(label).toHaveValue("Unsaved fictional stakeholder");
+      await expectReadable(page.locator(".portal"));
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    }
+    await page.getByRole("button", { name: "Discard alignment draft", exact: true }).click();
+  } finally { await cleanup(page.request, value); }
+});
 
 test("stakeholder alignment records self-attributed conditions, ownership and decisions without consensus", async ({ page, browser }, testInfo) => {
   const value = await fixture(page.request);
@@ -430,6 +461,7 @@ test("Home workspace filter selects real membership after sign-in, scopes new di
   try {
     await selectTeam(page, value.owner);
     await page.getByRole("button", { name: /^New discovery engagement/ }).click();
+    await expect(page.getByRole("button", { name: "Browser process discovery", exact: true })).toBeVisible();
     await page.getByRole("textbox", { name: "Engagement title", exact: true }).fill("Home-selected team discovery");
     await page.getByRole("textbox", { name: "Business objective", exact: true }).fill("Validate selected team scope");
     await page.getByRole("textbox", { name: "Business units in scope", exact: true }).fill("Fictional banking operations");
