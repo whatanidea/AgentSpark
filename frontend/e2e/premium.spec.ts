@@ -12,16 +12,20 @@ test("editorial journey, product stages and technology boundaries explain capabi
   await expect(hero).toContainText("Human-reviewed progress");
   await expect(hero).toContainText("Not a connected system or an autonomous workflow");
   await expect(hero).toHaveCSS("background-color", "rgb(16, 16, 23)");
-  await page.getByRole("link", { name: "Explore the product", exact: false }).click();
+  await page.getByRole("link", { name: "See how it works", exact: false }).click();
   const showcase = page.getByRole("region", { name: "See the work. Then decide what changes.", exact: true });
   await expect(showcase.getByRole("tabpanel", { name: /Discover/ })).toContainText("Clarification needed");
   for (const name of ["Align", "Prioritize", "Prepare", "Decide"]) {
     await showcase.getByRole("tab", { name: new RegExp(name) }).click();
     await expect(showcase.getByRole("tabpanel", { name: new RegExp(name) })).toBeVisible();
-    await expect(showcase).toContainText("fictional and unverified");
   }
-  await expect(showcase).toContainText("Review is advisory, not execution permission");
+  await expect(showcase.locator(".premium-screen-footer")).toContainText("Fictional example");
+  await expect(showcase.locator(".premium-screen-footer")).toContainText("No model calls or records created.");
+  await expect(showcase).toContainText("it does not authorize implementation");
+  await expect(showcase).toContainText("No measured savings or pilot authorization.");
   await expect(showcase.locator(".premium-product-screen")).toHaveCSS("background-color", "rgb(8, 8, 12)");
+  await expect(page.locator(".premium-technology")).toHaveCount(0);
+  await page.goto("/platform");
   const technology = page.getByRole("region", { name: "Your decisions first. The stack follows.", exact: true });
   await expect(technology.getByRole("article")).toHaveCount(3);
   await expect(technology).toContainText("Not connected integrations");
@@ -86,7 +90,7 @@ test("premium layouts, menus and diagrams fit mobile, tablet and desktop without
   expect(box.x).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width).toBeLessThanOrEqual(1440);
   await expect(menu.locator(".premium-menu-feature")).toBeVisible();
-  await expect(menu.getByRole("link")).toHaveCount(7);
+  await expect(menu.getByRole("link")).toHaveCount(4);
 });
 
 test("workflow review opens the protected existing discovery flow without a fake booking or saved inquiry", async ({ page }) => {

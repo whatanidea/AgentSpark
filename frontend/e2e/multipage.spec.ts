@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const pages = [
-  ["/", "Home", "Your business. AI-native by design."],
+  ["/", "Home", "Less busywork. Better ways to work."],
   ["/consulting", "Consulting overview", "Build an AI-native business. One deliberate step at a time."],
   ["/consulting/readiness", "AI Opportunity & Readiness", "Find the right starting point. Not just another AI tool."],
   ["/consulting/workspace-launch", "Secure AI Workspace Launch", "Give your team a considered start with AI."],
@@ -78,7 +78,7 @@ test("discovery invitation animates once, replays accessibly and stays static on
   expect(await invitation.evaluate(node => node.getAnimations({ subtree: true }).length)).toBe(0);
   await expect(replay).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  expect((await invitation.getByRole("button", { name: "Start discovery", exact: true }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  expect((await invitation.getByRole("link", { name: "Book a consultation", exact: true }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
   expect(writes).toEqual([]);
 });
 
@@ -175,10 +175,10 @@ test("menu links navigate without document reloads and history restores heading 
   page.on("request", request => { if (request.resourceType() === "document") documents.push(request.url()); });
   await page.goto("/");
   const nav = page.getByRole("navigation", { name: "Product navigation" });
-  await nav.getByRole("link", { name: "About", exact: true }).click();
+  await page.getByRole("contentinfo").getByRole("link", { name: "About", exact: true }).click();
   await expect(page).toHaveURL(/\/about$/);
   await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
-  await expect(nav.getByRole("link", { name: "About", exact: true })).toHaveAttribute("aria-current", "page");
+  await expect(page.locator(".concept-site")).toHaveAttribute("data-page", "/about");
   await page.goBack();
   await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
@@ -269,7 +269,7 @@ test("browser Back protects an unsaved discovery draft without creating records"
       writes.push(request.method());
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "Start discovery", exact: false }).first().click();
+  await page.getByRole("button", { name: "Start a workflow review", exact: false }).first().click();
   await expect(page.getByRole("heading", { name: "Discovery engagements", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "New discovery engagement", exact: true }).click();
   const title = page.getByRole("textbox", { name: "Engagement title", exact: true });

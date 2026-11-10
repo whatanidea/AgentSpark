@@ -35,6 +35,10 @@
 .concept-site .landing-brand-mark { background: none; color: var(--accent); }
 .concept-site .marketing-header .landing-brand { font-size: 22px; letter-spacing: -.05em; }
 .concept-site .marketing-navigation { gap: 2px; }
+.concept-site .marketing-static-nav { display: flex; flex-wrap: wrap; gap: 0 20px; font-size: 14px; }
+.concept-site .marketing-static-nav a { display: inline-flex; align-items: center; min-height: 44px; color: var(--ink); }
+.concept-site .premium-screen-footer { flex-wrap: wrap; }
+.concept-site .premium-screen-footer a { color: inherit; text-decoration: underline; text-underline-offset: .2em; }
 .concept-site :is(.marketing-menu > button, .marketing-navigation > a, .marketing-workspace) { padding-inline: 9px; }
 .concept-site .marketing-dropdown {
   background: var(--surface);

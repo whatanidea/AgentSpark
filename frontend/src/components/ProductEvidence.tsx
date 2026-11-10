@@ -23,7 +23,7 @@ export function DecisionPreview() {
       <div><dt>Human boundary</dt><dd>Finance retains payment approval</dd></div>
     </dl>
     <div className="proof-action"><span>NEXT ACTION</span><strong>Confirm the baseline and sandbox access.</strong><small>Owner and due date to agree</small></div>
-    <p className="proof-note">Fictional sources. No measured savings or pilot authorization.</p>
+    <p className="proof-note">Baseline unverified. No measured savings or pilot authorization.</p>
   </div>;
 }
 

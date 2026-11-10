@@ -8,9 +8,9 @@ test("editorial hero leads with consulting and offers controllable motion withou
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.goto("/");
   const hero = page.locator("#top");
-  await expect(hero.getByRole("heading", { level: 1 })).toHaveAccessibleName("Your business. AI-native by design.");
+  await expect(hero.getByRole("heading", { level: 1 })).toHaveAccessibleName("Less busywork. Better ways to work.");
   expect(await hero.getByRole("heading", { level: 1 }).evaluate(node => parseFloat(getComputedStyle(node).fontSize))).toBeGreaterThanOrEqual(96);
-  const book = hero.getByRole("button", { name: "Book a consultation", exact: false });
+  const book = hero.getByRole("link", { name: "Book a consultation", exact: false });
   expect((await book.boundingBox())!.y).toBeLessThan(960);
   const field = hero.getByRole("figure");
   await expect(field).toContainText("Not a connected system or an autonomous workflow");
@@ -37,7 +37,7 @@ test("fictional friction connects source statements to advisory recommendations 
   const preview = page.getByRole("tabpanel", { name: /Discover/ });
   const picker = preview.getByRole("group", { name: "Reported workflow friction" });
   await expect(picker.getByRole("button", { name: /Repeated checks/ })).toHaveAttribute("aria-pressed", "true");
-  await expect(preview).toContainText("Compare a process change, deterministic validation and AI assistance");
+  await expect(preview).toContainText("Compare a process change, checks based on clear rules and AI assistance");
   await expect(preview.locator("#editorial-example-sources")).toBeHidden();
   const inspect = preview.getByRole("button", { name: "Inspect source statements", exact: false });
   await inspect.focus(); await page.keyboard.press("Enter");
@@ -70,7 +70,7 @@ test("editorial identity and authentication-independent booking are shared acros
     await expect(page.locator(".editorial-site")).toHaveCSS("background-color", "rgb(8, 8, 12)");
     const header = page.getByRole("banner");
     await expect(header).toHaveCSS("background-color", "rgb(8, 8, 12)");
-    const book = header.getByRole("button", { name: "Book a consultation", exact: false });
+    const book = header.getByRole("link", { name: "Book a consultation", exact: false });
     await expect(book).toHaveCSS("border-radius", "10px");
     await expect(page.getByRole("navigation", { name: "Product navigation" }).getByRole("button").first()).toHaveText("Consulting");
     await book.click();

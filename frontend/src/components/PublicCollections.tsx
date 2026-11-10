@@ -3,16 +3,22 @@ import { MarketingIcon, publicVisual } from "./MarketingVisuals";
 import { PUBLIC_PAGES, type PublicPage } from "./publicPages";
 
 const featured = new Set(["/platform/alignment", "/platform/assessment", "/platform/architecture", "/platform/workspaces"]);
+const featureCopy: Record<string, readonly [string, string, string]> = {
+  "/platform/alignment": ["Agree priorities", "Make goals, differences and responsibilities clear before choosing a tool.", "Explore team agreement"],
+  "/platform/assessment": ["Review an opportunity", "Understand the likely benefits, missing information and sensible next step.", "Explore opportunity reviews"],
+  "/platform/architecture": ["See a practical plan", "Review how a proposed improvement could work and where people stay in control.", "Explore proposed plans"],
+  "/platform/workspaces": ["Work with your team", "Keep each team's discussions and assessments in the right workspace.", "Explore team workspaces"],
+};
 
 export function FeaturedCapabilities() {
   return <section className="public-capabilities landing-container" aria-labelledby="public-capabilities-title">
-    <div className="public-section-heading"><div><p className="landing-eyebrow">A more connected decision workspace</p>
-      <h2 id="public-capabilities-title">Align the people.<br /><span>Connect the decisions.</span></h2></div>
-      <Link className="public-text-link" to="/platform">Explore the platform <span aria-hidden="true">↗</span></Link></div>
-    <div className="public-capability-grid">{PUBLIC_PAGES.filter(page => featured.has(page.path)).map((page, index) =>
+    <div className="public-section-heading"><div><p className="landing-eyebrow">Software that supports the conversation</p>
+      <h2 id="public-capabilities-title">Get your team together.<br /><span>Make a clearer decision.</span></h2></div>
+      <Link className="public-text-link" to="/platform">Explore the platform <span aria-hidden="true">→</span></Link></div>
+    <div className="public-capability-grid">{PUBLIC_PAGES.filter(page => featured.has(page.path)).map(page =>
       <Link key={page.path} to={page.path} className="public-capability-card">
-        <div><MarketingIcon name={publicVisual(page).icon} /><span>0{index + 1}</span></div>
-        <h3>{page.name}</h3><p>{page.summary}</p><span className="public-card-action">See the capability <span aria-hidden="true">↗</span></span>
+        <div><MarketingIcon name={publicVisual(page).icon} /></div>
+        <h3>{featureCopy[page.path][0]}</h3><p>{featureCopy[page.path][1]}</p><span className="public-card-action">{featureCopy[page.path][2]} <span aria-hidden="true">→</span></span>
       </Link>)}</div>
   </section>;
 }
@@ -33,7 +39,7 @@ export function SolutionStory({ page }: { page: PublicPage }) {
       <span className="public-outcome-arrow" aria-hidden="true">→</span><div><span>THE REVIEWABLE OUTPUT</span><p>{example.deliverable}</p></div></div>
     <ol className="public-solution-steps">{page.details.map(([heading, text], index) =>
       <li key={heading}><span>0{index + 1}</span><h3>{heading}</h3><p>{text}</p></li>)}</ol>
-    <Link className="public-text-link" to="/resources/decision-guide">Prepare your decision review <span aria-hidden="true">↗</span></Link>
+    <Link className="public-text-link" to="/resources/decision-guide">Prepare your decision review <span aria-hidden="true">→</span></Link>
   </section>;
 }
 
@@ -53,7 +59,7 @@ export function PublicCollection({ page }: { page: PublicPage }) {
         <span>{page.section === "Resources" ? resourceFormats[item.path] : "A business-first evaluation"}</span>
         <div aria-hidden="true" className="public-cover-lines"><span /><span /><span /></div></div>
       <div className="public-directory-copy"><h2>{item.name}</h2><p>{item.summary}</p>
-        <span className="public-card-action">{page.section === "Resources" ? "Open resource" : "Explore the solution"} <span aria-hidden="true">↗</span></span></div>
+        <span className="public-card-action">{page.section === "Resources" ? "Read" : "Explore"} {item.name} <span aria-hidden="true">→</span></span></div>
     </Link>)}</div>
   </section>;
 }

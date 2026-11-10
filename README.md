@@ -20,10 +20,20 @@ paths resolve against the serving origin, without assuming a production domain.
 
 This is build-time HTML generation followed by a client mount, not runtime SSR
 or hydration. The public document stays readable while its interactive component
-loads. JavaScript enables sign-in, booking, previews and appearance preferences.
+loads. Consultation calls to action are ordinary Cal.com links that work without
+JavaScript and preserve modified-click/new-tab behavior. With JavaScript, an
+ordinary click opens the existing opt-in booking dialog instead. Sign-in,
+assessment tools, interactive previews and appearance preferences require
+JavaScript; the static page explains this and offers direct public navigation.
 Public pages have a dedicated client entry that completes their interactive mount
 before `DOMContentLoaded`, while the private entry retains lazy public-site loading.
 No private records, user identity or consulting-calendar requests enter the build.
+The public website leads with practical SME consulting and consultation booking.
+Technical detail and secondary audiences remain on dedicated pages. Four concise
+navigation groups lead to a smaller set of entry points; overview pages and the
+footer keep the full public content reachable. On Home, only the five-stage product
+walkthrough uses numbered stages. Privacy/terms publication, a contact email and
+a custom domain require separately approved business and legal details.
 Without JavaScript the static appearance is Dark. A small same-origin blocking
 script applies the saved browser preference before public content is painted,
 using the same preference validation and theme logic as the interactive provider.

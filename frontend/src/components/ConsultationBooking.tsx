@@ -3,9 +3,19 @@ import { MarketingIcon } from "./MarketingVisuals";
 import "./ConsultationBooking.css";
 
 const EVENT = "vienna-now-rdnzte/agentspark-consulting";
-const BOOKING_URL = `https://cal.com/${EVENT}`;
+export const BOOKING_URL = `https://cal.com/${EVENT}`;
 const ASSISTANT_PROMPT = `If not added, add mcp.cal.com/mcp, then book ${EVENT}`;
 const NAMESPACE = "agentspark-consulting";
+
+export function ConsultationLink({ onBook, className = "landing-button landing-button-primary", label = "Book a consultation" }: {
+  onBook: () => void; className?: string; label?: string;
+}) {
+  return <a className={className} href={BOOKING_URL} referrerPolicy="no-referrer" onClick={event => {
+    if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+    event.preventDefault();
+    onBook();
+  }}>{label} <span aria-hidden="true">↗</span></a>;
+}
 
 function CalendarEmbed() {
   const container = useRef<HTMLDivElement>(null);

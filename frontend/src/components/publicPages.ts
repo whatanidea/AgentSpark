@@ -7,8 +7,8 @@ export type PublicPage = {
 };
 
 export const PUBLIC_PAGES: readonly PublicPage[] = [
-  { path: "/", name: "Home", section: "Overview", title: "Your business. AI-native by design.",
-    summary: "Business-first AI consulting and discovery software. Align stakeholders, assess opportunities and review outcome-led recommendations and visual blueprints.", details: [] },
+  { path: "/", name: "Home", section: "Overview", title: "Less busywork. Better ways to work.",
+    summary: "Practical AI consulting for small and medium-sized businesses. Find useful improvements, reduce repetitive work and choose a sensible first project.", details: [] },
   { ...CONSULTING_OVERVIEW, section: "Consulting", details: [] },
   ...CONSULTING_OFFERINGS.map(offering => ({
     path: offering.path, name: offering.name, title: offering.title, summary: offering.summary,
@@ -56,7 +56,7 @@ export const PUBLIC_PAGES: readonly PublicPage[] = [
       ["Prepare the decision", "Review concise, outcome-first recommendations and a source-linked executive brief. Export a decision PDF or Markdown; advisory approval does not authorize a pilot or deployment."],
     ] },
   { path: "/platform/architecture", name: "Architecture & review", section: "Platform",
-    title: "See how the design fits together.", summary: "Review a connected architecture diagram, decision-first blueprint and downloadable report. Reasoning, orchestration and human authority stay distinct.",
+    title: "See how the design fits together.", summary: "Review a visual plan and downloadable report. See what each part would do, how work would move between systems and where people make the decisions.",
     details: [
       ["Choose the solution cloud", "Assessment outputs can propose Azure or AWS service candidates. AgentSpark itself remains Azure-hosted."],
       ["Separate reasoning from execution", "Runtime recommendations distinguish model reasoning from durable workflow execution, retries, state and human checkpoints."],

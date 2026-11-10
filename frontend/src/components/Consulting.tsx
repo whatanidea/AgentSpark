@@ -2,18 +2,20 @@ import { Link } from "react-router-dom";
 import { CONSULTING_OFFERINGS, type ConsultingOffering } from "./consultingContent";
 import { MarketingIcon } from "./MarketingVisuals";
 import BuyerConfidence from "./BuyerConfidence";
+import { ConsultationLink } from "./ConsultationBooking";
 
 type DiscoveryAction = { disabled: boolean; onDiscover: () => void; onBook: () => void };
 
 function OfferingCards({ compact = false }: { compact?: boolean }) {
   const chapters = ["Find the opportunity.", "Equip your people.", "Prove a workflow.", "Build lasting adoption."];
+  const categories = ["PLAN", "EQUIP", "TEST", "GROW"];
   return <div className={`editorial-chapters${compact ? " editorial-chapters-compact" : ""}`}>
     {CONSULTING_OFFERINGS.map((offer, index) => <article data-reveal key={offer.path} aria-label={offer.name}>
-      <span className="editorial-chapter-number" aria-hidden="true">0{index + 1}</span>
+      <span className="editorial-chapter-number" aria-hidden="true">{categories[index]}</span>
       <div className="editorial-chapter-copy"><p className="consulting-question">{offer.name}</p><h3>{chapters[index]}</h3>
         {!compact && <p>{offer.summary}</p>}<span className="consulting-format">{offer.format}</span></div>
       <div className="editorial-chapter-mark" aria-hidden="true"><MarketingIcon name={offer.icon} /><span /></div>
-      <Link to={offer.path} aria-label={`Explore ${offer.name}`}>Explore the offering <span aria-hidden="true">↗</span></Link>
+      <Link to={offer.path}>Explore {offer.name} <span aria-hidden="true">→</span></Link>
     </article>)}
   </div>;
 }
@@ -22,12 +24,12 @@ export function HomeConsulting({ disabled, onDiscover, onBook }: DiscoveryAction
   return <section className="consulting-home landing-container" aria-labelledby="consulting-home-title">
     <div className="premium-section-heading"><div><p className="landing-eyebrow">AgentSpark Consulting</p>
       <h2 id="consulting-home-title">A deliberate journey.<br /><span>Not another AI experiment.</span></h2></div>
-      <div><p>Become AI-native through practical strategy, customer-owned platforms, workforce skills and measured workflow improvement. Start with one business priority, not every AI tool.</p>
-        <Link className="consulting-text-link" to="/consulting">Meet your transformation journey <span aria-hidden="true">↗</span></Link></div></div>
+      <div><p>Find a useful starting point, choose tools for your team and test one improvement before investing more. Get support where you need it, with responsibilities agreed before work starts.</p>
+        <Link className="consulting-text-link" to="/consulting">Explore our consulting services <span aria-hidden="true">→</span></Link></div></div>
     <OfferingCards compact />
     <div className="consulting-home-bottom"><p>Consulting delivery is separately scoped. Platform discovery is not a booked consultation or a promise of follow-up.</p>
-      <div className="consulting-booking-actions"><button className="landing-button landing-button-primary" onClick={onBook}>Book a consultation <span aria-hidden="true">↗</span></button>
-        <button className="consulting-text-link" disabled={disabled} onClick={onDiscover}>Start a workflow review <span aria-hidden="true">↗</span></button></div></div>
+      <div className="consulting-booking-actions"><ConsultationLink onBook={onBook} />
+        <button className="consulting-text-link" disabled={disabled} onClick={onDiscover}>Start a workflow review <span aria-hidden="true">→</span></button></div></div>
   </section>;
 }
 
@@ -52,7 +54,7 @@ function DeliveryPrinciples() {
   return <section className="consulting-section consulting-principles landing-container" aria-labelledby="consulting-principles-title">
     <div><p className="landing-eyebrow">A business case others can inspect</p><h2 id="consulting-principles-title">Ambition, with an<br />evidence trail.</h2>
       <p>For leadership, investment and programme-review conversations, explain the problem, the delivery method and what the evidence does not yet prove.</p>
-      <Link className="consulting-text-link" to="/resources/trust">Read our trust and delivery boundaries <span aria-hidden="true">↗</span></Link></div>
+      <Link className="consulting-text-link" to="/resources/trust">Read our trust and delivery boundaries <span aria-hidden="true">→</span></Link></div>
     <div className="consulting-principle-grid">{[
       ["Business outcomes", "Define a baseline, an owner and acceptance measures before claiming improvement. Estimates remain estimates."],
       ["Repeatable delivery", "Use a bounded method and reviewable outputs. Reuse the approach, not confidential customer information."],
@@ -90,8 +92,8 @@ export default function ConsultingContent({ path, disabled, onDiscover, onBook }
     <section className="consulting-section consulting-next landing-container" aria-labelledby="consulting-next-title">
       <div><p className="landing-eyebrow">Your next decision</p><h2 id="consulting-next-title">Bring one business question.</h2>
         <p>Book a consultation through Cal.com, or ask your AI assistant to help coordinate. Prefer to explore first? Platform discovery remains a separate, signed-in action. Consulting scope is agreed before delivery.</p></div>
-      <div className="landing-actions"><button className="landing-button landing-button-primary" onClick={onBook}>Book a consultation <span aria-hidden="true">↗</span></button>
-        <button className="landing-button landing-button-secondary" disabled={disabled} onClick={onDiscover}>Start in the platform <span aria-hidden="true">↗</span></button></div>
+      <div className="landing-actions"><ConsultationLink onBook={onBook} />
+        <button className="landing-button landing-button-secondary" disabled={disabled} onClick={onDiscover}>Start in the platform <span aria-hidden="true">→</span></button></div>
     </section>
   </>;
 }
@@ -101,7 +103,7 @@ function OfferingDetail({ offering }: { offering: ConsultingOffering }) {
     <section className="consulting-section consulting-detail landing-container" aria-labelledby="consulting-outcomes-title">
       <div className="consulting-outcome"><span className="premium-category-label">{offering.format}</span><MarketingIcon name={offering.icon} />
         <h2 id="consulting-outcomes-title">{offering.outcome}</h2><p>{offering.audience}</p>
-        <Link className="consulting-text-link" to="/consulting">All consulting offerings <span aria-hidden="true">↗</span></Link></div>
+        <Link className="consulting-text-link" to="/consulting">All consulting offerings <span aria-hidden="true">→</span></Link></div>
       <div className="consulting-deliverables"><p className="landing-eyebrow">What the engagement can include</p><h2>Concrete outputs.<br />An agreed scope.</h2>
         <ul>{offering.deliverables.map(item => <li key={item}><MarketingIcon name="evidence" /><span>{item}</span></li>)}</ul>
         <p className="consulting-note">{offering.boundary}</p></div>
@@ -113,7 +115,7 @@ function OfferingDetail({ offering }: { offering: ConsultingOffering }) {
     </section>
     <nav className="consulting-related landing-container" aria-label="Other consulting offerings">
       {CONSULTING_OFFERINGS.filter(item => item.path !== offering.path).map(item =>
-        <Link key={item.path} to={item.path}><MarketingIcon name={item.icon} /><span>{item.name}</span><span aria-hidden="true">↗</span></Link>)}
+        <Link key={item.path} to={item.path}><MarketingIcon name={item.icon} /><span>{item.name}</span><span aria-hidden="true">→</span></Link>)}
     </nav>
   </>;
 }

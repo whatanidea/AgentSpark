@@ -12,7 +12,7 @@ export default function DiscoveryShowcase({ initialStage = "Discover" }: { initi
   const [stage, setStage] = useState<DiscoveryStage>(initialStage);
   return <article id="discovery-showcase" className="discovery-showcase" aria-label="Illustrative discovery walkthrough">
     <div className="showcase-top"><span>DISCOVERY TO DECISION</span><span className="showcase-example">Fictional example</span></div>
-    <div className="showcase-project"><span className="showcase-project-icon" aria-hidden="true">↗</span>
+    <div className="showcase-project"><span className="showcase-project-icon" aria-hidden="true">→</span>
       <div><p>Finance discovery</p><h2>Less duplicate work.<br />A clearer next step.</h2></div></div>
     <div className="showcase-stages" role="group" aria-label="Discovery preview stage">
       {stages.map((name, index) => <button key={name} aria-pressed={stage === name} onClick={() => setStage(name)}>
