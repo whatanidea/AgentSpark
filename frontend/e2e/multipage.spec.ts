@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const pages = [
-  ["/", "Home", "Less busywork. Better ways to work."],
+  ["/", "Home", "Smarter work. Stronger business."],
   ["/consulting", "Consulting overview", "Build an AI-native business. One deliberate step at a time."],
   ["/consulting/readiness", "AI Opportunity & Readiness", "Find the right starting point. Not just another AI tool."],
   ["/consulting/workspace-launch", "Secure AI Workspace Launch", "Give your team a considered start with AI."],

@@ -20,7 +20,7 @@ test.describe("public HTML without JavaScript", () => {
       await expect(page).toHaveTitle(entry.path === "/"
         ? "AgentSpark | AI Consulting & Assessment for SMEs" : `${entry.name} | AgentSpark`);
       await expect(page.locator("main")).toBeVisible();
-      await expect(page.locator("h1")).toHaveText(entry.path === "/" ? "Less busywork.Better ways to work." : entry.title);
+      await expect(page.locator("h1")).toHaveText(entry.path === "/" ? "Smarter work.Stronger business." : entry.title);
       expect((await page.locator("main").innerText()).length).toBeGreaterThan(250);
       for (const [key, content] of Object.entries(metadata.meta)) {
         await expect(page.locator(`meta[${key.startsWith("og:") ? "property" : "name"}="${key}"]`))
@@ -171,7 +171,7 @@ test("public HTML stays readable during delayed startup and controls work at DOM
   const navigation = page.goto("/", { waitUntil: "domcontentloaded" });
   try {
     await expect.poll(() => requested).toBe(true);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Less busywork.Better ways to work.");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Smarter work.Stronger business.");
     await expect(page.locator("main")).toBeVisible();
     await expect(page).toHaveTitle("AgentSpark | AI Consulting & Assessment for SMEs");
     await expect(page.getByText("Loading product overview", { exact: false })).toHaveCount(0);

@@ -67,11 +67,52 @@ test("Home design preview fits narrow, tablet and desktop layouts in both themes
       expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
       const brand = (await page.getByRole("banner").locator(".landing-brand").boundingBox())!;
       expect(brand.x + brand.width).toBeLessThanOrEqual(bounds.x);
-      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Less busywork.Better ways to work.");
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Smarter work.Stronger business.");
       await expectReadable(page.locator(".concept-site"));
     }
   }
   expect(await page.evaluate(() => document.getAnimations().filter(animation => animation.playState === "running").length)).toBe(0);
+});
+
+test("public footer keeps a centered, usable grid and an unbroken brand at every screen size", async ({ page }) => {
+  for (const path of ["/", "/consulting", "/platform", "/resources"]) {
+    await page.goto(path);
+    await page.evaluate(() => document.fonts.ready);
+    for (const theme of ["dark", "light"]) {
+      await page.getByRole("combobox", { name: "Appearance", exact: true }).selectOption(theme);
+      for (const width of [320, 390, 768, 981, 1440, 1920, 2560]) {
+        await page.setViewportSize({ width, height: 956 });
+        const layout = await page.getByRole("contentinfo").evaluate(footer => {
+          const brand = footer.querySelector(".landing-brand");
+          if (!brand?.lastChild) throw new Error("Footer brand is missing.");
+          const text = document.createRange();
+          text.selectNodeContents(brand.lastChild);
+          const box = footer.getBoundingClientRect();
+          return {
+            left: box.left, right: box.right, width: box.width,
+            columns: Array.from(footer.children).filter(child => child.tagName === "DIV")
+              .map(child => { const rect = child.getBoundingClientRect(); return { left: rect.left, right: rect.right, width: rect.width }; }),
+            brandTextHeight: text.getBoundingClientRect().height,
+            brandFontSize: parseFloat(getComputedStyle(brand).fontSize),
+            overflow: document.documentElement.scrollWidth > innerWidth,
+          };
+        });
+        expect(layout.overflow, `${path} ${theme} ${width}px`).toBe(false);
+        expect(Math.abs(layout.left - (width - layout.width) / 2)).toBeLessThanOrEqual(1);
+        expect(layout.brandTextHeight).toBeLessThan(layout.brandFontSize * 1.6);
+        expect(layout.columns).toHaveLength(4);
+        for (const column of layout.columns) {
+          expect(column.left).toBeGreaterThanOrEqual(layout.left);
+          expect(column.right).toBeLessThanOrEqual(layout.right + 1);
+        }
+        if (width > 980) {
+          expect(layout.columns[0].width).toBeGreaterThanOrEqual(240);
+          for (const column of layout.columns.slice(1)) expect(column.width).toBeGreaterThanOrEqual(160);
+          expect(Math.abs(layout.columns[3].right - layout.right)).toBeLessThanOrEqual(1);
+        }
+      }
+    }
+  }
 });
 
 test("Home design preview keeps menus and opt-in booking readable, keyboard accessible and unchanged", async ({ page }) => {
