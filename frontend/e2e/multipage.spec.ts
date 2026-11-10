@@ -159,7 +159,7 @@ test("all 17 public URLs render focused content, metadata and refresh safely", a
     const response = await page.goto(path);
     expect(response!.status()).toBe(200);
     await expect(page.getByRole("heading", { level: 1, name: heading, exact: true })).toBeVisible();
-    await expect(page).toHaveTitle(`${name} | AgentSpark`);
+    await expect(page).toHaveTitle(path === "/" ? "AgentSpark | AI Consulting & Assessment for SMEs" : `${name} | AgentSpark`);
     await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /[a-zA-Z].{30}/);
     await page.reload();
     await expect(page.getByRole("heading", { level: 1, name: heading, exact: true })).toBeVisible();

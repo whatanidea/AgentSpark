@@ -6,7 +6,7 @@ async function intake(page: Page, sample?: string, cloud = "azure") {
   await page.goto("/");
   await page.getByRole("button", { name: "Assess my workflow", exact: true }).first().click();
   await page.getByLabel("Target cloud", { exact: true }).selectOption(cloud);
-  await expect(page).toHaveTitle("AgentSpark — Enterprise AI Transformation Advisor");
+  await expect(page).toHaveTitle("Workspace | AgentSpark");
   await expect(page.locator("body")).toHaveCSS("background-color", "rgb(8, 8, 12)");
   await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
   await expect(page.getByRole("main")).toHaveCSS("background-color", "rgb(8, 8, 12)");

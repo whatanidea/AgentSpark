@@ -37,6 +37,9 @@ async function open(page: Page, identity: Identity, value: Fixture, startFromPub
   await expect(page.getByLabel("Access token", { exact: true })).toBeVisible();
   await page.getByLabel("Access token", { exact: true }).fill(identity.token);
   await page.getByRole("button", { name: "Connect securely", exact: true }).click();
+  const library = page.getByRole("tabpanel", { name: "Workflow library", exact: true });
+  await expect(library.getByRole("heading", { name: "No workflows in this view", exact: true })
+    .or(library.getByRole("table"))).toBeVisible();
   await page.getByRole("button", { name: "Organizations & teams", exact: true }).click();
   await page.getByRole("combobox", { name: "Organization", exact: true }).selectOption(value.organization);
   await page.getByRole("button", { name: "Use Process team", exact: true }).click();

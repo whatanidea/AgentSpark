@@ -4,9 +4,36 @@
 
 **The agent that tells you where agents belong.**
 
-AgentSpark helps enterprises decide **whether, where, and how to use AI agents**.
-It turns a workflow interview into a scored assessment, cloud-specific architecture
-recommendations, an estimated business case, and a reviewable blueprint.
+AgentSpark combines **SME AI consulting with an evidence-led assessment platform**.
+It helps teams decide whether, where, and how to use AI agents, turning discovery
+and workflow interviews into scored assessments, cloud-specific architecture
+recommendations, an illustrative business case, and a reviewable blueprint.
+
+## Public website delivery
+
+`npm --prefix frontend run build` builds the interactive client and pre-renders
+all public routes from the same React components and route definitions. The initial
+HTTP response contains the real page content, links, design styles and page-specific
+titles, descriptions and social preview metadata, without requiring JavaScript.
+Home is titled **AgentSpark | AI Consulting & Assessment for SMEs**. Canonical
+paths resolve against the serving origin, without assuming a production domain.
+
+This is build-time HTML generation followed by a client mount, not runtime SSR
+or hydration. The public document stays readable while its interactive component
+loads. JavaScript enables sign-in, booking, previews and appearance preferences.
+Public pages have a dedicated client entry that completes their interactive mount
+before `DOMContentLoaded`, while the private entry retains lazy public-site loading.
+No private records, user identity or consulting-calendar requests enter the build.
+Without JavaScript the static appearance is Dark. A small same-origin blocking
+script applies the saved browser preference before public content is painted,
+using the same preference validation and theme logic as the interactive provider.
+
+FastAPI serves the generated public documents with no-store HTML headers.
+The private workspace uses a separate empty client shell with `noindex,nofollow`;
+the same metadata is maintained on client navigation. Missing pages return HTTP
+404 and remain non-indexable. Existing API authentication and path-containment
+checks remain in force; robots metadata is not an access-control mechanism.
+No Node runtime or browser is needed in the Python production container.
 
 ## Architecture
 

@@ -123,6 +123,6 @@ export const PUBLIC_PAGES: readonly PublicPage[] = [
 ];
 
 export function publicPage(pathname: string) {
-  const path = pathname === "/" ? pathname : pathname.replace(/\/+$/, "");
+  const path = pathname.replace(/\/+$/, "").replace(/\/index\.html$/, "") || "/";
   return PUBLIC_PAGES.find(page => page.path === path);
 }

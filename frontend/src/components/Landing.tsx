@@ -74,13 +74,6 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
   const site = useRef<HTMLDivElement>(null);
   const previousPath = useRef(pathname);
   useEffect(() => {
-    const oldTitle = document.title;
-    const existing = document.querySelector<HTMLMetaElement>('meta[name="description"]');
-    const description = existing ?? document.createElement("meta");
-    const oldDescription = description.content;
-    if (!existing) { description.name = "description"; document.head.append(description); }
-    document.title = `${page?.name ?? "Page not found"} | AgentSpark`;
-    description.content = page?.summary ?? "This AgentSpark page could not be found.";
     if (previousPath.current !== pathname) {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
       title.current?.focus({ preventScroll: true });
@@ -93,12 +86,8 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
         }
       }, { threshold: 0.12 });
       site.current?.querySelectorAll("[data-reveal]").forEach(element => observer.observe(element));
-      return () => {
-        observer.disconnect(); document.title = oldTitle;
-        if (existing) description.content = oldDescription; else description.remove();
-      };
+      return () => observer.disconnect();
     }
-    return () => { document.title = oldTitle; if (existing) description.content = oldDescription; else description.remove(); };
   }, [page, pathname]);
 
   return <div ref={site} className="landing multipage-site editorial-site concept-site" data-page={page?.path ?? "not-found"}>

@@ -77,30 +77,32 @@ def readiness_check():
     })
 
 
-# ── Serve the built React SPA (frontend/dist) from the same origin ──────────
+# ── Serve public HTML and the private React SPA from the same origin ────────
 _DIST = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "frontend", "dist")
 
 if os.path.isdir(_DIST):
     # Static assets (JS/CSS/images) under /assets, etc.
     app.mount("/assets", StaticFiles(directory=os.path.join(_DIST, "assets")), name="assets")
 
-    # index.html must NEVER be cached — otherwise browsers keep serving an old
+    # HTML must NEVER be cached — otherwise browsers keep serving an old
     # page that points at a stale JS bundle. (Hashed /assets can cache forever.)
     _NO_CACHE = {"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
 
-    def _index():
-        return FileResponse(os.path.join(_DIST, "index.html"), headers=_NO_CACHE)
+    def _index(status_code: int = 200):
+        return FileResponse(os.path.join(_DIST, "spa.html"), status_code=status_code, headers=_NO_CACHE)
 
     @app.get("/")
     def spa_root():
-        return _index()
+        return FileResponse(os.path.join(_DIST, "index.html"), headers=_NO_CACHE)
 
     @app.get("/{full_path:path}")
     def spa_fallback(full_path: str):
         if full_path == "api" or full_path.startswith("api/"):
             return JSONResponse(status_code=404, content={"detail": "Not found."})
-        # Serve real files if they exist, else fall back to index.html (SPA routing).
+        # Public routes have generated documents; private routes retain the SPA.
         candidate = os.path.realpath(os.path.join(_DIST, full_path))
+        if os.path.isdir(candidate):
+            candidate = os.path.realpath(os.path.join(candidate, "index.html"))
         try:
             contained = os.path.commonpath([os.path.realpath(_DIST), candidate]) == os.path.realpath(_DIST)
         except ValueError:
@@ -108,8 +110,8 @@ if os.path.isdir(_DIST):
         if not contained:
             return JSONResponse(status_code=404, content={"detail": "Not found."})
         if os.path.isfile(candidate):
-            return FileResponse(candidate)
-        return _index()
+            return FileResponse(candidate, headers=_NO_CACHE if candidate.endswith(".html") else None)
+        return _index(200 if full_path.rstrip("/") == "workspace" else 404)
 
     logger.info("Serving React SPA from %s", _DIST)
 else:
