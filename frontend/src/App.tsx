@@ -9,7 +9,10 @@ import Analyze from "./components/Analyze";
 import Blueprint from "./components/Blueprint";
 import Portfolio from "./components/Portfolio";
 import Home from "./components/Home";
-const Landing = lazy(() => import("./components/Landing"));
+import type PublicLanding from "./components/Landing";
+import { publicPage } from "./components/publicPages";
+import { applyPageMetadata, pageMetadata } from "./publicMetadata";
+const LazyLanding = lazy(() => import("./components/Landing"));
 import Workspaces from "./components/Workspaces";
 import InviteOnboarding from "./components/InviteOnboarding";
 import Discovery from "./components/Discovery";
@@ -66,13 +69,17 @@ function restoreInvitation(): PendingInvitation {
   catch { return { code: "", warning: "Tab storage is unavailable. Reopen your invitation link if needed." }; }
 }
 
-export default function App() {
+export default function App({ publicLanding }: { publicLanding?: typeof PublicLanding }) {
+  const Landing = publicLanding ?? LazyLanding;
   const location = useLocation();
   const navigate = useNavigate();
   const previousPath = useRef(location.pathname);
   const [view, setView] = useState<View>("home");
   const [discoveryEntry, setDiscoveryEntry] = useState<{ id?: string; createNew?: boolean } | null>(null);
   const [showLanding, setShowLanding] = useState(() => location.pathname !== "/workspace");
+  useEffect(() => {
+    applyPageMetadata(pageMetadata(publicPage(location.pathname), !showLanding));
+  }, [location.pathname, showLanding]);
   const [snapshot, setSnapshot] = useState<SessionSnapshot | null>(null);
   const [identity, setIdentity] = useState<Identity | null>(null);
   const [auth, setAuth] = useState<AuthConfig | null>(null);

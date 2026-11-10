@@ -1,38 +1,21 @@
-import { createContext, useContext, useLayoutEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useLayoutEffect, useState, type ReactNode } from "react";
+import { isAppearance, readAppearance, resolvedTheme, STORAGE_KEY, updateDocumentAppearance, type Appearance } from "./appearanceState";
+export type { Appearance } from "./appearanceState";
 
-export type Appearance = "dark" | "light" | "system";
-const STORAGE_KEY = "agentspark.appearance.v1";
+const useBrowserLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 const AppearanceContext = createContext<{
   preference: Appearance; theme: "dark" | "light"; choose: (value: Appearance) => void;
 } | null>(null);
 
-function isAppearance(value: string | null): value is Appearance {
-  return value === "dark" || value === "light" || value === "system";
-}
-
-function readAppearance(): { preference: Appearance; error: string } {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved === null) return { preference: "dark", error: "" };
-    if (isAppearance(saved)) return { preference: saved, error: "" };
-    console.error("The saved appearance preference is invalid.");
-    return { preference: "dark", error: "Your saved appearance preference is invalid. Dark is shown; choose an appearance to replace it." };
-  } catch (error) {
-    console.error("Could not read the appearance preference.", error);
-    return { preference: "dark", error: "Appearance storage is unavailable. Changes will apply to this tab, but may not survive a reload." };
-  }
-}
-
 export function AppearanceProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState(readAppearance);
-  const [systemDark, setSystemDark] = useState(() => matchMedia("(prefers-color-scheme: dark)").matches);
-  const theme = state.preference === "system" ? systemDark ? "dark" : "light" : state.preference;
-  useLayoutEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    document.documentElement.dataset.appearance = state.preference;
-    document.documentElement.style.colorScheme = theme;
+  const [systemDark, setSystemDark] = useState(() => typeof window !== "undefined" && matchMedia("(prefers-color-scheme: dark)").matches);
+  const theme = resolvedTheme(state.preference, systemDark);
+  useBrowserLayoutEffect(() => {
+    updateDocumentAppearance(state.preference, theme);
   }, [theme, state.preference]);
-  useLayoutEffect(() => {
+  useBrowserLayoutEffect(() => {
     const media = matchMedia("(prefers-color-scheme: dark)");
     const changed = () => setSystemDark(media.matches);
     media.addEventListener("change", changed);
