@@ -2,12 +2,12 @@ import { expect, test } from "@playwright/test";
 
 test("public feature refresh surfaces shipped capabilities and connects them to dedicated pages", async ({ page }) => {
   await page.goto("/");
-  const features = page.getByRole("region", { name: "Align the people. Connect the decisions.", exact: true });
+  const features = page.getByRole("region", { name: "Get your team together. Make a clearer decision.", exact: true });
   const cards = features.locator(".public-capability-card");
   await expect(cards).toHaveCount(4);
   await expect(cards.locator("h3")).toHaveText([
-    "Stakeholder alignment & decisions", "Assessment & executive decisions",
-    "Architecture & review", "Organizations & team workspaces",
+    "Agree priorities", "Review an opportunity",
+    "See a practical plan", "Work with your team",
   ]);
   for (const card of await cards.all()) {
     await expect(card).toHaveAttribute("href", /^\/platform\//);

@@ -67,7 +67,7 @@ test("Home design preview fits narrow, tablet and desktop layouts in both themes
       expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
       const brand = (await page.getByRole("banner").locator(".landing-brand").boundingBox())!;
       expect(brand.x + brand.width).toBeLessThanOrEqual(bounds.x);
-      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Your business.AI-native by design.");
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Less busywork.Better ways to work.");
       await expectReadable(page.locator(".concept-site"));
     }
   }
@@ -93,7 +93,7 @@ test("Home design preview keeps menus and opt-in booking readable, keyboard acce
     await page.getByRole("button", { name: "Inspect source statements", exact: false }).click();
     await expectReadable(page.getByRole("tabpanel"));
     await page.getByRole("button", { name: "Hide source statements", exact: false }).click();
-    const book = page.getByRole("banner").getByRole("button", { name: "Book a consultation", exact: false });
+    const book = page.getByRole("banner").getByRole("link", { name: "Book a consultation", exact: false });
     await book.focus(); await page.keyboard.press("Enter");
     const dialog = page.getByRole("dialog", { name: "A conversation. A clearer next step." });
     await expect(dialog).toBeVisible();

@@ -84,7 +84,7 @@ export function PageVisual({ page }: { page: PublicPage }) {
     <h2>{visual.title}</h2>
     {proof ?? <ol className="premium-visual-nodes">{visual.items.map(([title, detail], index) =>
       <li key={title}><span className="premium-node-number">0{index + 1}</span>
-        <div><strong>{title}</strong><small>{detail}</small></div><span aria-hidden="true">↗</span></li>)}</ol>}
+        <div><strong>{title}</strong><small>{detail}</small></div><span aria-hidden="true">→</span></li>)}</ol>}
     <figcaption>{page.section === "Consulting" ? "Illustrative service method. Scope, access and acceptance are agreed with the customer."
       : page.section === "About" || page.path === "/resources/trust" || page.path === "/resources/how-it-works"
       ? "Explore the product below. No connected systems or saved records."

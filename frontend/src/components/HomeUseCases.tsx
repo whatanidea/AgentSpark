@@ -28,7 +28,7 @@ export default function HomeUseCases() {
             <div><dt>Success measures</dt><dd>Baseline needed</dd></div>
           </dl>
         </figure>
-        <Link to="/platform/assessment">Explore readiness assessment <span aria-hidden="true">↗</span></Link>
+        <Link to="/platform/assessment">Explore readiness assessment <span aria-hidden="true">→</span></Link>
       </article>
       <article className="marketing-use-case" aria-labelledby="process-use-case-title" data-kind="process">
         <div className="marketing-use-case-label"><MarketingIcon name="process" /><p>Before the shortlist</p></div>
@@ -47,7 +47,7 @@ export default function HomeUseCases() {
           <div className="premium-process-source"><span>S1 / Operator contribution</span><strong>“We enter the same details twice.”</strong><small>Submitted statement, not verified evidence</small></div>
           <p>Investigate the handoff. Validate the baseline before estimating value.</p>
         </figure>
-        <Link to="/platform/discovery">Explore process discovery <span aria-hidden="true">↗</span></Link>
+        <Link to="/platform/discovery">Explore process discovery <span aria-hidden="true">→</span></Link>
       </article>
     </div>
     <div className="marketing-home-deliverables">
@@ -58,6 +58,6 @@ export default function HomeUseCases() {
       </ul>
     </div>
     <p className="marketing-home-boundary">Based on stakeholder input and reviewed evidence, not automatic system monitoring or process mining.
-      {" "}Advisory decisions, not autonomous execution. <Link to="/resources/trust">Understand the boundaries ↗</Link></p>
+      {" "}Advisory decisions, not autonomous execution. <Link to="/resources/trust">Understand the boundaries →</Link></p>
   </section>;
 }

@@ -4,9 +4,29 @@ const event = "vienna-now-rdnzte/agentspark-consulting";
 const prompt = `If not added, add mcp.cal.com/mcp, then book ${event}`;
 const directUrl = `https://cal.com/${event}`;
 
+test("booking links leave modified-click defaults to the browser without opening the dialog", async ({ page }) => {
+  await page.goto("/?token=private-test&invite=private-invite#private-workflow");
+  const link = page.getByRole("link", { name: "Book a consultation", exact: true }).first();
+  await expect(link).toHaveAttribute("href", directUrl);
+  await expect(link).toHaveAttribute("referrerpolicy", "no-referrer");
+  for (const modifier of ["Control", "Meta", "Shift", "Alt"] as const) {
+    await page.evaluate(() => {
+      document.documentElement.removeAttribute("data-booking-default-prevented");
+      document.addEventListener("click", event => {
+        document.documentElement.setAttribute("data-booking-default-prevented", String(event.defaultPrevented));
+        // Inspect the application's decision, then stop the external browser action.
+        event.preventDefault();
+      }, { once: true });
+    });
+    await link.click({ modifiers: [modifier] });
+    await expect(page.locator("html")).toHaveAttribute("data-booking-default-prevented", "false");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+  }
+});
+
 async function openBooking(page: Page, path = "/consulting") {
   await page.goto(path);
-  await page.getByRole("button", { name: "Book a consultation", exact: false }).first().click();
+  await page.getByRole("link", { name: "Book a consultation", exact: false }).first().click();
   const dialog = page.getByRole("dialog", { name: "A conversation. A clearer next step." });
   await expect(dialog).toBeVisible();
   return dialog;
@@ -84,8 +104,8 @@ test("booking is consent-gated, uses the supplied event and never forwards page 
   await dialog.getByRole("button", { name: "Close consultation booking" }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.locator("iframe")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Book a consultation", exact: false }).first()).toBeFocused();
-  await page.getByRole("button", { name: "Book a consultation", exact: false }).first().click();
+  await expect(page.getByRole("link", { name: "Book a consultation", exact: false }).first()).toBeFocused();
+  await page.getByRole("link", { name: "Book a consultation", exact: false }).first().click();
   await expect(page.locator("iframe")).toHaveCount(0);
   await page.getByRole("button", { name: "Open calendar", exact: true }).click();
   await expect(page.locator("iframe")).toHaveCount(1);
@@ -106,7 +126,7 @@ test("assistant instructions copy locally with truthful confirmation and no sche
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);
   await expect(page.getByRole("banner")
-    .getByRole("button", { name: "Book a consultation", exact: false })).toBeFocused();
+    .getByRole("link", { name: "Book a consultation", exact: false })).toBeFocused();
 });
 
 for (const mode of ["denied", "unavailable"] as const) {
@@ -186,7 +206,7 @@ test("dialog traps keyboard focus, fits mobile/reduced motion and closes on hist
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
   await page.getByRole("link", { name: "Explore consulting", exact: false }).click();
-  const trigger = page.getByRole("button", { name: "Book a consultation", exact: false }).first();
+  const trigger = page.getByRole("link", { name: "Book a consultation", exact: false }).first();
   await trigger.click();
   const dialog = page.getByRole("dialog");
   await page.keyboard.press("Shift+Tab");

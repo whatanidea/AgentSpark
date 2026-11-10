@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { ConsultationLink } from "./ConsultationBooking";
 
 const stages = [
   { label: "Business question", path: "M4 4h16v12H9l-5 4V4Zm4 4h8M8 12h5" },
@@ -7,8 +8,8 @@ const stages = [
   { label: "Clear next step", path: "m4 7 2 2 3-4m-5 12 2 2 3-4M12 7h8M12 17h8" },
 ];
 
-export default function DiscoveryInvitation({ disabled, onDiscover }: {
-  disabled: boolean; onDiscover: () => void;
+export default function DiscoveryInvitation({ onBook }: {
+  onBook: () => void;
 }) {
   const section = useRef<HTMLElement>(null);
   const [run, setRun] = useState(0);
@@ -29,10 +30,8 @@ export default function DiscoveryInvitation({ disabled, onDiscover }: {
     <div className="invitation-copy">
       <p className="landing-eyebrow">Start small. Decide with clarity.</p>
       <h2 id="final-title">Start with a business question.<br />Leave with a clearer next step.</h2>
-      <p>No autonomous business actions. No deployment implied.<br />Just a clearer, evidence-led next step.</p>
-      <button className="landing-button landing-button-primary" disabled={disabled} onClick={onDiscover}>
-        Start discovery <span aria-hidden="true">↗</span>
-      </button>
+      <p>Bring one repetitive task or business question. Discuss whether AI, a process change or a simpler tool is worth exploring.</p>
+      <ConsultationLink onBook={onBook} />
     </div>
     <figure className="invitation-journey" aria-label="From business question to a reviewed next step">
       <div key={run} className="invitation-art" data-animated={run > 0}>

@@ -50,7 +50,7 @@ export function SignalField() {
   const [paused, setPaused] = useState(false);
   return <figure className="editorial-signal" data-paused={paused}
     aria-label="Illustrative journey from business friction to human-reviewed progress">
-    <div className="editorial-signal-meta"><span>THE AI-NATIVE JOURNEY / AN ILLUSTRATION</span>
+    <div className="editorial-signal-meta"><span>BETTER WAYS OF WORKING / AN ILLUSTRATION</span>
       <button className="editorial-motion-control" onClick={() => setPaused(current => !current)}
         aria-label={paused ? "Resume illustration" : "Pause illustration"}>
         <span aria-hidden="true">{paused ? "▶" : "Ⅱ"}</span>{paused ? "Resume motion" : "Pause motion"}
@@ -71,7 +71,7 @@ const frictions = [
   { name: "Repeated checks", source: "S1 / Business operator", statement: "We enter the same invoice details twice.",
     secondSource: "S3 / Technical owner", secondStatement: "Access to invoice and purchase-order data still needs validation.",
     recommendation: "Investigate duplicate checks before introducing AI.",
-    detail: "Compare a process change, deterministic validation and AI assistance. Validate the baseline and data access before choosing a pilot." },
+    detail: "Compare a process change, checks based on clear rules and AI assistance. Check the starting point and data access before choosing a trial." },
   { name: "Unclear ownership", source: "S1 / Business operator", statement: "Finance owns exception decisions.",
     secondSource: "S2 / Process owner", secondStatement: "Procurement owns exception decisions.",
     recommendation: "Clarify decision ownership before automating the handoff.",
@@ -83,15 +83,15 @@ export function EvidenceLens() {
   const [sourcesOpen, setSourcesOpen] = useState(false);
   const friction = frictions[selected];
   return <div className="editorial-evidence">
-    <p className="editorial-evidence-label">01 / SELECT A REPORTED FRICTION</p>
+    <p className="editorial-evidence-label">SELECT A REPORTED PROBLEM</p>
     <div className="editorial-friction-picker" role="group" aria-label="Reported workflow friction">
       {frictions.map((item, index) => <button key={item.name} aria-pressed={selected === index}
         onClick={() => { setSelected(index); setSourcesOpen(false); }}>
-        <span aria-hidden="true">0{index + 1}</span>{item.name}<span aria-hidden="true">↗</span>
+        <span aria-hidden="true">—</span>{item.name}<span aria-hidden="true">→</span>
       </button>)}
     </div>
     <div className="editorial-evidence-result" aria-live="polite" aria-atomic="true">
-      <p className="editorial-evidence-label">02 / INSPECT THE REASONING</p>
+      <p className="editorial-evidence-label">INSPECT THE REASONING</p>
       <h4>{friction.recommendation}</h4><p>{friction.detail}</p>
       <p className="editorial-evidence-status">Human review required · Baseline unverified</p>
     </div>
@@ -102,7 +102,7 @@ export function EvidenceLens() {
     <div id="editorial-example-sources" hidden={!sourcesOpen} className="editorial-source-statements">
       <div><strong>{friction.source}</strong><p>{friction.statement}</p></div>
       <div><strong>{friction.secondSource}</strong><p>{friction.secondStatement}</p></div>
-      <p>Submitted statements in a fictional example, not verified evidence.</p>
+      <p>Submitted statements, not verified evidence.</p>
     </div>
     <p className="editorial-evidence-footnote">Clarification needed: who owns exception decisions? No measured savings or automated approval is implied.</p>
   </div>;

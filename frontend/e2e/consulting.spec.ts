@@ -36,7 +36,7 @@ test("consulting is integrated without vendor or funding claims and scheduling r
   const diligence = page.getByRole("region", { name: "Ambition, with an evidence trail.", exact: true });
   await expect(diligence).toContainText("No blanket GDPR or AI Act certification is claimed");
   await expect(diligence).toContainText("Estimates remain estimates");
-  await expect(page.getByRole("button", { name: "Book a consultation", exact: false }).first()).toBeVisible();
+  await expect(page.getByRole("link", { name: "Book a consultation", exact: false }).first()).toBeVisible();
   await expect(page.locator("iframe")).toHaveCount(0);
   expect(schedulerRequests).toEqual([]);
   expect(apiCalls.filter(call => !["GET /api/v1/auth/config", "GET /api/v1/auth/me"].includes(call))).toEqual([]);
@@ -74,18 +74,18 @@ test("consulting mega-menu is keyboard accessible, active on overview and closes
   await expect(consulting).toHaveAttribute("data-active", "true");
   await consulting.focus(); await page.keyboard.press("Enter");
   await page.keyboard.press("Tab");
-  await expect(nav.getByRole("link", { name: "Consulting overview", exact: false })).toBeFocused();
-  await expect(nav.locator(".marketing-dropdown:visible").getByRole("link")).toHaveCount(5);
+  await expect(nav.getByRole("link", { name: "Find a starting point", exact: false })).toBeFocused();
+  await expect(nav.locator(".marketing-dropdown:visible").getByRole("link")).toHaveCount(4);
   await page.keyboard.press("Escape");
   await expect(consulting).toBeFocused();
   await expect(consulting).toHaveAttribute("aria-expanded", "false");
   await consulting.click();
-  await nav.getByRole("link", { name: "Secure AI Workspace Launch", exact: false }).click();
-  await expect(page).toHaveURL(/\/consulting\/workspace-launch$/);
+  await nav.getByRole("link", { name: "Test one improvement", exact: false }).click();
+  await expect(page).toHaveURL(/\/consulting\/workflow-pilot$/);
   await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
   await expect(consulting).toHaveAttribute("aria-expanded", "false");
   await consulting.click();
-  await expect(nav.getByRole("link", { name: "Secure AI Workspace Launch", exact: false })).toHaveAttribute("aria-current", "page");
+  await expect(nav.getByRole("link", { name: "Test one improvement", exact: false })).toHaveAttribute("aria-current", "page");
   await page.goBack();
   await expect(page).toHaveURL(/\/consulting$/);
   await expect(consulting).toHaveAttribute("aria-expanded", "false");
@@ -117,7 +117,7 @@ test("consulting pages and menu fit narrow through desktop viewports without hid
   await nav.getByRole("button", { name: "Consulting", exact: true }).click();
   for (const link of await nav.locator(".marketing-dropdown:visible a").all())
     expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-  await nav.getByRole("link", { name: "AI Adoption & Optimization", exact: false }).click();
+  await nav.getByRole("link", { name: "Support your team", exact: false }).click();
   await expect(page).toHaveURL(/\/consulting\/adoption$/);
   await expect(nav).toBeHidden();
   await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
