@@ -7,7 +7,7 @@ export type PublicPage = {
 };
 
 export const PUBLIC_PAGES: readonly PublicPage[] = [
-  { path: "/", name: "Home", section: "Overview", title: "Less busywork. Better ways to work.",
+  { path: "/", name: "Home", section: "Overview", title: "Smarter work. Stronger business.",
     summary: "Practical AI consulting for small and medium-sized businesses. Find useful improvements, reduce repetitive work and choose a sensible first project.", details: [] },
   { ...CONSULTING_OVERVIEW, section: "Consulting", details: [] },
   ...CONSULTING_OFFERINGS.map(offering => ({

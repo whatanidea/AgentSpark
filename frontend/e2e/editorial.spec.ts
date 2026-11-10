@@ -8,7 +8,7 @@ test("editorial hero leads with consulting and offers controllable motion withou
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.goto("/");
   const hero = page.locator("#top");
-  await expect(hero.getByRole("heading", { level: 1 })).toHaveAccessibleName("Less busywork. Better ways to work.");
+  await expect(hero.getByRole("heading", { level: 1 })).toHaveAccessibleName("Smarter work. Stronger business.");
   expect(await hero.getByRole("heading", { level: 1 }).evaluate(node => parseFloat(getComputedStyle(node).fontSize))).toBeGreaterThanOrEqual(96);
   const book = hero.getByRole("link", { name: "Book a consultation", exact: false });
   expect((await book.boundingBox())!.y).toBeLessThan(960);

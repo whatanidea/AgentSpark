@@ -99,7 +99,7 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
         <div className="landing-hero-copy">
           <div className="editorial-hero-meta"><div className="landing-kicker"><span aria-hidden="true" /> Practical AI consulting for small and medium-sized businesses</div>
             <span>INDEPENDENT THINKING / PRACTICAL DELIVERY</span></div>
-          <h1 ref={title} tabIndex={-1} id="landing-title">Less busywork.<br /><span><em>Better</em> ways to work.</span></h1>
+          <h1 ref={title} tabIndex={-1} id="landing-title">Smarter work.<br /><span><em>Stronger</em> business.</span></h1>
           <div className="editorial-hero-bottom">
             <p>We help small and medium-sized businesses find practical uses for AI, reduce repetitive work and choose a sensible first project. Start with one business problem, not a list of tools.</p>
             <div><div className="landing-actions">
