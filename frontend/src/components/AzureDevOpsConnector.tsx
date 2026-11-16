@@ -95,7 +95,8 @@ export default function AzureDevOpsConnector({ onBusyChange, onUnsavedChange, on
   async function start(previewId: string, digest: string) {
     if (!discard()) return;
     setAcknowledged(false);
-    const result = await perform(async () => liveAzureDevOps.confirm(previewId, digest, await token()));
+    const recovering = data?.creation?.preview.id === previewId;
+    const result = await perform(async () => liveAzureDevOps.confirm(previewId, digest, recovering ? undefined : await token()));
     if (result) { onUnsavedChange(false); onOpenDiscovery(result.engagement_id); }
   }
   function backToSources() {
@@ -232,7 +233,7 @@ export default function AzureDevOpsConnector({ onBusyChange, onUnsavedChange, on
       </section>}
       {(historyOpen || data.creation) && <Card title="History & details">
         {data.creation && <div className="notice"><p>Discovery creation was confirmed but has not finished recording its receipt. Retry safely without creating a duplicate.</p>
-          <Button disabled={busy || !writable || !connected || data.creation.preview.actor !== data.identity_id}
+          <Button disabled={busy || !writable || data.creation.preview.actor !== data.identity_id}
             onClick={() => data.creation && void start(data.creation.preview.id, data.creation.preview.digest)}>Finish creating discovery</Button></div>}
         {!data.receipts.length && !data.creation && <p>No discovery creation receipts.</p>}
         {data.receipts.map(receipt => <div key={receipt.preview_id} className="mt-4 text-sm">

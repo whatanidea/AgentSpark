@@ -103,6 +103,9 @@ If the final response or receipt write fails, use **Finish creating discovery**.
 The original frozen reservation is completed without duplicating discovery or
 overwriting later human edits. Its source-access check already occurred before
 reservation; recovery does not rebuild or refresh that confirmed snapshot.
+Recovery still requires the same authenticated app creator and current workspace
+write permission, but no fresh Azure DevOps token or consent: loss of source
+authorization cannot strand a previously confirmed internal save.
 
 Completed receipt retries do not restore an engagement deleted afterwards.
 Pending creations block source changes and clearing until recovery completes.

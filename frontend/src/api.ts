@@ -600,7 +600,7 @@ export const liveAzureDevOps = {
   revise: (version: string, preview_id: string, brief: AdoDiscoveryBrief) =>
     liveRequest<LiveState>("/discovery/brief", "POST", { version, preview_id, brief }),
   cancel: (version: string) => liveRequest<LiveState>("/discovery/cancel", "POST", { version }),
-  confirm: (preview_id: string, digest: string, token: string) =>
+  confirm: (preview_id: string, digest: string, token?: string) =>
     liveRequest<{ engagement_id: string }>("/discovery/confirm", "POST", { preview_id, digest, confirmed: true }, token),
 };
 

@@ -187,6 +187,7 @@ class RealConnectorTests(unittest.TestCase):
 
     def test_confirm_rechecks_source_content_and_access(self):
         state = self.prepare()
+        self.call("POST", "/discovery/confirm", self.confirmation(state), token=None, status=422)
         with patch.object(live.Reader, "items", side_effect=HTTPException(424, "Access revoked.")):
             self.call("POST", "/discovery/confirm", self.confirmation(state), status=424)
         self.snapshots[0].content_digest = "changed"
@@ -248,7 +249,9 @@ class RealConnectorTests(unittest.TestCase):
         self.database.mock_db[engagement_id]["discovery"]["title"] = "A later human edit"
         self.call("POST", "/disconnect", {"version": pending["version"]}, status=409)
         self.call("POST", "/discovery/prepare", {"version": pending["version"], "item_ids": [101]}, status=409)
-        result = self.call("POST", "/discovery/confirm", request)
+        reads = self.read_items.call_count
+        result = self.call("POST", "/discovery/confirm", request, token=None)
+        self.assertEqual(self.read_items.call_count, reads)
         self.assertEqual(result["engagement_id"], engagement_id)
         self.assertEqual(len(self.database.mock_db), 1)
         self.assertEqual(self.database.mock_db[engagement_id]["discovery"]["title"], "A later human edit")

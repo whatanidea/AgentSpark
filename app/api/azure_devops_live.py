@@ -75,6 +75,9 @@ def reader(value: Annotated[str, Header(alias="X-Azure-DevOps-Token")]):
         raise HTTPException(422, "Reconnect to Azure DevOps with Microsoft sign-in.")
     return Reader(value)
 
+def confirmation_reader(value: Annotated[str | None, Header(alias="X-Azure-DevOps-Token")] = None):
+    return reader(value) if value is not None else None
+
 
 def current(state, version):
     if state._etag != version:
@@ -244,7 +247,7 @@ def existing(engagement_id, preview_id):
 
 
 @router.post("/discovery/confirm")
-def confirm(req: ConfirmRequest, remote: Annotated[Reader, Depends(reader)]):
+def confirm(req: ConfirmRequest, remote: Annotated[Reader | None, Depends(confirmation_reader)]):
     key, _ = scope("write")
     actor = auth.principal_context.get().owner_id
     state = store.read(key)
@@ -262,6 +265,8 @@ def confirm(req: ConfirmRequest, remote: Annotated[Reader, Depends(reader)]):
         preview = editable(state, req.preview_id)
         if preview.digest != req.digest:
             raise HTTPException(409, "The reviewed brief changed. Review it again before confirming.")
+        if remote is None:
+            raise HTTPException(422, "Connect with Microsoft before confirming a new Azure DevOps import.")
         refreshed = [safe_payload(item) for item in remote.items(connection(state), [item.id for item in preview.items])]
         if [item.content_digest for item in refreshed] != [item.content_digest for item in preview.items]:
             raise HTTPException(409, "Azure DevOps source content changed. Prepare and review a fresh brief.")

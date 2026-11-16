@@ -189,8 +189,7 @@ test("Real Azure DevOps resumes a durable confirmed reservation without preparin
   state.creation = { preview: preview(), engagement_id: "created-discovery", confirmed_at: "2026-11-16T10:00:00Z" };
   const requests = await setup(page, state);
   const finish = root(page).getByRole("button", { name: "Finish creating discovery", exact: true });
-  await expect(finish).toBeDisabled();
-  await root(page).getByRole("button", { name: "Connect Microsoft account", exact: true }).click();
+  await expect(finish).toBeEnabled();
   await root(page).getByRole("button", { name: "Connection settings", exact: true }).click();
   await expect(root(page).getByRole("button", { name: "Save source connection", exact: true })).toBeDisabled();
   await finish.click();
@@ -198,6 +197,7 @@ test("Real Azure DevOps resumes a durable confirmed reservation without preparin
   expect(requests.filter(request => request.path === "/discovery/prepare")).toHaveLength(0);
   const confirmation = requests.filter(request => request.path === "/discovery/confirm");
   expect(confirmation).toHaveLength(1);
+  expect(confirmation[0].sourceCredential).toBeUndefined();
   expect(JSON.parse(confirmation[0].body)).toEqual({ preview_id: state.creation.preview.id,
     digest: state.creation.preview.digest, confirmed: true });
 });
