@@ -887,6 +887,8 @@ class WorkflowState(BaseModel):
     discovery_origin: Optional[DiscoveryOrigin] = None
     discovery_tasks: List[DiscoveryTask] = Field(default_factory=list, max_length=50)
     discovery_source_reviews: List[DiscoverySourceReview] = Field(default_factory=list, max_length=50)
+    discovery_import_id: Optional[SessionId] = None
+    discovery_import_sources: List[DiscoverySource] = Field(default_factory=list, max_length=20)
     discovery_alignment: Optional[DiscoveryAlignment] = None
     owner_id: str = "local-demo"
     organization_id: Optional[SessionId] = None
