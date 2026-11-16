@@ -1,6 +1,5 @@
 import { useEffect, useLayoutEffect, useState } from "react";
 import { liveAzureDevOps } from "../api";
-import { azureDevOpsToken } from "../auth";
 import { discoveryBrief, type AdoDiscoveryBrief } from "../azureDevOps";
 import type { LiveItem, LiveState } from "../azureDevOpsLive";
 import { DISCOVERY_BRIEF_FIELDS } from "./ConnectorDiscovery";
@@ -8,7 +7,12 @@ import { Button, Card, Spinner } from "./ui";
 
 type Stage = "sources" | "brief" | "confirm";
 
-export default function AzureDevOpsConnector({ onBusyChange, onUnsavedChange, onOpenDiscovery, acquireToken = azureDevOpsToken }: {
+async function microsoftSourceToken(interactive = false) {
+  const { azureDevOpsToken } = await import("../auth");
+  return azureDevOpsToken(interactive);
+}
+
+export default function AzureDevOpsConnector({ onBusyChange, onUnsavedChange, onOpenDiscovery, acquireToken = microsoftSourceToken }: {
   onBusyChange: (busy: boolean) => void; onUnsavedChange: (dirty: boolean) => void;
   onOpenDiscovery: (id: string) => void;
   acquireToken?: (interactive?: boolean) => Promise<string>;
