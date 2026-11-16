@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { api, uid, type DiscoveryEngagement, type DiscoveryRecord, type DiscoveryPlaybook, type HomeItem } from "../api";
 import { Button, Card } from "./ui";
 import DiscoveryWorkflow from "./DiscoveryWorkflow";
-import DiscoveryGuide from "./DiscoveryGuide";
+import DiscoveryGuide, { visitDiscoverySection } from "./DiscoveryGuide";
 
 const empty = (): DiscoveryEngagement => ({
   title: "", objective: "", business_units: "", sponsor: "", engagement_owner: "",
@@ -17,10 +17,11 @@ const textFields = [
 ] as const;
 const roles = { business_operator: "Business operator", process_owner: "Process owner", technical_owner: "Technical owner" } as const;
 
-export default function Discovery({ canCreate, onOpen, onBusyChange, onManageAccess, onUnsavedChange, initialEngagementId, createNew }: {
+export default function Discovery({ canCreate, onOpen, onBusyChange, onManageAccess, onUnsavedChange, initialEngagementId, createNew, onStartFromConnector, focusOverview }: {
   canCreate: boolean; onOpen: (session: string) => Promise<void>; onBusyChange: (busy: boolean) => void;
   onManageAccess: () => void; onUnsavedChange: (dirty: boolean) => void;
   initialEngagementId?: string; createNew?: boolean;
+  onStartFromConnector?: () => void; focusOverview?: boolean;
 }) {
   const [items, setItems] = useState<HomeItem[]>([]);
   const [cursor, setCursor] = useState<string | null>(null);
@@ -57,6 +58,9 @@ export default function Discovery({ canCreate, onOpen, onBusyChange, onManageAcc
       .finally(() => { if (alive) setBusy(false); });
     return () => { alive = false; };
   }, [initialEngagementId]);
+  useEffect(() => {
+    if (focusOverview && record?.id === initialEngagementId) visitDiscoverySection("overview");
+  }, [focusOverview, record?.id, initialEngagementId]);
 
   function discard() { return !dirty || window.confirm("Discard unsaved discovery changes?"); }
   async function open(id: string) {
@@ -126,14 +130,17 @@ export default function Discovery({ canCreate, onOpen, onBusyChange, onManageAcc
     <header className="page-header flex flex-wrap justify-between gap-4">
       <div><h1>Discovery engagements</h1><p className="mt-2">Start with a business objective, organize discovery notes,
         and record candidate opportunities before choosing a workflow to assess.</p></div>
-      <Button disabled={busy || !canCreate} onClick={() => {
+      <div className="flex flex-wrap gap-3"><Button disabled={busy || !canCreate} onClick={() => {
         if (discard()) { setRecord(null); setDraft(empty()); setDeleting(false); setError(""); setMessage(""); }
       }}>New discovery engagement</Button>
+      {onStartFromConnector && <Button variant="ghost" disabled={busy || !canCreate}
+        onClick={() => { if (discard()) onStartFromConnector(); }}>Start discovery from connector</Button>}</div>
     </header>
     <p className="notice">Discovery notes are visible to readers of this workspace, not anonymous.
       New engagements retain data for 30 days with explicit renewal. Required/excluded topics record scope; they do not automatically modify linked interviews.</p>
     {error && <p role="alert" className="notice text-rose-700">{error}</p>}
     {message && <p role="status" className="notice">{message}</p>}
+    {record && <DiscoveryGuide record={record} dirty={dirty} busy={busy} />}
     <Card title="Saved engagements">
       {!items.length && !busy && <p>No discovery engagements in this workspace.</p>}
       <ul className="space-y-2">{items.map(item => <li key={item.session_id}>
@@ -142,7 +149,6 @@ export default function Discovery({ canCreate, onOpen, onBusyChange, onManageAcc
       </li>)}</ul>
       {cursor && <Button variant="ghost" disabled={busy} onClick={() => void more("engagements")}>More engagements</Button>}
     </Card>
-    {record && <DiscoveryGuide record={record} dirty={dirty} busy={busy} />}
     {draft && <form onSubmit={event => { event.preventDefault(); void save(); }} className="space-y-5">
       <fieldset disabled={workflowDirty} className="space-y-5 min-w-0">
       <Card title={record ? "Engagement brief" : "Create engagement"}>

@@ -1,5 +1,6 @@
 // Same-origin API client. In dev, Vite proxies /api → :8000; in prod FastAPI
 // serves this SPA and the API from the same origin, so relative URLs just work.
+import type { AdoDiscoveryBrief, AdoIntegration, AdoItemType, AdoProject } from "./azureDevOps";
 const BASE = "/api/v1";
 let accessToken = "";
 let tokenProvider: (() => Promise<string>) | null = null;
@@ -579,6 +580,28 @@ const get = (path: string) => request(path);
 const post = (path: string, body: unknown) => request(path, "POST", body);
 
 export const api = {
+  adoIntegration: (): Promise<AdoIntegration> => get("/integrations/azure-devops"),
+  configureAdo: (version: string, project: AdoProject, item_types: AdoItemType[]): Promise<AdoIntegration> =>
+    request("/integrations/azure-devops/connection", "PUT", { version, project, item_types }),
+  importAdoItems: (version: string, item_ids: number[]): Promise<AdoIntegration> =>
+    post("/integrations/azure-devops/imports", { version, item_ids }),
+  previewAdoHandoff: (version: string, assessment_id: string): Promise<AdoIntegration> =>
+    post("/integrations/azure-devops/handoff/preview", { version, assessment_id }),
+  confirmAdoHandoff: (preview_id: string, digest: string): Promise<AdoIntegration> =>
+    post("/integrations/azure-devops/handoff/confirm", { preview_id, digest, confirmed: true }),
+  cancelAdoHandoff: (version: string): Promise<AdoIntegration> =>
+    post("/integrations/azure-devops/handoff/cancel", { version }),
+  previewAdoDiscovery: (version: string, item_ids: number[]): Promise<AdoIntegration> =>
+    post("/integrations/azure-devops/discovery/preview", { version, item_ids }),
+  prepareAdoDiscovery: (version: string, item_ids: number[]): Promise<AdoIntegration> =>
+    post("/integrations/azure-devops/discovery/prepare", { version, item_ids }),
+  reviseAdoDiscovery: (version: string, preview_id: string, brief: AdoDiscoveryBrief): Promise<AdoIntegration> =>
+    post("/integrations/azure-devops/discovery/brief", { version, preview_id, brief }),
+  confirmAdoDiscovery: (preview_id: string, digest: string): Promise<AdoIntegration> =>
+    post("/integrations/azure-devops/discovery/confirm", { preview_id, digest, confirmed: true }),
+  cancelAdoDiscovery: (version: string): Promise<AdoIntegration> =>
+    post("/integrations/azure-devops/discovery/cancel", { version }),
+  resetAdo: (version: string): Promise<AdoIntegration> => post("/integrations/azure-devops/reset", { version }),
   previewDocument: async (file: File, session_id: string, model_id: InferenceModel["id"],
     target_cloud?: CloudProvider): Promise<DocumentPreview> => {
     const query = new URLSearchParams({ session_id, filename: file.name, model_id, ...(target_cloud ? { target_cloud } : {}) });

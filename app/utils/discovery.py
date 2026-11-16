@@ -49,6 +49,7 @@ def raw_discovery_sources(state: WorkflowState) -> list[DiscoverySource]:
         raise ValueError("Discovery payload is required.")
     sources = [DiscoverySource(id=f"note.{note.id}", label=f"Manual {note.role} note; unverified",
                                statement=note.statement) for note in state.discovery.contributions]
+    sources.extend(source.model_copy(deep=True) for source in state.discovery_import_sources)
     if state.discovery.success_measures:
         sources.append(DiscoverySource(id="charter.success_measures",
             label="Proposed success measures; facilitator-recorded, unverified",
@@ -119,7 +120,8 @@ def discovery_sources(state: WorkflowState) -> list[DiscoverySource]:
 def source_digest(state: WorkflowState) -> str:
     if state.discovery is None:
         raise ValueError("Discovery payload is required.")
-    collaborative = bool(state.discovery.processes or state.discovery_tasks or state.discovery_source_reviews)
+    collaborative = bool(state.discovery.processes or state.discovery_tasks or state.discovery_source_reviews
+                         or state.discovery_import_sources)
     sources = discovery_sources(state)
     value = {"objective": state.discovery.objective, "units": state.discovery.business_units,
              "required_topics": state.discovery.required_topics, "excluded_topics": state.discovery.excluded_topics,

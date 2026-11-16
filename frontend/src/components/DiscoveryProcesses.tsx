@@ -204,7 +204,7 @@ export default function DiscoveryProcesses({ record, blocked, onChange, onBusyCh
     <div id="discovery-evidence" tabIndex={-1} className="scroll-mt-6">
     <Card title="Source-linked baseline review" description="Measurements are submitted claims, not automatically verified. Only workspace reviewers can check facts or resolve disagreements.">
       <details><summary>Current process sources</summary>
-        {(record.sources || []).map(source => <article key={source.id} className="mt-3">
+        {(record.sources || []).map(source => <article key={source.id} className="mt-3 break-words">
           <strong>{source.id}</strong><p>{source.label}</p><p className="whitespace-pre-wrap">{source.statement}</p>
           <p>Reference: {source.source_reference || "Stakeholder note"}</p>
           <p>Basis: {source.basis || "self_reported"} / Review: {source.review_status || "not_reviewed"}</p>

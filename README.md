@@ -54,6 +54,16 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
 
 ## What you can do
 
+- **Try the local Azure DevOps integration simulator:** in explicit local-demo
+  mode, open **Integrations** or **Start discovery from connector** in Discovery.
+  Select sources once, review/edit the brief, then explicitly start discovery;
+  the created engagement opens at its next action. Connection settings, delivery
+  handoff and history are separate areas. An administrator configures the fictional
+  project first. You can also import snapshots manually or preview delivery work
+  from a completed assessment. Copied discovery sources stay synthetic,
+  unverified and frozen even after connector refresh/reset. Delivery confirmation
+  creates local simulated items with duplicate prevention. No external account, credentials or real
+  Azure DevOps writes are involved. See the [simulator guide](docs/azure-devops-simulator.md).
 - **Choose a consistent appearance:** public pages, Home, Discovery, assessments
   and team areas share rounded surfaces, local typography and lavender accents.
   Choose Dark, Light or System using Appearance in the public header or workspace

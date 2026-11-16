@@ -8,6 +8,7 @@ import Diagnose from "./components/Diagnose";
 import Analyze from "./components/Analyze";
 import Blueprint from "./components/Blueprint";
 import Portfolio from "./components/Portfolio";
+import Integrations from "./components/Integrations";
 import Home from "./components/Home";
 import type PublicLanding from "./components/Landing";
 import { publicPage } from "./components/publicPages";
@@ -24,7 +25,7 @@ import { Button, Card } from "./components/ui";
 import useInactivitySignOut from "./useInactivitySignOut";
 import { AppearanceControl } from "./Appearance";
 
-type View = "home" | "intake" | "diagnose" | "evidence" | "readiness" | "analyze" | "blueprint" | "workspaces" | "portfolio" | "discovery";
+type View = "home" | "intake" | "diagnose" | "evidence" | "readiness" | "analyze" | "blueprint" | "workspaces" | "portfolio" | "discovery" | "integrations";
 const NAV: { id: View; label: string }[] = [
   { id: "home", label: "Home" },
   { id: "discovery", label: "Discovery engagements" },
@@ -36,6 +37,7 @@ const NAV: { id: View; label: string }[] = [
   { id: "blueprint", label: "4 · Blueprint & Review" },
   { id: "workspaces", label: "Organizations & teams" },
   { id: "portfolio", label: "Sample Portfolio" },
+  { id: "integrations", label: "Integrations" },
 ];
 const POINTER = "agentsense.session.v1";
 function readPointer(): { session: string; identity: string; view: View; workspace?: { organization_id: string; team_id: string } } | null {
@@ -75,7 +77,7 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
   const navigate = useNavigate();
   const previousPath = useRef(location.pathname);
   const [view, setView] = useState<View>("home");
-  const [discoveryEntry, setDiscoveryEntry] = useState<{ id?: string; createNew?: boolean } | null>(null);
+  const [discoveryEntry, setDiscoveryEntry] = useState<{ id?: string; createNew?: boolean; focusOverview?: boolean } | null>(null);
   const [showLanding, setShowLanding] = useState(() => location.pathname !== "/workspace");
   useEffect(() => {
     applyPageMetadata(pageMetadata(publicPage(location.pathname), !showLanding));
@@ -90,6 +92,11 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
   const [documentUnsaved, setDocumentUnsaved] = useState(false);
   const [editorUnsaved, setEditorUnsaved] = useState(false);
   const updateEditorUnsaved = useCallback((dirty: boolean) => setEditorUnsaved(dirty), []);
+  const integrationUnsavedRef = useRef(false);
+  const updateIntegrationUnsaved = useCallback((dirty: boolean) => {
+    integrationUnsavedRef.current = dirty;
+    setEditorUnsaved(dirty);
+  }, []);
   const [intakeEntry, setIntakeEntry] = useState(0);
   const documentUnsavedRef = useRef(false);
   const updateDocumentUnsaved = useCallback((dirty: boolean) => {
@@ -117,10 +124,11 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
   const canWrite = snapshot ? snapshot.permissions.write : workspace?.permissions.write !== false;
   const canDelete = snapshot ? snapshot.permissions.delete : workspace?.permissions.delete !== false;
   const blocker = useBlocker(({ currentLocation, nextLocation, historyAction }) =>
-    historyAction === "POP" && (discoveryUnsavedRef.current || documentUnsavedRef.current) && currentLocation.pathname === "/workspace" && nextLocation.pathname !== "/workspace");
+    historyAction === "POP" && (discoveryUnsavedRef.current || documentUnsavedRef.current || integrationUnsavedRef.current) && currentLocation.pathname === "/workspace" && nextLocation.pathname !== "/workspace");
   useEffect(() => {
     if (blocker.state === "blocked") {
-      if (window.confirm(documentUnsavedRef.current ? "Discard the unapproved document context?" : "Discard unsaved discovery changes?")) blocker.proceed();
+      if (window.confirm(documentUnsavedRef.current ? "Discard the unapproved document context?"
+        : integrationUnsavedRef.current ? "Discard unsaved integration changes?" : "Discard unsaved discovery changes?")) blocker.proceed();
       else blocker.reset();
     }
   }, [blocker]);
@@ -269,11 +277,12 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
   async function changeView(next: View) {
     if (view === "discovery" && next !== view && discoveryUnsaved && !window.confirm("Discard unsaved discovery changes?")) return;
     if (view === "intake" && next !== view && documentUnsaved && !window.confirm("Discard the unapproved document context?")) return;
+    if (view === "integrations" && next !== view && editorUnsaved && !window.confirm("Discard unsaved integration changes?")) return;
     setShowLanding(false);
     if (next === view) return;
     setBusy(true);
     try {
-      if (sessionId && !["workspaces", "discovery"].includes(next)) await refreshSession();
+      if (sessionId && !["workspaces", "discovery", "integrations"].includes(next)) await refreshSession();
       if (next === "discovery") setDiscoveryEntry(null);
       if (next === "home") setHomeLibrary("workflows");
       setView(next); setConfirmDelete(false);
@@ -341,6 +350,7 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
   function newWorkflow() {
     if (view === "discovery" && discoveryUnsaved && !window.confirm("Discard unsaved discovery changes?")) return;
     if (view === "intake" && documentUnsaved && !window.confirm("Discard the unapproved document context?")) return;
+    if (view === "integrations" && editorUnsaved && !window.confirm("Discard unsaved integration changes?")) return;
     setIntakeEntry(current => current + 1);
     forgetPointer(); setSnapshot(null); setView("intake"); setConfirmDelete(false);
     setMessage("New workflow. The previous server session remains until expiry unless deleted.");
@@ -435,15 +445,15 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
         </div>
         <nav aria-label="Workflow steps" className="flex md:block md:flex-1 overflow-x-auto px-4 pb-4 md:pb-5 gap-2 md:space-y-1.5">
           <p className="hidden md:block px-3 pb-2 text-[10px] font-medium uppercase tracking-[0.14em] text-white/70">Workspace</p>
-          {NAV.map((n, index) => (
+          {NAV.filter(n => n.id !== "integrations" || auth?.mode === "local-demo").map((n, index) => (
             <div key={n.id} className={`shrink-0 ${n.id === "portfolio" ? "md:mt-6 md:pt-5 md:border-t border-white/15" : ""}`}>
               {n.id === "portfolio" && <p className="hidden md:block px-3 pb-3 text-[10px] font-medium uppercase tracking-[0.14em] text-white/70">Explore</p>}
-              <button disabled={busy || !identity || starting || (!sessionId && !["home", "intake", "portfolio", "workspaces", "discovery"].includes(n.id))
+              <button disabled={busy || !identity || starting || (!sessionId && !["home", "intake", "portfolio", "workspaces", "discovery", "integrations"].includes(n.id))
                 || (n.id === "intake" && !sessionId && !canWrite)}
                 aria-label={n.label} aria-current={view === n.id ? "step" : undefined} onClick={() => void changeView(n.id)}
                 className="nav-item">
-                <span className="nav-number" aria-hidden="true">{n.id === "home" || n.id === "portfolio" || n.id === "workspaces" || n.id === "discovery"
-                  ? <Icon name={n.id === "workspaces" || n.id === "discovery" ? "portfolio" : n.id} className="h-4 w-4" /> : String(index - 1).padStart(2, "0")}</span>
+                <span className="nav-number" aria-hidden="true">{n.id === "home" || n.id === "portfolio" || n.id === "workspaces" || n.id === "discovery" || n.id === "integrations"
+                  ? <Icon name={n.id === "workspaces" || n.id === "discovery" || n.id === "integrations" ? "portfolio" : n.id} className="h-4 w-4" /> : String(index - 1).padStart(2, "0")}</span>
                 <span>{n.label.replace(/^\d · /, "")}</span>
                 {view === n.id && <span aria-hidden="true" className="ml-auto text-brand-700">›</span>}
               </button>
@@ -550,6 +560,10 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
               onSelect={changeWorkspace} onBusyChange={setBusy} onUnsavedChange={updateEditorUnsaved} initialOrganizationId={workspace?.organization_id || invitedOrganization} />}
             {view === "discovery" && <Discovery canCreate={workspace?.permissions.write !== false}
               initialEngagementId={discoveryEntry?.id} createNew={discoveryEntry?.createNew}
+              focusOverview={discoveryEntry?.focusOverview}
+              onStartFromConnector={auth?.mode === "local-demo" ? () => {
+                setView("integrations"); setConfirmDelete(false); setMessage("");
+              } : undefined}
               onOpen={openWorkflow} onBusyChange={setBusy} onUnsavedChange={updateDiscoveryUnsaved}
               onManageAccess={() => void changeView("workspaces")} />}
             {view === "home" && <Home key={`${identity.identity}:${workspace?.organization_id || ""}:${workspace?.team_id || ""}`}
@@ -597,6 +611,12 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
             {view === "blueprint" && <Blueprint sessionId={sessionId} active canReview={snapshot?.permissions.review === true}
               secureReview={auth?.mode === "oidc"} onRefresh={refreshSession} onBusyChange={setBusy} onUnsavedChange={updateEditorUnsaved} />}
             {view === "portfolio" && <Portfolio />}
+            {view === "integrations" && auth?.mode === "local-demo" && <Integrations
+              key={`${identity.identity}:${workspace?.organization_id || ""}:${workspace?.team_id || ""}`}
+              assessmentId={sessionId} onBusyChange={setBusy} onUnsavedChange={updateIntegrationUnsaved}
+              onOpenDiscovery={(id) => {
+                setDiscoveryEntry({ id, focusOverview: true }); setView("discovery"); setConfirmDelete(false); setMessage("");
+              }} />}
           </div>}
         </div>
       </main>
