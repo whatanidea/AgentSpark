@@ -1,6 +1,7 @@
 // Same-origin API client. In dev, Vite proxies /api → :8000; in prod FastAPI
 // serves this SPA and the API from the same origin, so relative URLs just work.
 import type { AdoDiscoveryBrief, AdoIntegration, AdoItemType, AdoProject } from "./azureDevOps";
+import type { ItemPage, LiveState, ProjectPage } from "./azureDevOpsLive";
 const BASE = "/api/v1";
 let accessToken = "";
 let tokenProvider: (() => Promise<string>) | null = null;
@@ -515,7 +516,8 @@ export function uid(): string {
   });
 }
 
-async function requestResponse(path: string, method = "GET", body?: unknown, file?: File): Promise<Response> {
+async function requestResponse(path: string, method = "GET", body?: unknown, file?: File,
+                               additionalHeaders: Record<string, string> = {}): Promise<Response> {
   const version = authenticationVersion;
   const requireCurrentSignIn = () => {
     if (version !== authenticationVersion) throw new ApiError(0, "Sign-in changed while the request was running. Sign in and reload saved state before retrying.");
@@ -537,7 +539,7 @@ async function requestResponse(path: string, method = "GET", body?: unknown, fil
   const readiness = path === "/ready";
   let r = await fetch(`${readiness ? "" : BASE}${path}`, {
     method, cache: "no-store",
-    headers: { ...(file ? { "Content-Type": file.type || "application/octet-stream" }
+    headers: { ...additionalHeaders, ...(file ? { "Content-Type": file.type || "application/octet-stream" }
       : body === undefined ? {} : { "Content-Type": "application/json" }),
       ...(stream ? { Accept: "application/x-ndjson" } : {}),
       ...(workspace ? { "X-Organization-ID": workspace.organization_id, "X-Team-ID": workspace.team_id } : {}),
@@ -578,6 +580,29 @@ async function request(path: string, method = "GET", body?: unknown) {
 }
 const get = (path: string) => request(path);
 const post = (path: string, body: unknown) => request(path, "POST", body);
+
+async function liveRequest<T>(path: string, method = "GET", body?: unknown, token = ""): Promise<T> {
+  return (await requestResponse("/connectors/azure-devops" + path, method, body, undefined,
+    token ? { "X-Azure-DevOps-Token": token } : {})).json();
+}
+
+export const liveAzureDevOps = {
+  state: () => liveRequest<LiveState>(""),
+  projects: (organization: string, cursor: string, token: string) =>
+    liveRequest<ProjectPage>("/projects", "POST", { organization, cursor }, token),
+  configure: (version: string, organization: string, project_id: string, token: string) =>
+    liveRequest<LiveState>("/connection", "PUT", { version, organization, project_id }, token),
+  disconnect: (version: string) => liveRequest<LiveState>("/disconnect", "POST", { version }),
+  items: (before: number | null, token: string) =>
+    liveRequest<ItemPage>(`/items${before === null ? "" : `?before=${before}`}`, "GET", undefined, token),
+  prepare: (version: string, item_ids: number[], token: string) =>
+    liveRequest<LiveState>("/discovery/prepare", "POST", { version, item_ids }, token),
+  revise: (version: string, preview_id: string, brief: AdoDiscoveryBrief) =>
+    liveRequest<LiveState>("/discovery/brief", "POST", { version, preview_id, brief }),
+  cancel: (version: string) => liveRequest<LiveState>("/discovery/cancel", "POST", { version }),
+  confirm: (preview_id: string, digest: string, token?: string) =>
+    liveRequest<{ engagement_id: string }>("/discovery/confirm", "POST", { preview_id, digest, confirmed: true }, token),
+};
 
 export const api = {
   adoIntegration: (): Promise<AdoIntegration> => get("/integrations/azure-devops"),

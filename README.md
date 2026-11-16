@@ -54,6 +54,13 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
 
 ## What you can do
 
+- **Start discovery from real Azure DevOps work:** in the hosted Microsoft-sign-in
+  workspace, open **Integrations**, connect your Microsoft account and configure
+  an allowed organization/project. Read and select work items once, edit the brief
+  and explicitly confirm discovery. Frozen, privacy-screened evidence is shared
+  with workspace readers; ticket claims remain unverified. Delegated read-only
+  access never creates, changes or deletes Azure DevOps work items. See the
+  [connector setup, permissions and retention guide](docs/azure-devops-connector.md).
 - **Try the local Azure DevOps integration simulator:** in explicit local-demo
   mode, open **Integrations** or **Start discovery from connector** in Discovery.
   Select sources once, review/edit the brief, then explicitly start discovery;
