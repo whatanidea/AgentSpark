@@ -2,12 +2,13 @@ import { useEffect, useLayoutEffect, useState } from "react";
 import { discoveryBrief, type AdoDiscoveryBrief, type AdoIntegration } from "../azureDevOps";
 import { Button, Card } from "./ui";
 
-const fields = [
+export const DISCOVERY_BRIEF_FIELDS = [
   ["title", "Engagement title", 200], ["objective", "Business objective", 2000],
   ["business_units", "Business units in scope", 1000], ["sponsor", "Sponsor", 200],
   ["engagement_owner", "Engagement owner", 200], ["required_topics", "Questions and required topics", 2000],
   ["excluded_topics", "Excluded topics", 2000], ["success_measures", "Success measures", 1000],
 ] as const;
+const fields = DISCOVERY_BRIEF_FIELDS;
 type Stage = "sources" | "brief" | "confirm";
 
 export default function ConnectorDiscovery({ data, busy, onPrepare, onReview, onConfirm, onCancel, onConfigure, onDirtyChange }: {

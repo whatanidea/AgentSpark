@@ -9,6 +9,7 @@ import Analyze from "./components/Analyze";
 import Blueprint from "./components/Blueprint";
 import Portfolio from "./components/Portfolio";
 import Integrations from "./components/Integrations";
+import AzureDevOpsConnector from "./components/AzureDevOpsConnector";
 import Home from "./components/Home";
 import type PublicLanding from "./components/Landing";
 import { publicPage } from "./components/publicPages";
@@ -445,7 +446,7 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
         </div>
         <nav aria-label="Workflow steps" className="flex md:block md:flex-1 overflow-x-auto px-4 pb-4 md:pb-5 gap-2 md:space-y-1.5">
           <p className="hidden md:block px-3 pb-2 text-[10px] font-medium uppercase tracking-[0.14em] text-white/70">Workspace</p>
-          {NAV.filter(n => n.id !== "integrations" || auth?.mode === "local-demo").map((n, index) => (
+          {NAV.map((n, index) => (
             <div key={n.id} className={`shrink-0 ${n.id === "portfolio" ? "md:mt-6 md:pt-5 md:border-t border-white/15" : ""}`}>
               {n.id === "portfolio" && <p className="hidden md:block px-3 pb-3 text-[10px] font-medium uppercase tracking-[0.14em] text-white/70">Explore</p>}
               <button disabled={busy || !identity || starting || (!sessionId && !["home", "intake", "portfolio", "workspaces", "discovery", "integrations"].includes(n.id))
@@ -561,9 +562,9 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
             {view === "discovery" && <Discovery canCreate={workspace?.permissions.write !== false}
               initialEngagementId={discoveryEntry?.id} createNew={discoveryEntry?.createNew}
               focusOverview={discoveryEntry?.focusOverview}
-              onStartFromConnector={auth?.mode === "local-demo" ? () => {
+              onStartFromConnector={() => {
                 setView("integrations"); setConfirmDelete(false); setMessage("");
-              } : undefined}
+              }}
               onOpen={openWorkflow} onBusyChange={setBusy} onUnsavedChange={updateDiscoveryUnsaved}
               onManageAccess={() => void changeView("workspaces")} />}
             {view === "home" && <Home key={`${identity.identity}:${workspace?.organization_id || ""}:${workspace?.team_id || ""}`}
@@ -614,6 +615,12 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
             {view === "integrations" && auth?.mode === "local-demo" && <Integrations
               key={`${identity.identity}:${workspace?.organization_id || ""}:${workspace?.team_id || ""}`}
               assessmentId={sessionId} onBusyChange={setBusy} onUnsavedChange={updateIntegrationUnsaved}
+              onOpenDiscovery={(id) => {
+                setDiscoveryEntry({ id, focusOverview: true }); setView("discovery"); setConfirmDelete(false); setMessage("");
+              }} />}
+            {view === "integrations" && auth?.mode === "oidc" && <AzureDevOpsConnector
+              key={`${identity.identity}:${workspace?.organization_id || ""}:${workspace?.team_id || ""}`}
+              onBusyChange={setBusy} onUnsavedChange={updateIntegrationUnsaved}
               onOpenDiscovery={(id) => {
                 setDiscoveryEntry({ id, focusOverview: true }); setView("discovery"); setConfirmDelete(false); setMessage("");
               }} />}

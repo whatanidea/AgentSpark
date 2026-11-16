@@ -35,6 +35,24 @@ export async function currentToken(): Promise<string> {
   }
 }
 
+export async function azureDevOpsToken(interactive = false): Promise<string> {
+  if (!client || !account) throw new Error("Sign in to AgentSpark with the Microsoft sign-in button before connecting Azure DevOps.");
+  const signedIn = account;
+  const request = { scopes: ["499b84ac-1321-427f-aa17-267ca6975798/.default"], account: signedIn };
+  let result;
+  try {
+    result = interactive ? await client.acquireTokenPopup(request) : await client.acquireTokenSilent(request);
+  } catch (error) {
+    if (!(error instanceof InteractionRequiredAuthError)) throw error;
+    throw new Error("Azure DevOps needs your permission again. Choose Connect Microsoft account.");
+  }
+  if (!account || account.homeAccountId !== signedIn.homeAccountId ||
+      result.account?.homeAccountId !== signedIn.homeAccountId || !result.accessToken) {
+    throw new Error("Microsoft sign-in changed. Reconnect Azure DevOps using your AgentSpark account.");
+  }
+  return result.accessToken;
+}
+
 export async function signOutLocally() {
   account = null;
   await client?.clearCache();
