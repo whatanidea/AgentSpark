@@ -54,6 +54,14 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
 
 ## What you can do
 
+- **Talk before choosing a workflow:** open **Chat** for a familiar conversation
+  thread, private saved history, streamed paragraphs, real progress, Stop and Retry.
+  AgentSpark can suggest **Start Discovery** or **Start Enterprise Intake**;
+  manual alternatives remain available. Edit and save the preview, then explicitly
+  approve copying its selected context before any workflow is created. Unknowns
+  stay blank and user statements remain unverified. Chats expire 30 days after
+  creation without sliding renewal. See the [chat feature record](docs/chat-workspace.md)
+  for privacy, retention, qualification and local-demo limits.
 - **Start discovery from real Azure DevOps work:** in the hosted Microsoft-sign-in
   workspace, open **Integrations**, connect your Microsoft account and configure
   an allowed organization/project. Read and select work items once, edit the brief

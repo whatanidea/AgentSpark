@@ -14,6 +14,7 @@ from app.api.tenants import router as tenant_router
 from app.api.discovery import router as discovery_router
 from app.api.integrations import router as integration_router
 from app.api.azure_devops_live import router as live_integration_router
+from app.api.conversations import router as conversation_router
 from app.api.middleware import RequestSizeLimit, SecurityBoundary, dependency_response
 from app.utils.errors import ConcurrentUpdate, DependencyUnavailable, WorkflowNotFound
 from app.utils.health import readiness
@@ -31,6 +32,7 @@ app.include_router(tenant_router, prefix="/api/v1")
 app.include_router(discovery_router, prefix="/api/v1")
 app.include_router(integration_router, prefix="/api/v1")
 app.include_router(live_integration_router, prefix="/api/v1")
+app.include_router(conversation_router, prefix="/api/v1")
 app.add_middleware(RequestSizeLimit)
 app.add_middleware(SecurityBoundary)
 

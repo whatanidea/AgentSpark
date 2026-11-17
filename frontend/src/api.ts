@@ -119,6 +119,11 @@ export type DiscoveryOrigin = {
   preferred_alternative?: DiscoveryAlternativeKind | null; source_reviews?: DiscoverySourceReview[];
   alignment?: AlignmentSnapshot | null;
 };
+export type ConversationOrigin = {
+  conversation_id: string; draft_id: string; digest: string; reviewed_by: string; reviewed_at: string;
+  fields: Record<string, string>;
+  sources: { id: string; label: string; statement: string; source_reference: string }[];
+};
 export type DiscoveryParticipant = {
   identity_id: string; role: Exclude<InterviewRole, "all">; assigned_by: string; assigned_at: string;
   status: "invited" | "draft" | "submitted"; answers: Record<string, string>; submitted_at: string | null;
@@ -270,6 +275,7 @@ export type ArchivedDecision = {
     runtime_decision?: RuntimeDecision | null;
     executive_brief?: ExecutiveBrief | null;
     discovery_origin?: DiscoveryOrigin | null;
+    conversation_origin?: ConversationOrigin | null;
     workflow_intelligence: { summary: string; systems: string[] } | null;
     suitability_score: { agent_score: number; recommended_pattern: string; explanation: string; adoption?: AdoptionAssessment | null } | null;
     human_review: { decision: "approve" | "reject"; reviewer: string; note: string; reviewed_at: string } | null;
@@ -345,6 +351,7 @@ export type SessionSnapshot = {
   version: string;
   executive_brief: ExecutiveBrief | null;
   discovery_origin: DiscoveryOrigin | null;
+  conversation_origin?: ConversationOrigin | null;
   enterprise_context: Record<string, string>;
   evidence_register: EvidenceEntry[];
   evidence_revision: number;
@@ -456,7 +463,8 @@ function processing(update: ProcessingUpdate) {
   window.dispatchEvent(new CustomEvent<ProcessingUpdate>(PROCESSING_EVENT, { detail: update }));
 }
 
-async function readProcessingResponse(response: Response, id: string, label: string, requireCurrentSignIn: () => void): Promise<Response> {
+async function readProcessingResponse(response: Response, id: string, label: string, requireCurrentSignIn: () => void,
+                                      chat?: ChatStreamOptions): Promise<Response> {
   if (!response.body) throw new ApiError(0, "The processing stream is unavailable. Reload saved state before retrying.");
   const reader = response.body.getReader();
   const decoder = new TextDecoder();
@@ -470,8 +478,13 @@ async function readProcessingResponse(response: Response, id: string, label: str
       throw new ApiError(0, "Invalid processing event. Reload saved state before retrying.");
     }
     if (result) throw new ApiError(0, "Unexpected event after completion. Reload saved state before retrying.");
-    if (event.kind === "stage" && "label" in event && typeof event.label === "string" && event.label.length <= 240) {
-      processing({ id, label, phase: "stage", stage: event.label });
+    if (chat && isChatAccepted(event)) {
+      chat.onAccepted(event);
+    } else if (event.kind === "stage" && "label" in event && typeof event.label === "string" && event.label.length <= 240) {
+      if (chat) chat.onStage(event.label);
+      else processing({ id, label, phase: "stage", stage: event.label });
+    } else if (chat && event.kind === "delta" && "text" in event && typeof event.text === "string" && event.text.length <= 6000) {
+      chat.onDelta(event.text);
     } else if (event.kind === "activity" && "active" in event && typeof event.active === "boolean") {
       processing({ id, label, phase: "activity", active: event.active });
     } else if (event.kind === "result" && "data" in event) {
@@ -516,15 +529,39 @@ export function uid(): string {
   });
 }
 
+export type ChatAccepted = {
+  version: string; title: string;
+  message: { id: string; role: "user"; content: string; at: string; reply_to: null; interrupted: false };
+  pending: { id: string; generation: string; started_at: string };
+};
+function isChatAccepted(value: unknown): value is ChatAccepted & { kind: "accepted" } {
+  if (!value || typeof value !== "object" || !("kind" in value) || value.kind !== "accepted"
+    || !("version" in value) || typeof value.version !== "string" || !value.version || value.version.length > 1000
+    || !("title" in value) || typeof value.title !== "string" || !value.title || value.title.length > 100
+    || !("message" in value) || !value.message || typeof value.message !== "object"
+    || !("pending" in value) || !value.pending || typeof value.pending !== "object") return false;
+  const message = value.message, pending = value.pending;
+  return "id" in message && typeof message.id === "string" && /^[A-Za-z0-9_-]{1,100}$/.test(message.id)
+    && "role" in message && message.role === "user" && "content" in message && typeof message.content === "string"
+    && message.content.length > 0 && message.content.length <= 6000 && "at" in message && typeof message.at === "string"
+    && Number.isFinite(Date.parse(message.at)) && "reply_to" in message && message.reply_to === null
+    && "interrupted" in message && message.interrupted === false && "id" in pending && pending.id === message.id
+    && "generation" in pending && typeof pending.generation === "string" && /^[A-Za-z0-9_-]{1,100}$/.test(pending.generation)
+    && "started_at" in pending && typeof pending.started_at === "string" && Number.isFinite(Date.parse(pending.started_at));
+}
+export type ChatStreamOptions = {
+  signal: AbortSignal; onAccepted: (event: ChatAccepted) => void;
+  onStage: (stage: string) => void; onDelta: (text: string) => void;
+};
 async function requestResponse(path: string, method = "GET", body?: unknown, file?: File,
-                               additionalHeaders: Record<string, string> = {}): Promise<Response> {
+                               additionalHeaders: Record<string, string> = {}, chat?: ChatStreamOptions): Promise<Response> {
   const version = authenticationVersion;
   const requireCurrentSignIn = () => {
     if (version !== authenticationVersion) throw new ApiError(0, "Sign-in changed while the request was running. Sign in and reload saved state before retrying.");
   };
   const id = uid();
-  const track = method !== "GET";
-  const stream = method === "POST" && (path === "/intake" || path.startsWith("/intake/document-preview?") ||
+  const track = method !== "GET" && !path.startsWith("/conversations");
+  const stream = !!chat || method === "POST" && (path === "/intake" || path.startsWith("/intake/document-preview?") ||
     path === "/chat" || path.startsWith("/analyze/") || path.endsWith("/interview/document-lookup") ||
     /^\/engagements\/[^/]+\/synthesis$/.test(path));
   const label = file ? "Document review" : path.startsWith("/analyze/") ? "Workflow analysis and blueprint"
@@ -538,7 +575,7 @@ async function requestResponse(path: string, method = "GET", body?: unknown, fil
   if (track) processing({ id, label, phase: "stage", stage: file ? "Uploading the document" : "Sending the request" });
   const readiness = path === "/ready";
   let r = await fetch(`${readiness ? "" : BASE}${path}`, {
-    method, cache: "no-store",
+    method, cache: "no-store", signal: chat?.signal,
     headers: { ...additionalHeaders, ...(file ? { "Content-Type": file.type || "application/octet-stream" }
       : body === undefined ? {} : { "Content-Type": "application/json" }),
       ...(stream ? { Accept: "application/x-ndjson" } : {}),
@@ -560,7 +597,7 @@ async function requestResponse(path: string, method = "GET", body?: unknown, fil
     throw new ApiError(r.status, `${r.status}: ${detail}`);
   }
   if (stream && r.headers.get("content-type")?.includes("application/x-ndjson")) {
-    r = await readProcessingResponse(r, id, label, requireCurrentSignIn);
+    r = await readProcessingResponse(r, id, label, requireCurrentSignIn, chat);
   }
   requireCurrentSignIn();
   if (track) processing({ id, label, phase: "complete" });
@@ -576,6 +613,12 @@ async function request(path: string, method = "GET", body?: unknown) {
   const version = authenticationVersion;
   const result = await (await requestResponse(path, method, body)).json();
   if (version !== authenticationVersion) throw new ApiError(0, "Sign-in changed while the response was loading. Sign in and reload saved state before retrying.");
+  return result;
+}
+export async function conversationRequest<T>(path = "", method = "GET", body?: unknown, stream?: ChatStreamOptions): Promise<T> {
+  const version = authenticationVersion;
+  const result: T = await (await requestResponse("/conversations" + path, method, body, undefined, {}, stream)).json();
+  if (version !== authenticationVersion) throw new ApiError(0, "Sign-in changed. Reload your conversation.");
   return result;
 }
 const get = (path: string) => request(path);

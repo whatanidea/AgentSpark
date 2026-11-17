@@ -832,8 +832,16 @@ test("Home reports listing failure and refresh recovers", async ({ page }) => {
   await page.goto("/");
   await page.getByRole("button", { name: "Workspace", exact: true }).click();
   await expect(page.getByRole("alert")).toContainText("Workflow library temporarily unavailable.");
+  const reloaded = page.waitForResponse(response => response.url().includes("/api/v1/home?") && response.request().method() === "GET");
   await page.getByRole("button", { name: "Refresh", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "No workflows in this view", exact: true })).toBeVisible();
+  const response = await reloaded;
+  expect(response.ok()).toBe(true);
+  const library = await response.json();
+  if (library.items.length) {
+    await expect(page.getByRole("tabpanel", { name: "Workflow library", exact: true }).getByRole("table")).toBeVisible();
+  } else {
+    await expect(page.getByRole("heading", { name: "No workflows in this view", exact: true })).toBeVisible();
+  }
   await expect(page.getByRole("alert")).toHaveCount(0);
 });
 

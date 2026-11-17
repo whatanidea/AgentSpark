@@ -1,6 +1,7 @@
-export type IconName = "home" | "finance" | "support" | "claims" | "payroll" | "portfolio";
+export type IconName = "home" | "finance" | "support" | "claims" | "payroll" | "portfolio" | "chat";
 
 const paths: Record<IconName, string[]> = {
+  chat: ["M21 11a8 8 0 0 1-8 8H7l-4 3V11a9 9 0 0 1 18 0Z", "M7 9h10M7 13h7"],
   home: ["m3 10 9-7 9 7", "M5 9v12h14V9", "M9 21v-8h6v8"],
   finance: ["M6 3h9l4 4v14H6V3Z", "M14 3v5h5", "M9 12h7M9 16h4"],
   support: ["M4 13v-1a8 8 0 0 1 16 0v1", "M4 12H2v6h4v-6H4Zm16 0h2v6h-4v-6h2Z", "M20 18v3h-7"],
