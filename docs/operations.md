@@ -279,7 +279,7 @@ python -m pip install -r requirements-tools.txt
 npm --prefix frontend ci
 python scripts\check_lock.py
 python scripts\check.py
-npm --prefix frontend audit --audit-level=high
+npm --prefix frontend run audit:dependencies
 npm --prefix frontend exec -- playwright install chromium webkit
 npm --prefix frontend run test:e2e
 ```
@@ -320,6 +320,32 @@ even without code changes. Investigate and update deliberately, not with
 and `pip check` are integrity/compatibility gates, **not a vulnerability audit**.
 Review Python/container advisories and base-image updates as part of release
 approval; CI does not claim an exhaustive security scan.
+
+#### Temporary source-pinned picomatch fix
+
+The user approved the unreleased fix in
+[micromatch/picomatch#254](https://github.com/micromatch/picomatch/pull/254),
+pinned to commit `c63a5bf4e61dbdb81bc41e97dc2616c30acce337` with an
+npm-generated SHA512 archive integrity. It addresses
+[GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf).
+The override covers Vite, tinyglobby and fdir; application runtime dependencies
+are unchanged. This is not an official patched npm release. Its upstream base
+also includes unreleased glob/bracket correctness fixes, so full browser/build
+qualification remains required.
+
+The user separately approved exact-source advisory handling. `audit:dependencies`
+runs the isolated attack-deadline and compatibility regressions, verifies every
+locked picomatch copy's source/integrity and the installed parser SHA256, checks
+all three consumers resolve that copy, and runs npm audit. The original advisory
+and its exclusively dependent findings remain visible as **source-remediated**,
+not hidden or reported as absent. Any changed pin/parser, unresolved/cyclic chain,
+invalid or failed audit response, registry failure, or other high/critical advisory
+fails the gate. This is a narrow reviewed remediation, not a blanket audit waiver.
+
+Run `npm --prefix frontend run test:dependencies` for offline regression checks.
+They are also part of `scripts\check.py --only frontend`. Once an official fix is
+published and reviewed, replace the override, remove this advisory-specific
+classification and source-pin checks, and retain the attack/compatibility tests.
 
 ## Container behavior
 

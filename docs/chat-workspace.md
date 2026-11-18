@@ -14,6 +14,23 @@ The implementation was qualified locally first. The user subsequently approved
 merging and deploying it to the existing staging environment on 2026-11-17.
 The image-only release preserves live/OIDC settings and existing resources.
 
+### Dependency release remediation
+
+PR #56 initially stopped at the npm advisory gate for picomatch. The user approved
+pinning the reviewed upstream fix to immutable commit
+`c63a5bf4e61dbdb81bc41e97dc2616c30acce337`, and separately approved exact-source
+handling of GHSA-fc5q-39xc-vjpf while its version-only advisory remains applicable.
+The SHA512-locked override changes no runtime dependency or build-tool major.
+The gate verifies the parser and all consumers, exercises bounded attack inputs,
+and still rejects audit/registry errors or any other high/critical advisory.
+See [the operations runbook](operations.md#temporary-source-pinned-picomatch-fix).
+
+Local patch qualification: six dependency-security tests and TypeScript/build
+passed. A separate 112,464-case comparison against published picomatch 4.0.7
+preserved matching results. The published baseline exceeded an isolated
+one-second hostile-input deadline; the pinned patch completed. Full exact-source
+CI and staging acceptance remain required before reporting deployment complete.
+
 ## Product and data contract
 
 - Chat is a separate conversational front door, not the existing ten-round

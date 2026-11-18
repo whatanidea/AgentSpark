@@ -36,7 +36,8 @@ def main():
         npm = shutil.which("npm")
         if npm is None:
             parser.error("npm is required for frontend checks")
-        commands.extend([[npm, "--prefix", "frontend", "run", "typecheck"],
+        commands.extend([[npm, "--prefix", "frontend", "run", "test:dependencies"],
+                         [npm, "--prefix", "frontend", "run", "typecheck"],
                          [npm, "--prefix", "frontend", "run", "build"]])
     with TemporaryDirectory(prefix="agentspark-check-") as directory:
         env = offline_environment()

@@ -43,7 +43,7 @@ jobs:
       - name: Restore locked frontend and check dependency advisories
         run: |
           npm --prefix frontend ci
-          npm --prefix frontend audit --audit-level=high
+          npm --prefix frontend run audit:dependencies
       - name: Backend regressions, evaluations, types and SPA build
         run: python scripts/check.py
       - name: Browser workflow regressions
