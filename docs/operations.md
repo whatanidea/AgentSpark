@@ -341,6 +341,9 @@ and its exclusively dependent findings remain visible as **source-remediated**,
 not hidden or reported as absent. Any changed pin/parser, unresolved/cyclic chain,
 invalid or failed audit response, registry failure, or other high/critical advisory
 fails the gate. This is a narrow reviewed remediation, not a blanket audit waiver.
+The existing high/critical threshold is unchanged: unrelated moderate or lower
+advisories are printed, not treated as source-fixed and not promoted to blockers
+just because npm combines them with the remediated high finding in a parent entry.
 
 Run `npm --prefix frontend run test:dependencies` for offline regression checks.
 They are also part of `scripts\check.py --only frontend`. Once an official fix is

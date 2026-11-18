@@ -56,11 +56,14 @@ export function classifyAudit(report) {
     assert(!ancestors.has(name), "Cyclic audit advisory chain.");
     const finding = vulnerabilities[name];
     assert(finding, "Unresolved audit advisory chain.");
+    if (["info", "low", "moderate"].includes(finding.severity)) return true;
     if (!finding.via.length) return false;
     const visited = new Set([...ancestors, name]);
     return finding.via.every(item => {
       if (typeof item === "string") return onlyPatched(item, visited);
       assert(item && typeof item === "object", "Invalid audit advisory.");
+      assert(["info", "low", "moderate", "high", "critical"].includes(item.severity), "Unknown advisory severity.");
+      if (["info", "low", "moderate"].includes(item.severity)) return true;
       return name === "picomatch" && item.name === "picomatch" && item.url === advisory;
     });
   }
@@ -88,11 +91,21 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   });
   if (result.stderr) process.stderr.write(result.stderr);
   const { remediated, blocking } = parseAudit(result);
+  const report = JSON.parse(result.stdout);
+  console.log(`npm audit findings before source verification: ${JSON.stringify(report.metadata.vulnerabilities)}`);
+  for (const [name, finding] of Object.entries(report.vulnerabilities)) {
+    for (const item of finding.via) {
+      if (typeof item === "object" && item.url !== advisory) {
+        console.log(`REPORTED ${item.severity} ${name}: ${item.title || item.url} (${item.url})`);
+      }
+    }
+  }
   if (remediated.length) {
     console.log(`SOURCE-REMEDIATED (not an official npm release): ${advisory}`);
     console.log(`Verified immutable source, archive integrity, installed parser and consumers: ${patchedSource}`);
-    console.log(`npm version-only findings remain visible: ${remediated.join(", ")}.`);
+    console.log(`High/critical portions of npm version-only findings remediated: ${remediated.join(", ")}. Lower-severity advisories remain reported.`);
   }
+  for (const name of blocking) console.error(JSON.stringify(report.vulnerabilities[name]));
   assert.equal(blocking.length, 0, `Unremediated high/critical npm findings: ${blocking.join(", ")}`);
   console.log("Dependency security gate passed; no other high/critical findings accepted.");
 }

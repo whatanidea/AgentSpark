@@ -94,6 +94,20 @@ test("new advisories, changed package attribution and mixed advisory chains stil
   assert.deepEqual(classifyAudit(report({
     picomatch: finding("picomatch", []),
   })).blocking, ["picomatch"]);
+  const moderate = { ...other, severity: "moderate" };
+  assert.deepEqual(classifyAudit(report({
+    picomatch: finding("picomatch", [known]),
+    vite: finding("vite", ["picomatch", moderate]),
+  })).blocking, []);
+  assert.deepEqual(classifyAudit(report({
+    picomatch: finding("picomatch", [known]),
+    other: finding("other", [moderate], "moderate"),
+    vite: finding("vite", ["picomatch", "other"]),
+  })).blocking, []);
+  assert.deepEqual(classifyAudit(report({
+    picomatch: finding("picomatch", [known]),
+    vite: finding("vite", ["picomatch", moderate, other]),
+  })).blocking, ["vite"]);
 });
 
 test("audit transport errors, invalid/incomplete output and unresolved/cyclic chains fail closed", () => {
