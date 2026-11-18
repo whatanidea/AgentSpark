@@ -67,7 +67,7 @@ test("Home design preview fits narrow, tablet and desktop layouts in both themes
       expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
       const brand = (await page.getByRole("banner").locator(".landing-brand").boundingBox())!;
       expect(brand.x + brand.width).toBeLessThanOrEqual(bounds.x);
-      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Smarter work.Stronger business.");
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Clarity beforecommitment.");
       await expectReadable(page.locator(".concept-site"));
     }
   }
@@ -124,7 +124,7 @@ test("Home design preview keeps menus and opt-in booking readable, keyboard acce
   for (const theme of ["dark", "light"]) {
     if (theme === "light") await page.getByRole("combobox", { name: "Appearance", exact: true }).selectOption("light");
     const nav = page.getByRole("navigation", { name: "Product navigation" });
-    for (const name of ["Consulting", "Platform", "Solutions", "Resources"]) {
+    for (const name of ["Platform", "Solutions", "Resources", "Consulting"]) {
       const menu = nav.getByRole("button", { name, exact: true });
       await menu.focus(); await page.keyboard.press("Enter");
       await expectReadable(page.getByRole("banner"));
@@ -156,7 +156,7 @@ test("shared appearance persists across public routes and the private workspace"
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(page.getByRole("combobox", { name: "Appearance", exact: true })).toHaveValue("light");
     await expect(page.getByRole("heading", { level: 1 }).first()).toHaveCSS("font-family", /AgentSpark Public/);
-    if (path !== "/workspace") await expect(page.locator(".editorial-site")).toHaveCSS("background-color", "rgb(250, 249, 246)");
+    if (path !== "/workspace") await expect(page.locator(".editorial-site")).toHaveCSS("background-color", "rgb(244, 243, 236)");
   }
   await page.goto("/");
   await expect(page.getByRole("combobox", { name: "Appearance", exact: true })).toHaveValue("light");

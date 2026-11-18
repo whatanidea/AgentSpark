@@ -11,6 +11,7 @@ import Portfolio from "./components/Portfolio";
 import Integrations from "./components/Integrations";
 import AzureDevOpsConnector from "./components/AzureDevOpsConnector";
 import Home from "./components/Home";
+import BrandMark from "./components/BrandMark";
 import type PublicLanding from "./components/Landing";
 import { publicPage } from "./components/publicPages";
 import { applyPageMetadata, pageMetadata } from "./publicMetadata";
@@ -440,11 +441,11 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
         <div className="px-5 py-5 md:px-6 md:pt-7 md:pb-6">
           <div className="flex items-center gap-3">
             <span className="portal-brand-mark grid place-items-center h-10 w-10" aria-hidden="true">
-              <svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="m12 2 2.7 7.3L22 12l-7.3 2.7L12 22l-2.7-7.3L2 12l7.3-2.7L12 2Z" fill="currentColor" /></svg>
+              <BrandMark />
             </span>
             <div>
               <div className="text-xl font-medium tracking-tight text-white">AgentSpark</div>
-              <p className="text-[11px] text-white/70 mt-0.5">Enterprise transformation advisor</p>
+              <p className="text-[11px] text-white/70 mt-0.5">Enterprise AI decision workspace</p>
             </div>
           </div>
           <p className="hidden md:block text-xs leading-relaxed text-white/70 mt-5">The agent that tells you where agents belong.</p>

@@ -18,9 +18,9 @@ test.describe("public HTML without JavaScript", () => {
       expect(await alias.text()).toContain(`data-page="${entry.path}"`);
       const metadata = pageMetadata(entry);
       await expect(page).toHaveTitle(entry.path === "/"
-        ? "AgentSpark | AI Consulting & Assessment for SMEs" : `${entry.name} | AgentSpark`);
+        ? "AgentSpark | Clarity before commitment" : `${entry.name} | AgentSpark`);
       await expect(page.locator("main")).toBeVisible();
-      await expect(page.locator("h1")).toHaveText(entry.path === "/" ? "Smarter work.Stronger business." : entry.title);
+      await expect(page.locator("h1")).toHaveText(entry.path === "/" ? "Clarity beforecommitment." : entry.title);
       expect((await page.locator("main").innerText()).length).toBeGreaterThan(250);
       for (const [key, content] of Object.entries(metadata.meta)) {
         await expect(page.locator(`meta[${key.startsWith("og:") ? "property" : "name"}="${key}"]`))
@@ -73,7 +73,9 @@ test.describe("public HTML without JavaScript", () => {
     await expect(categories.getByRole("link")).toHaveCount(4);
     await categories.getByRole("link", { name: "Platform", exact: true }).click();
     await expect(page).toHaveURL("/platform");
-    await expect(page.getByRole("button", { name: "Start discovery", exact: true })).toBeDisabled();
+    const discoveryActions = page.getByRole("button", { name: "Start discovery", exact: true });
+    await expect(discoveryActions).toHaveCount(2);
+    for (const action of await discoveryActions.all()) await expect(action).toBeDisabled();
     expect(await page.locator("body > noscript").textContent()).toContain("assessment tools require JavaScript");
     await page.getByRole("link", { name: "Book a consultation", exact: true }).first().click();
     await expect(page).toHaveURL(destination);
@@ -104,7 +106,7 @@ test("public HTML conversion story has four concise menus, specific labels and o
   const nav = page.getByRole("navigation", { name: "Product navigation" });
   const mobile = page.getByRole("button", { name: "Open navigation", exact: true });
   if (await mobile.isVisible()) await mobile.click();
-  await expect(nav.getByRole("button")).toHaveText(["Consulting", "Platform", "Solutions", "Resources"]);
+  await expect(nav.getByRole("button")).toHaveText(["Platform", "Solutions", "Resources", "Consulting"]);
   expect(await nav.locator("a").count()).toBe(15);
   for (const summary of await nav.locator(".premium-menu-links li small").allTextContents()) {
     expect(summary.length).toBeLessThanOrEqual(60);
@@ -113,17 +115,18 @@ test("public HTML conversion story has four concise menus, specific labels and o
   const close = page.getByRole("button", { name: "Close navigation", exact: true });
   if (await close.isVisible()) await close.click();
   await expect(page.getByRole("contentinfo").getByRole("link", { name: "About", exact: true })).toBeVisible();
-  await expect(page.locator("#top").getByRole("link", { name: "Book a consultation", exact: true })).toBeVisible();
-  await expect(page.locator(".invitation-copy").getByRole("link", { name: "Book a consultation", exact: true })).toBeVisible();
+  await expect(page.locator("#top").getByRole("link", { name: "Explore an example", exact: false })).toBeVisible();
+  await expect(page.locator("#top").getByRole("link", { name: "Book a consultation", exact: true })).toHaveCount(0);
+  await expect(page.locator(".invitation-copy").getByRole("button", { name: "Start discovery", exact: false })).toBeVisible();
   await expect(page.locator(".premium-technology")).toHaveCount(0);
   expect(await page.locator("main").textContent()).not.toMatch(/decision-first blueprint|orchestration|deterministic validation|source provenance/i);
-  const actions = page.locator(".public-capability-card .public-card-action, .editorial-chapters a");
+  const actions = page.locator(".public-capability-card .public-card-action, .clarity-method .public-text-link");
   const names = await actions.allTextContents();
-  expect(names).toHaveLength(8);
-  expect(new Set(names).size).toBe(8);
+  expect(names).toHaveLength(5);
+  expect(new Set(names).size).toBe(5);
   expect(names.join(" ")).not.toMatch(/See the capability|Explore the offering/);
   await expect(page.locator(".public-capability-card > div > span")).toHaveCount(0);
-  await expect(page.locator(".editorial-chapter-number")).toHaveText(["PLAN", "EQUIP", "TEST", "GROW"]);
+  await expect(page.locator(".editorial-chapter-number")).toHaveCount(0);
   const showcase = page.locator("#product-showcase");
   await expect(showcase.locator(".premium-product-tabs small")).toHaveText(["01", "02", "03", "04", "05"]);
   for (const tab of await showcase.getByRole("tab").all()) {
@@ -138,7 +141,7 @@ test("public HTML metadata stays consistent after client navigation and workspac
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/");
   await expect(page.getByRole("button", { name: "Assess my workflow", exact: true }).first()).toBeEnabled();
-  await expect(page).toHaveTitle("AgentSpark | AI Consulting & Assessment for SMEs");
+  await expect(page).toHaveTitle("AgentSpark | Clarity before commitment");
   await expect(page.locator("h1")).toHaveCount(1);
   await page.getByRole("link", { name: /Explore consulting/, exact: false }).first().click();
   await expect(page).toHaveURL("/consulting");
@@ -146,7 +149,7 @@ test("public HTML metadata stays consistent after client navigation and workspac
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", "Consulting overview | AgentSpark");
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "/consulting");
   await page.goBack();
-  await expect(page).toHaveTitle("AgentSpark | AI Consulting & Assessment for SMEs");
+  await expect(page).toHaveTitle("AgentSpark | Clarity before commitment");
   await page.getByRole("button", { name: "Assess my workflow", exact: true }).first().click();
   await expect(page).toHaveURL("/workspace");
   await expect(page).toHaveTitle("Workspace | AgentSpark");
@@ -171,9 +174,9 @@ test("public HTML stays readable during delayed startup and controls work at DOM
   const navigation = page.goto("/", { waitUntil: "domcontentloaded" });
   try {
     await expect.poll(() => requested).toBe(true);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Smarter work.Stronger business.");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Clarity beforecommitment.");
     await expect(page.locator("main")).toBeVisible();
-    await expect(page).toHaveTitle("AgentSpark | AI Consulting & Assessment for SMEs");
+    await expect(page).toHaveTitle("AgentSpark | Clarity before commitment");
     await expect(page.getByText("Loading product overview", { exact: false })).toHaveCount(0);
   } finally {
     release();
@@ -181,7 +184,7 @@ test("public HTML stays readable during delayed startup and controls work at DOM
   }
   const appearance = page.getByRole("combobox", { name: "Appearance", exact: true });
   await expect(appearance).toHaveValue("light");
-  await expect(page.locator(".concept-site")).toHaveCSS("background-color", "rgb(250, 249, 246)");
+  await expect(page.locator(".concept-site")).toHaveCSS("background-color", "rgb(244, 243, 236)");
   await appearance.selectOption("dark");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await appearance.selectOption("light");

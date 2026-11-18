@@ -15,6 +15,7 @@ import { MarketingIcon, PageVisual } from "./MarketingVisuals";
 import { SignalField } from "./EditorialExperience";
 import { publicPage } from "./publicPages";
 import { FeaturedCapabilities, PublicCollection, SolutionStory } from "./PublicCollections";
+import BrandMark from "./BrandMark";
 import "./Landing.css";
 import "./Marketing.css";
 import "./Premium.css";
@@ -97,20 +98,19 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
     <main id="landing-main" key={page?.path ?? pathname}>
       {home ? <section id="top" className="landing-hero landing-container" aria-labelledby="landing-title">
         <div className="landing-hero-copy">
-          <div className="editorial-hero-meta"><div className="landing-kicker"><span aria-hidden="true" /> Practical AI consulting for small and medium-sized businesses</div>
-            <span>INDEPENDENT THINKING / PRACTICAL DELIVERY</span></div>
-          <h1 ref={title} tabIndex={-1} id="landing-title">Smarter work.<br /><span><em>Stronger</em> business.</span></h1>
+          <div className="editorial-hero-meta"><div className="landing-kicker"><span aria-hidden="true" /> The enterprise AI decision workspace</div></div>
+          <h1 ref={title} tabIndex={-1} id="landing-title">Clarity before<br /><span>commitment.</span></h1>
+        </div>
           <div className="editorial-hero-bottom">
-            <p>We help small and medium-sized businesses find practical uses for AI, reduce repetitive work and choose a sensible first project. Start with one business problem, not a list of tools.</p>
+            <p>Find where AI belongs in your business. Connect the evidence, compare the alternatives, and make the next decision with confidence.</p>
             <div><div className="landing-actions">
-              <ConsultationLink onBook={bookConsultation} />
-              <Link className="landing-button landing-button-secondary" to="/consulting">Explore consulting <span aria-hidden="true">→</span></Link>
+              <Link className="landing-button landing-button-primary" to="/resources/example-assessment">Explore an example <span aria-hidden="true">→</span></Link>
+              <button className="editorial-product-link" disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">→</span></button>
             </div>
             <a className="editorial-product-link" href="#product-showcase">See how it works <span aria-hidden="true">→</span></a></div>
-          </div>
           <p className="landing-fine">Already have a workflow in mind? <button className="marketing-inline-action" disabled={disabled} onClick={onStart}>{startLabel}</button></p>
           {message && <p role="status" className="landing-feedback">{message}</p>}
-        </div>
+          </div>
         <SignalField />
       </section> : <section id="top" className="marketing-page-hero landing-container" aria-labelledby="landing-title">
         <div className="premium-page-copy">
@@ -137,12 +137,19 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
         <div><MarketingIcon name="evidence" /><span>Understand why an improvement is suggested</span></div>
         <div><MarketingIcon name="blueprint" /><span>Review a clear plan before investing</span></div>
       </aside>}
+      {(home || page?.path === "/platform" || page?.path === "/resources/how-it-works") && <div className="clarity-story-band"><ProductShowcase /></div>}
       {(home || page?.path === "/platform" || page?.path === "/resources/whats-new") && <FeaturedCapabilities />}
-      {(home || page?.path === "/platform" || page?.path === "/resources/how-it-works") && <ProductShowcase />}
-      {home && <HomeConsulting disabled={disabled} onDiscover={onDiscover} onBook={bookConsultation} />}
+      {home && <section className="clarity-method landing-container" aria-labelledby="clarity-method-title">
+        <div><p className="landing-eyebrow">The AgentSpark method</p><h2 id="clarity-method-title">Good judgment is knowing<br />what not to automate.</h2></div>
+        <div><p>Process improvement, predictable rules, AI assistance and human decisions belong in the same conversation. Technology is a choice, not the starting assumption.</p>
+          <Link className="public-text-link" to="/resources/decision-guide">Prepare a better decision <span aria-hidden="true">→</span></Link>
+          <p className="clarity-advisory-note">Looking for hands-on advisory support? <Link to="/consulting">Explore consulting</Link>. Services are separately scoped; they are not included with the software.</p></div>
+      </section>}
       {page?.path === "/solutions" && <HomeUseCases />}
       {page?.path === "/platform" && <TechnologyBoundaries />}
-      {consultingPage && <ConsultingContent path={page.path} disabled={disabled} onDiscover={onDiscover} onBook={bookConsultation} />}
+      {consultingPage && <><p className="clarity-service-boundary landing-container">ADVISORY SERVICES / A separately scoped engagement, not a software subscription.</p>
+        {page.path === "/consulting" && <HomeConsulting disabled={disabled} onDiscover={onDiscover} onBook={bookConsultation} />}
+        <ConsultingContent path={page.path} disabled={disabled} onDiscover={onDiscover} onBook={bookConsultation} /></>}
 
       {page?.path === "/platform/architecture" && <section data-reveal className="landing-section landing-container" aria-labelledby="architecture-example-title">
         <ArchitectureIllustration />
@@ -270,18 +277,18 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
         ].map(([title, detail]) => <details key={title}><summary>{title}<span aria-hidden="true">+</span></summary><p>{detail}</p></details>)}</div>
       </section>}
 
-      {page && <DiscoveryInvitation onBook={bookConsultation} />}
+      {page && <DiscoveryInvitation onBook={bookConsultation} onDiscover={onDiscover} disabled={disabled} consulting={consultingPage} />}
     </main>
     <footer className="landing-footer landing-container premium-footer">
-      <div><span className="landing-brand"><span className="landing-brand-mark" aria-hidden="true">✦</span>AgentSpark</span>
-        <p>Practical AI advice for small and medium-sized businesses.<br />Start with the work, not the technology.</p><small>Your team stays in control.</small></div>
+      <div><span className="landing-brand"><span className="landing-brand-mark" aria-hidden="true"><BrandMark /></span>AgentSpark</span>
+        <p>Clarity before commitment.<br />The enterprise AI decision workspace.</p><small>Evidence-led. Human-reviewed.</small></div>
       <div><strong>Consulting</strong><Link to="/consulting">Consulting overview</Link><Link to="/consulting/readiness">Opportunity & readiness</Link>
         <Link to="/consulting/workspace-launch">Workspace launch</Link><Link to="/consulting/workflow-pilot">Workflow pilot</Link><Link to="/consulting/adoption">Adoption & optimization</Link></div>
       <div><strong>Platform</strong><Link to="/platform">Platform overview</Link><Link to="/platform/discovery">Discovery</Link><Link to="/platform/alignment">Alignment &amp; decisions</Link>
         <Link to="/platform/prioritization">Compare opportunities</Link><Link to="/platform/assessment">Assessment</Link><Link to="/platform/architecture">Visual blueprints</Link><Link to="/platform/workspaces">Team workspaces</Link></div>
       <div><strong>Explore</strong><Link to="/solutions">Solutions</Link><Link to="/resources">Resources</Link><Link to="/about">About</Link>
         <Link to="/resources/decision-guide">Decision review guide</Link><Link to="/resources/example-assessment">Example assessment</Link><Link to="/resources/trust">Trust & limitations</Link>
-        <ConsultationLink onBook={bookConsultation} className="consulting-text-link" label="Contact & booking" /></div>
+        <ConsultationLink onBook={bookConsultation} className="consulting-text-link" label="Book a consultation" /></div>
       <a className="premium-back-top" href="#top">Back to top ↑</a>
     </footer>
     {bookingPath === pathname && <ConsultationBooking onClose={() => setBookingPath(null)} />}

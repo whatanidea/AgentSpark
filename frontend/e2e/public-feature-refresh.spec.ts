@@ -1,5 +1,39 @@
 import { expect, test } from "@playwright/test";
 
+test("public feature refresh Clarity hero shows original evidence and a reviewable artifact before the fold", async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 1000 });
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await page.evaluate(() => document.fonts.ready);
+  const hero = page.locator("#top");
+  await expect(hero.getByRole("heading", { level: 1 })).toHaveAccessibleName("Clarity before commitment.");
+  await expect(hero.locator(".clarity-source")).toHaveCount(3);
+  const brief = hero.locator(".clarity-decision");
+  await expect(brief).toContainText("Fictional example");
+  await expect(brief).toContainText("Unverified inputs");
+  await expect(brief).toContainText("Human review");
+  const bounds = (await brief.boundingBox())!;
+  expect(bounds.y).toBeGreaterThan(0);
+  expect(bounds.y + bounds.height).toBeLessThanOrEqual(1000);
+  await expect(hero.getByRole("link", { name: "Explore an example", exact: false })).toHaveAttribute("href", "/resources/example-assessment");
+  await expect(page.locator(".clarity-story-band")).toHaveCSS("background-color", "rgb(244, 243, 236)");
+  await expect(page.locator(".clarity-method")).toContainText("not included with the software");
+  await hero.getByRole("link", { name: "Explore an example", exact: false }).click();
+  await expect(page).toHaveURL(/\/resources\/example-assessment$/);
+  await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
+  await page.goto("/platform/architecture");
+  const flow = page.locator(".proof-connected-flow li").nth(1);
+  const connectorMatchesAccent = await flow.evaluate(element => {
+    const probe = document.createElement("span");
+    probe.style.color = "var(--accent)";
+    element.append(probe);
+    const matches = getComputedStyle(element, "::before").color === getComputedStyle(probe).color;
+    probe.remove();
+    return matches;
+  });
+  expect(connectorMatchesAccent).toBe(true);
+});
+
 test("public feature refresh surfaces shipped capabilities and connects them to dedicated pages", async ({ page }) => {
   await page.goto("/");
   const features = page.getByRole("region", { name: "Get your team together. Make a clearer decision.", exact: true });

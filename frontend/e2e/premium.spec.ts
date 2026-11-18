@@ -8,10 +8,10 @@ test("editorial journey, product stages and technology boundaries explain capabi
   });
   await page.goto("/");
   const hero = page.getByRole("figure", { name: "Illustrative journey from business friction to human-reviewed progress" });
-  await expect(hero).toContainText("Customer-owned tools");
-  await expect(hero).toContainText("Human-reviewed progress");
+  await expect(hero).toContainText("Source statements");
+  await expect(hero).toContainText("Human review");
   await expect(hero).toContainText("Not a connected system or an autonomous workflow");
-  await expect(hero).toHaveCSS("background-color", "rgb(16, 16, 23)");
+  await expect(hero.locator(".clarity-decision")).toHaveCSS("background-color", "rgb(244, 243, 236)");
   await page.getByRole("link", { name: "See how it works", exact: false }).click();
   const showcase = page.getByRole("region", { name: "See the work. Then decide what changes.", exact: true });
   await expect(showcase.getByRole("tabpanel", { name: /Discover/ })).toContainText("Clarification needed");
@@ -23,7 +23,7 @@ test("editorial journey, product stages and technology boundaries explain capabi
   await expect(showcase.locator(".premium-screen-footer")).toContainText("No model calls or records created.");
   await expect(showcase).toContainText("it does not authorize implementation");
   await expect(showcase).toContainText("No measured savings or pilot authorization.");
-  await expect(showcase.locator(".premium-product-screen")).toHaveCSS("background-color", "rgb(8, 8, 12)");
+  await expect(showcase.locator(".premium-product-screen")).toHaveCSS("background-color", "rgb(244, 243, 236)");
   await expect(page.locator(".premium-technology")).toHaveCount(0);
   await page.goto("/platform");
   const technology = page.getByRole("region", { name: "Your decisions first. The stack follows.", exact: true });
@@ -103,6 +103,7 @@ test("workflow review opens the protected existing discovery flow without a fake
     mode: "oidc", retention_hours: 24, archive_retention_days: 30,
   } }));
   await page.goto("/");
+  await page.goto("/consulting");
   const buyer = page.getByRole("region", { name: "A deliberate journey. Not another AI experiment.", exact: true });
   await expect(buyer).toContainText("not a booked consultation or a promise of follow-up");
   await buyer.getByRole("button", { name: "Start a workflow review", exact: false }).click();

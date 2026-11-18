@@ -4,7 +4,7 @@
 
 **The agent that tells you where agents belong.**
 
-AgentSpark combines **SME AI consulting with an evidence-led assessment platform**.
+AgentSpark is an **evidence-led enterprise AI decision workspace**.
 It helps teams decide whether, where, and how to use AI agents, turning discovery
 and workflow interviews into scored assessments, cloud-specific architecture
 recommendations, an illustrative business case, and a reviewable blueprint.
@@ -15,7 +15,7 @@ recommendations, an illustrative business case, and a reviewable blueprint.
 all public routes from the same React components and route definitions. The initial
 HTTP response contains the real page content, links, design styles and page-specific
 titles, descriptions and social preview metadata, without requiring JavaScript.
-Home is titled **AgentSpark | AI Consulting & Assessment for SMEs**. Canonical
+Home is titled **AgentSpark | Clarity before commitment**. Canonical
 paths resolve against the serving origin, without assuming a production domain.
 
 This is build-time HTML generation followed by a client mount, not runtime SSR
@@ -28,7 +28,13 @@ JavaScript; the static page explains this and offers direct public navigation.
 Public pages have a dedicated client entry that completes their interactive mount
 before `DOMContentLoaded`, while the private entry retains lazy public-site loading.
 No private records, user identity or consulting-calendar requests enter the build.
-The public website leads with practical SME consulting and consultation booking.
+The public website leads with the product and a fictional, source-linked decision
+example. Consulting remains available on dedicated, separately scoped service pages;
+it is not included with the software. The approved **Clarity, engineered** identity
+uses ink/forest, warm ivory, pale lime, original vector artwork and controllable
+motion. Public pages, workspace controls and Chat share the same semantic theme
+tokens, while the private workspace avoids decorative animation. See the
+[design feature record](docs/clarity-engineered-design.md) for scope and qualification.
 Technical detail and secondary audiences remain on dedicated pages. Four concise
 navigation groups lead to a smaller set of entry points; overview pages and the
 footer keep the full public content reachable. On Home, only the five-stage product

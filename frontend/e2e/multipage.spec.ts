@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 
 const pages = [
-  ["/", "Home", "Smarter work. Stronger business."],
+  ["/", "Home", "Clarity before commitment."],
   ["/consulting", "Consulting overview", "Build an AI-native business. One deliberate step at a time."],
   ["/consulting/readiness", "AI Opportunity & Readiness", "Find the right starting point. Not just another AI tool."],
   ["/consulting/workspace-launch", "Secure AI Workspace Launch", "Give your team a considered start with AI."],
@@ -78,7 +78,7 @@ test("discovery invitation animates once, replays accessibly and stays static on
   expect(await invitation.evaluate(node => node.getAnimations({ subtree: true }).length)).toBe(0);
   await expect(replay).toBeHidden();
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  expect((await invitation.getByRole("link", { name: "Book a consultation", exact: true }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
+  expect((await invitation.getByRole("button", { name: "Start discovery", exact: false }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
   expect(writes).toEqual([]);
 });
 
@@ -159,7 +159,7 @@ test("all 17 public URLs render focused content, metadata and refresh safely", a
     const response = await page.goto(path);
     expect(response!.status()).toBe(200);
     await expect(page.getByRole("heading", { level: 1, name: heading, exact: true })).toBeVisible();
-    await expect(page).toHaveTitle(path === "/" ? "AgentSpark | AI Consulting & Assessment for SMEs" : `${name} | AgentSpark`);
+    await expect(page).toHaveTitle(path === "/" ? "AgentSpark | Clarity before commitment" : `${name} | AgentSpark`);
     await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /[a-zA-Z].{30}/);
     await page.reload();
     await expect(page.getByRole("heading", { level: 1, name: heading, exact: true })).toBeVisible();
@@ -269,7 +269,7 @@ test("browser Back protects an unsaved discovery draft without creating records"
       writes.push(request.method());
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "Start a workflow review", exact: false }).first().click();
+  await page.getByRole("button", { name: "Start discovery", exact: false }).first().click();
   await expect(page.getByRole("heading", { name: "Discovery engagements", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "New discovery engagement", exact: true }).click();
   const title = page.getByRole("textbox", { name: "Engagement title", exact: true });

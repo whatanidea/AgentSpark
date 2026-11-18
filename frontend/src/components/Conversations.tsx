@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import { api, ApiError, uid } from "../api";
 import { conversations, type ChatDraft, type ChatKind, type ChatSummary, type Conversation } from "../conversations";
 import { Button } from "./ui";
+import BrandMark from "./BrandMark";
 import "./Conversations.css";
 
 const labels: Record<string, string> = {
@@ -288,7 +289,7 @@ export default function Conversations({ workspaceName, demo, canCreate, onBusyCh
   const filtered = items.filter(item => item.title.toLowerCase().includes(search.toLowerCase()));
   return <section className="conversation-workspace" aria-label="Conversation workspace">
     <aside className="chat-sidebar" aria-label="Private conversation history">
-      <div className="chat-brand"><span aria-hidden="true" className="chat-spark">✦</span><strong>AgentSpark Chat</strong></div>
+      <div className="chat-brand"><span aria-hidden="true" className="chat-spark"><BrandMark /></span><strong>AgentSpark Chat</strong></div>
       <Button disabled={busy || !model} onClick={() => {
         if (!mayLeave()) return;
         setChat(null); setComposer(""); setPreviewDirty(false); setPreviewOpen(true); setError(""); setPartial(""); setRenaming(false);
@@ -348,7 +349,7 @@ export default function Conversations({ workspaceName, demo, canCreate, onBusyCh
         follow.current = element.scrollHeight - element.scrollTop - element.clientHeight < 120;
       }}>
         {!chat?.messages.length && !sending && <div className="chat-welcome">
-          <span className="chat-orb" aria-hidden="true">✦</span>
+          <span className="chat-orb" aria-hidden="true"><BrandMark /></span>
           <p className="eyebrow">From conversation to clarity</p>
           <h2>What could work better?</h2>
           <p>Explore a process, untangle a bottleneck or assess a known workflow.

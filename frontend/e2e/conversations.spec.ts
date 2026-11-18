@@ -1,4 +1,5 @@
 import { expect, test, type Page } from "@playwright/test";
+import { expectReadable } from "./appearance";
 
 const root = (page: Page) => page.getByRole("region", { name: "Conversation workspace", exact: true });
 const composer = (page: Page) => root(page).getByRole("textbox", { name: "Message AgentSpark", exact: true });
@@ -35,6 +36,27 @@ async function discoveryReview(page: Page) {
   await expect(review.getByLabel(/^Engagement title/)).toHaveValue("Chat onboarding exploration");
   return review;
 }
+
+test("Conversation workspace shares the Clarity identity in both themes without creating chats or losing composer input", async ({ page }) => {
+  const writes: string[] = [];
+  page.on("request", request => {
+    if (new URL(request.url()).pathname.startsWith("/api/v1/conversations") && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) writes.push(request.method());
+  });
+  await open(page);
+  await composer(page).fill("An unsent fictional design check");
+  for (const theme of ["dark", "light"]) {
+    await page.getByRole("combobox", { name: "Appearance", exact: true }).selectOption(theme);
+    await expect(composer(page)).toHaveValue("An unsent fictional design check");
+    await expect(root(page)).toHaveCSS("background-color", theme === "dark" ? "rgb(24, 37, 31)" : "rgb(253, 253, 247)");
+    await expect(root(page).locator(".chat-orb")).toHaveCSS("color", theme === "dark" ? "rgb(210, 237, 170)" : "rgb(56, 89, 35)");
+    await expectReadable(root(page));
+    for (const width of [320, 390, 768, 1440]) {
+      await page.setViewportSize({ width, height: 956 });
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${theme} ${width}px`).toBe(true);
+    }
+  }
+  expect(writes).toEqual([]);
+});
 
 test("Conversation workspace offers a modern private thread, real progress and saved history without browser transcript storage", async ({ page }) => {
   await open(page);

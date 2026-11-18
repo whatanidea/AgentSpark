@@ -17,11 +17,14 @@ test("consulting is integrated without vendor or funding claims and scheduling r
       schedulerRequests.push(request.url());
   });
   await page.goto("/");
+  await expect(page.locator("#top")).toContainText("The enterprise AI decision workspace");
+  await expect(page.locator(".editorial-chapters")).toHaveCount(0);
+  await page.getByRole("link", { name: "Explore consulting", exact: false }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
   const home = page.getByRole("region", { name: "A deliberate journey. Not another AI experiment.", exact: true });
   await expect(home.getByRole("article")).toHaveCount(4);
   for (const [path] of offers) await expect(home.locator(`a[href="${path}"]`)).toBeVisible();
-  await page.getByRole("link", { name: "Explore consulting", exact: false }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
+  await expect(page.locator(".clarity-service-boundary")).toContainText("separately scoped engagement");
   const providers = page.getByRole("region", { name: "Choose for the work. Not for the logo.", exact: true });
   await expect(providers.getByRole("article")).toHaveCount(3);
   await expect(providers).toContainText("not a partner or reseller claim");

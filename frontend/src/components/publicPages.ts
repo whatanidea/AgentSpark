@@ -7,15 +7,15 @@ export type PublicPage = {
 };
 
 export const PUBLIC_PAGES: readonly PublicPage[] = [
-  { path: "/", name: "Home", section: "Overview", title: "Smarter work. Stronger business.",
-    summary: "Practical AI consulting for small and medium-sized businesses. Find useful improvements, reduce repetitive work and choose a sensible first project.", details: [] },
+  { path: "/", name: "Home", section: "Overview", title: "Clarity before commitment.",
+    summary: "Find where AI belongs in your business. Connect the evidence, compare the alternatives, and make the next decision with confidence.", details: [] },
   { ...CONSULTING_OVERVIEW, section: "Consulting", details: [] },
   ...CONSULTING_OFFERINGS.map(offering => ({
     path: offering.path, name: offering.name, title: offering.title, summary: offering.summary,
     section: "Consulting" as const, details: [],
   })),
   { path: "/about", name: "About", section: "About", title: "Better decisions before bigger commitments.",
-    summary: "AgentSpark combines SME AI consulting with an evidence-led discovery and assessment platform. Start with the work, question the assumptions, and keep people accountable.",
+    summary: "AgentSpark is an evidence-led discovery and assessment workspace. Start with the work, question the assumptions, and keep people accountable. Consulting engagements are separately scoped.",
     details: [
       ["Business first", "A business objective and the people doing the work come before a model or an architecture."],
       ["Evidence throughout", "Sources, disagreements and missing information remain visible. Generated recommendations are hypotheses to review, not independently verified facts."],

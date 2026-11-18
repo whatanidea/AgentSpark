@@ -1,48 +1,23 @@
 import { useState } from "react";
-import { MarketingIcon } from "./MarketingVisuals";
 
 function SignalDiagram({ compact = false }: { compact?: boolean }) {
-  const width = compact ? 320 : 1200;
-  const height = compact ? 400 : 260;
-  const cx = compact ? 160 : 545;
-  const cy = compact ? 200 : 130;
-  const rx = compact ? 72 : 112;
-  const ry = compact ? 58 : 92;
-  const routes = compact ? [
-    "M50 30V75C50 120 160 115 160 140",
-    "M160 30V140",
-    "M270 30V75C270 120 160 115 160 140",
-    "M160 260V285C160 315 80 310 80 340V370",
-    "M160 260V285C160 315 240 310 240 340V370",
-  ] : [
-    "M50 45H230C325 45 330 130 440 130",
-    "M50 130H440",
-    "M50 215H230C325 215 330 130 440 130",
-    "M650 130H760C860 130 855 65 960 65H1150",
-    "M650 130H760C860 130 855 195 960 195H1150",
-  ];
-  const points = compact ? [[50, 30], [160, 30], [270, 30], [80, 370], [240, 370]]
-    : [[50, 45], [50, 130], [50, 215], [1150, 65], [1150, 195]];
   return <svg className={compact ? "editorial-signal-mobile" : "editorial-signal-desktop"}
-    viewBox={`0 0 ${width} ${height}`} aria-hidden="true" focusable="false">
-    <g className="editorial-signal-grid">
-      {(compact ? [30, 115, 200, 285, 370] : [40, 100, 160, 220]).map(y => <path key={y} d={`M0 ${y}H${width}`} />)}
-      {(compact ? [50, 160, 270] : [120, 300, 480, 660, 840, 1020]).map(x => <path key={x} d={`M${x} 0V${height}`} />)}
-    </g>
-    <g className="editorial-signal-routes">{routes.map(d => <path key={d} d={d} />)}</g>
+    viewBox="0 0 400 360" aria-hidden="true" focusable="false">
+    <path className="editorial-signal-routes" d="M0 100C60 100 50 180 100 180M0 180h100M0 260c60 0 50-80 100-80M300 180h100" />
     <g className="editorial-signal-flow">
-      {[routes[0], routes[2], routes[3]].map(d => <path key={d} pathLength="100" d={d} />)}
+      <path pathLength="100" d="M0 100C60 100 50 180 100 180h200 100" />
+      <path pathLength="100" d="M0 180h100" />
+      <path pathLength="100" d="M0 260c60 0 50-80 100-80" />
     </g>
     <g className="editorial-signal-orbit">
-      <ellipse cx={cx} cy={cy} rx={rx} ry={ry} />
-      <ellipse cx={cx} cy={cy} rx={rx} ry={compact ? 24 : 38} />
-      <ellipse cx={cx} cy={cy} rx={compact ? 24 : 38} ry={ry} />
-      <ellipse cx={cx} cy={cy} rx={compact ? 45 : 70} ry={ry} transform={`rotate(38 ${cx} ${cy})`} />
-      <ellipse cx={cx} cy={cy} rx={compact ? 45 : 70} ry={ry} transform={`rotate(-38 ${cx} ${cy})`} />
+      <path d="m200 45 100 60v150l-100 60-100-60V105Z" />
+      <path d="m200 70 77 47v126l-77 47-77-47V117Z" />
+      <path d="m200 96 54 33v102l-54 33-54-33V129Z" />
+      <path d="M200 45v270M100 105l200 150M300 105 100 255M100 180h200" />
     </g>
-    <g className="editorial-signal-points">
-      {points.map(([x, y]) => <circle key={`${x}-${y}`} cx={x} cy={y} r="4" />)}
-    </g>
+    <circle className="clarity-lens-center" cx="200" cy="180" r="32" />
+    <path className="clarity-lens-check" d="m186 181 10 10 19-24" />
+    <g className="editorial-signal-points"><circle cx="100" cy="180" r="3" /><circle cx="300" cy="180" r="3" /></g>
   </svg>;
 }
 
@@ -50,20 +25,32 @@ export function SignalField() {
   const [paused, setPaused] = useState(false);
   return <figure className="editorial-signal" data-paused={paused}
     aria-label="Illustrative journey from business friction to human-reviewed progress">
-    <div className="editorial-signal-meta"><span>BETTER WAYS OF WORKING / AN ILLUSTRATION</span>
+    <div className="editorial-signal-meta"><span>FIG. 01 / FROM PERSPECTIVES TO A REVIEWED DECISION</span>
       <button className="editorial-motion-control" onClick={() => setPaused(current => !current)}
         aria-label={paused ? "Resume illustration" : "Pause illustration"}>
         <span aria-hidden="true">{paused ? "▶" : "Ⅱ"}</span>{paused ? "Resume motion" : "Pause motion"}
       </button>
     </div>
     <div className="editorial-signal-stage">
-      <SignalDiagram /><SignalDiagram compact />
-      <div className="editorial-signal-inputs"><span>Fragmented work</span><span>Team knowledge</span><span>Business priorities</span></div>
-      <div className="editorial-signal-core"><span>PEOPLE + PROCESS + AI</span><strong>A connected<br />way of working.</strong></div>
-      <div className="editorial-signal-outputs"><span><MarketingIcon name="cloud" />Customer-owned tools</span>
-        <span><MarketingIcon name="decision" />Human-reviewed progress</span></div>
+      <div className="clarity-sources">
+        <p className="clarity-figure-label">01 / Understand the work</p>
+        <div className="clarity-source"><span>S1 / Operator perspective</span><p>&ldquo;We enter the same details twice.&rdquo;</p><i aria-hidden="true" /></div>
+        <div className="clarity-source"><span>S2 / Process owner</span><p>&ldquo;Exceptions need an accountable owner.&rdquo;</p></div>
+        <div className="clarity-source"><span>S3 / Technical owner</span><p>&ldquo;Data access still needs validation.&rdquo;</p></div>
+      </div>
+      <div className="clarity-lens"><SignalDiagram /><SignalDiagram compact />
+        <p className="clarity-figure-label">Evidence &rarr; judgment &rarr; direction</p>
+      </div>
+      <div className="clarity-decision">
+        <div className="clarity-decision-meta"><span>Decision brief / 001</span><span>For review</span></div>
+        <h2>Better work.<br />Not automatically more AI.</h2>
+        <p>Investigate duplicate checks. Validate data access before selecting an approach.</p>
+        <div className="clarity-alternatives"><span>Process change</span><span>Rules</span><span>AI assistance</span></div>
+        <dl><div><dt>Source statements</dt><dd>S1 &middot; S2 &middot; S3</dd></div><div><dt>Decision authority</dt><dd>Human review</dd></div></dl>
+        <p className="clarity-decision-note">Fictional example &middot; Unverified inputs.<br />No measured outcome or authorization implied.</p>
+      </div>
     </div>
-    <figcaption><span>From possibility to a deliberate next step.</span><span>Not a connected system or an autonomous workflow.</span></figcaption>
+    <figcaption><span>Built around evidence. Designed for accountability.</span><span>Not a connected system or an autonomous workflow.</span></figcaption>
   </figure>;
 }
 

@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("editorial hero leads with consulting and offers controllable motion without external requests", async ({ page }) => {
+test("editorial hero leads with the approved product identity and controllable original artwork", async ({ page }) => {
   const external: string[] = [];
   page.on("request", request => {
     if (new URL(request.url()).origin !== "http://127.0.0.1:8767") external.push(request.url());
@@ -8,10 +8,11 @@ test("editorial hero leads with consulting and offers controllable motion withou
   await page.setViewportSize({ width: 1440, height: 960 });
   await page.goto("/");
   const hero = page.locator("#top");
-  await expect(hero.getByRole("heading", { level: 1 })).toHaveAccessibleName("Smarter work. Stronger business.");
-  expect(await hero.getByRole("heading", { level: 1 }).evaluate(node => parseFloat(getComputedStyle(node).fontSize))).toBeGreaterThanOrEqual(96);
-  const book = hero.getByRole("link", { name: "Book a consultation", exact: false });
-  expect((await book.boundingBox())!.y).toBeLessThan(960);
+  await expect(hero.getByRole("heading", { level: 1 })).toHaveAccessibleName("Clarity before commitment.");
+  expect(await hero.getByRole("heading", { level: 1 }).evaluate(node => parseFloat(getComputedStyle(node).fontSize))).toBeGreaterThanOrEqual(90);
+  const example = hero.getByRole("link", { name: "Explore an example", exact: false });
+  expect((await example.boundingBox())!.y).toBeLessThan(960);
+  await expect(hero.getByRole("link", { name: "Book a consultation", exact: false })).toHaveCount(0);
   const field = hero.getByRole("figure");
   await expect(field).toContainText("Not a connected system or an autonomous workflow");
   await expect.poll(() => field.evaluate(node => node.getAnimations({ subtree: true }).some(animation => animation.playState === "running"))).toBe(true);
@@ -67,12 +68,12 @@ test("editorial identity and authentication-independent booking are shared acros
   for (const path of ["/", "/consulting", "/consulting/workflow-pilot", "/about", "/resources/trust"]) {
     await page.goto(path);
     await expect(page.locator(".editorial-site")).toHaveAttribute("data-page", path);
-    await expect(page.locator(".editorial-site")).toHaveCSS("background-color", "rgb(8, 8, 12)");
+    await expect(page.locator(".editorial-site")).toHaveCSS("background-color", "rgb(17, 27, 24)");
     const header = page.getByRole("banner");
-    await expect(header).toHaveCSS("background-color", "rgb(8, 8, 12)");
+    await expect(header).toHaveCSS("background-color", "rgb(17, 27, 24)");
     const book = header.getByRole("link", { name: "Book a consultation", exact: false });
-    await expect(book).toHaveCSS("border-radius", "10px");
-    await expect(page.getByRole("navigation", { name: "Product navigation" }).getByRole("button").first()).toHaveText("Consulting");
+    await expect(book).toHaveCSS("border-radius", "4px");
+    await expect(page.getByRole("navigation", { name: "Product navigation" }).getByRole("button").first()).toHaveText("Platform");
     await book.click();
     const dialog = page.getByRole("dialog", { name: "A conversation. A clearer next step." });
     await expect(dialog).toBeVisible();
@@ -85,6 +86,9 @@ test("editorial identity and authentication-independent booking are shared acros
 
 test("editorial chapters and animated journey fit mobile and respect reduced motion", async ({ page }) => {
   await page.goto("/");
+  await expect(page.getByRole("region", { name: "Good judgment is knowing what not to automate.", exact: true })).toContainText("separately scoped");
+  await expect(page.locator(".editorial-chapters")).toHaveCount(0);
+  await page.goto("/consulting");
   const chapters = page.getByRole("region", { name: "A deliberate journey. Not another AI experiment.", exact: true });
   await expect(chapters.getByRole("article")).toHaveCount(4);
   await expect(chapters.getByRole("heading", { level: 3 })).toHaveText([
@@ -96,11 +100,13 @@ test("editorial chapters and animated journey fit mobile and respect reduced mot
     for (const link of await chapters.getByRole("article").getByRole("link").all())
       expect((await link.boundingBox())!.height).toBeGreaterThanOrEqual(44);
     if (width <= 700) {
+      await page.goto("/");
       const field = page.locator(".editorial-signal");
       await expect(field.getByRole("button", { name: "Pause illustration", exact: true })).toBeVisible();
       expect(await field.evaluate(node => node.getAnimations({ subtree: true }).some(animation => animation.playState === "running"))).toBe(true);
-      await expect(field.getByText("Customer-owned tools", { exact: true })).toBeVisible();
-      await expect(field.getByText("Human-reviewed progress", { exact: true })).toBeVisible();
+      await expect(field.getByText("Source statements", { exact: true })).toBeVisible();
+      await expect(field.getByText("Human review", { exact: true })).toBeVisible();
+      await page.goto("/consulting");
     }
   }
   await page.emulateMedia({ reducedMotion: "reduce" });
@@ -119,7 +125,7 @@ test("mobile journey fits completely and advances, pauses and resumes in Safari 
     await expect(field.locator(".editorial-signal-desktop")).toBeHidden();
     const bounds = await field.boundingBox();
     if (!bounds) throw new Error("Journey illustration has no layout bounds");
-    const parts = field.locator(".editorial-signal-mobile, .editorial-signal-mobile circle, .editorial-signal-inputs > span, .editorial-signal-core, .editorial-signal-outputs > span");
+    const parts = field.locator(".editorial-signal-mobile, .editorial-signal-mobile circle, .clarity-decision");
     for (const part of await parts.all()) {
       const box = await part.boundingBox();
       if (!box) throw new Error("Journey component has no layout bounds");
@@ -152,8 +158,8 @@ test("mobile journey fits completely and advances, pauses and resumes in Safari 
   await page.emulateMedia({ reducedMotion: "reduce" });
   await expect(field.getByRole("button")).toBeHidden();
   expect(await field.evaluate(node => node.getAnimations({ subtree: true }).length)).toBe(0);
-  await expect(field.getByText("Customer-owned tools", { exact: true })).toBeVisible();
-  await expect(field.getByText("Human-reviewed progress", { exact: true })).toBeVisible();
+  await expect(field.getByText("Source statements", { exact: true })).toBeVisible();
+  await expect(field.getByText("Human review", { exact: true })).toBeVisible();
   await page.emulateMedia({ reducedMotion: "no-preference" });
   await page.setViewportSize({ width: 956, height: 440 });
   await expect(field.locator(".editorial-signal-mobile")).toBeHidden();
