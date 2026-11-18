@@ -30,6 +30,9 @@ passed. A separate 112,464-case comparison against published picomatch 4.0.7
 preserved matching results. The published baseline exceeded an isolated
 one-second hostile-input deadline; the pinned patch completed. Full exact-source
 CI and staging acceptance remain required before reporting deployment complete.
+An intermediate CI run passed the source-aware advisory gate, backend, types and
+build, but timed out during browser OS package installation on Ubuntu 26. Delivery
+jobs now pin Ubuntu 24.04; the quality budget includes setup plus the full suite.
 
 ## Product and data contract
 

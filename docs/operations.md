@@ -265,6 +265,9 @@ PDF is stored by the application; downloaded copies require client-side handling
 
 - Python 3.12 and Node 24; see [.python-version](../.python-version) and
   [.node-version](../.node-version). Patch releases track those supported lines.
+- Delivery jobs use Ubuntu 24.04 rather than the floating `ubuntu-latest` label.
+  The quality job allows 30 minutes for dependency/browser setup and full regression;
+  test counts, individual test deadlines and security thresholds are unchanged.
 - Runtime direct pins: [requirements.txt](../requirements.txt). Universal
   transitive resolution and distribution SHA256 hashes:
   [requirements.lock](../requirements.lock). It covers Windows and Linux markers.
