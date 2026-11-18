@@ -875,6 +875,16 @@ class DiscoveryEngagement(BaseModel):
         return self
 
 
+class ConversationOrigin(BaseModel):
+    conversation_id: SessionId
+    draft_id: SessionId
+    digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    reviewed_by: str
+    reviewed_at: datetime
+    fields: Dict[str, str] = Field(max_length=12)
+    sources: List[DiscoverySource] = Field(max_length=12)
+
+
 class WorkflowState(BaseModel):
     _etag: Optional[str] = PrivateAttr(default=None)
     session_id: SessionId
@@ -885,6 +895,7 @@ class WorkflowState(BaseModel):
     discovery_synthesis: Optional[DiscoverySynthesis] = None
     discovery_handoffs: List[DiscoveryHandoff] = Field(default_factory=list, max_length=20)
     discovery_origin: Optional[DiscoveryOrigin] = None
+    conversation_origin: Optional[ConversationOrigin] = None
     discovery_tasks: List[DiscoveryTask] = Field(default_factory=list, max_length=50)
     discovery_source_reviews: List[DiscoverySourceReview] = Field(default_factory=list, max_length=50)
     discovery_import_id: Optional[SessionId] = None

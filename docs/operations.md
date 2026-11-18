@@ -265,6 +265,9 @@ PDF is stored by the application; downloaded copies require client-side handling
 
 - Python 3.12 and Node 24; see [.python-version](../.python-version) and
   [.node-version](../.node-version). Patch releases track those supported lines.
+- Delivery jobs use Ubuntu 24.04 rather than the floating `ubuntu-latest` label.
+  The quality job allows 30 minutes for dependency/browser setup and full regression;
+  test counts, individual test deadlines and security thresholds are unchanged.
 - Runtime direct pins: [requirements.txt](../requirements.txt). Universal
   transitive resolution and distribution SHA256 hashes:
   [requirements.lock](../requirements.lock). It covers Windows and Linux markers.
@@ -279,7 +282,7 @@ python -m pip install -r requirements-tools.txt
 npm --prefix frontend ci
 python scripts\check_lock.py
 python scripts\check.py
-npm --prefix frontend audit --audit-level=high
+npm --prefix frontend run audit:dependencies
 npm --prefix frontend exec -- playwright install chromium webkit
 npm --prefix frontend run test:e2e
 ```
@@ -320,6 +323,35 @@ even without code changes. Investigate and update deliberately, not with
 and `pip check` are integrity/compatibility gates, **not a vulnerability audit**.
 Review Python/container advisories and base-image updates as part of release
 approval; CI does not claim an exhaustive security scan.
+
+#### Temporary source-pinned picomatch fix
+
+The user approved the unreleased fix in
+[micromatch/picomatch#254](https://github.com/micromatch/picomatch/pull/254),
+pinned to commit `c63a5bf4e61dbdb81bc41e97dc2616c30acce337` with an
+npm-generated SHA512 archive integrity. It addresses
+[GHSA-fc5q-39xc-vjpf](https://github.com/advisories/GHSA-fc5q-39xc-vjpf).
+The override covers Vite, tinyglobby and fdir; application runtime dependencies
+are unchanged. This is not an official patched npm release. Its upstream base
+also includes unreleased glob/bracket correctness fixes, so full browser/build
+qualification remains required.
+
+The user separately approved exact-source advisory handling. `audit:dependencies`
+runs the isolated attack-deadline and compatibility regressions, verifies every
+locked picomatch copy's source/integrity and the installed parser SHA256, checks
+all three consumers resolve that copy, and runs npm audit. The original advisory
+and its exclusively dependent findings remain visible as **source-remediated**,
+not hidden or reported as absent. Any changed pin/parser, unresolved/cyclic chain,
+invalid or failed audit response, registry failure, or other high/critical advisory
+fails the gate. This is a narrow reviewed remediation, not a blanket audit waiver.
+The existing high/critical threshold is unchanged: unrelated moderate or lower
+advisories are printed, not treated as source-fixed and not promoted to blockers
+just because npm combines them with the remediated high finding in a parent entry.
+
+Run `npm --prefix frontend run test:dependencies` for offline regression checks.
+They are also part of `scripts\check.py --only frontend`. Once an official fix is
+published and reviewed, replace the override, remove this advisory-specific
+classification and source-pin checks, and retain the attack/compatibility tests.
 
 ## Container behavior
 
@@ -788,3 +820,73 @@ image or dependency changes.
   database migration or reassignment of existing personal data. A future incompatible data
   change requires its own backup/migration/rollback plan; replacing the image does
   not roll back data, external effects, approvals, exports or retention deletions.
+## Conversational workspace
+
+The private workspace includes **Chat**, separate from the existing diagnostic
+interview. The feature record is [chat-workspace.md](chat-workspace.md).
+Existing approved Azure OpenAI configuration is reused; no new model, endpoint,
+resource, permission or infrastructure deployment is required. Claude chat is
+not enabled. Explicit local demo uses process-local storage, scripted response
+paragraphs and keyword suggestions, never a pretend provider fallback.
+
+`/api/v1/conversations` stores custom `conversation` documents in the existing
+workflow container using its `/session_id` partition and required TTL support.
+Every read/write/list/generation/confirmation checks owner, selected workspace,
+active membership and absolute expiry. Team viewers may keep their own private
+chats; they cannot create team workflows. Chats are excluded from workflow,
+Discovery and archived-decision libraries. History projects only metadata, with
+bounded newest-created-first keyset pagination. It is not a last-activity sort.
+
+Expiry is fixed30 days from chat creation. Writes recompute TTL from the
+remaining lifetime; Cosmos background cleanup is not the access boundary.
+Renaming, replying, previews and summaries do not extend expiry. No transcript
+or draft is persisted in browser storage, and no cross-chat memory is maintained.
+Model context includes at most20,000 characters from the current conversation,
+not the entire visible history once it exceeds that budget.
+
+Generation is limited to60 turns,4,000 input characters,6,000 reply characters,
+1,800 completion tokens per provider call,75 seconds per response and30 seconds
+per draft extraction. One response can use two model calls (reply and action
+proposal); extraction is an additional explicit call. At most four inference
+operations run concurrently **per application process**. Chat creation, messages
+and preview requests share a60-second quota:8 attempts per identity/workspace
+and32 per organization (60/120 in shared local demo). Rejected attempts return429.
+These are not distributed billing caps: replicas/restarts multiply/reset them.
+Use deployment/gateway quotas before increasing replicas or broad public access.
+
+Message responses use `application/x-ndjson`: an `accepted` event shows the
+privacy-screened user message immediately after its durable save, actual `stage` events, screened
+paragraph `delta` events, and exactly one final `result` or `error`.
+There are no invented completion percentages. Output is screened across provider
+chunk boundaries before streaming; the final reply and suggested action are
+saved together only after output/provenance validation. A75-second deadline bounds
+the operation. Application logs exclude message/provider error content; request
+identifiers may still appear in ordinary access logs.
+
+The reservation is saved before generation. Stop invalidates its generation ID;
+late results cannot overwrite a stop or a new turn. A lost connection may leave a
+reservation requiring **Stop / recover response**, then **Retry last response**.
+Retry reuses the saved user-message ID, and completed retries return the saved
+result. No partial assistant reply is treated as completed or as workflow evidence.
+
+A preview lives at most ten minutes, never past the chat deadline. Confirmation
+requires current write permission and an exact version/preview/digest binding.
+It first saves a durable intent, then atomically creates the workflow plus a
+minimal, non-content idempotency receipt in the workflow partition, then saves
+the chat's completion receipt. Recovery never overwrites later human edits or
+resurrects a missing/expired child. Private chat deletion remains available even
+when a confirmed handoff needs recovery; a previously approved in-flight handoff
+may still complete and can be found in Home. The minimal workflow-side receipt can live until the
+chat's original deadline; it contains identifiers/digest, not a transcript.
+
+Only the displayed reviewed fields and bounded user excerpts are copied. Assistant
+statements are never evidence. Copied context is visible to authorized workflow
+readers and follows workflow/decision retention, including after chat deletion.
+Discovery keeps its existing reviewed opportunity-to-assessment gates. One
+originating workflow is allowed per chat; a different topic needs a new chat.
+
+**Retention is not a promise of universal erasure:** Azure OpenAI abuse monitoring,
+database backups, telemetry, user exports and copied workflow records have separate
+controls. Align those policies before production release. Live-provider latency,
+semantic routing quality and cost must be validated with approved synthetic prompts
+against the configured deployment; offline demo/mocked tests do not establish them.

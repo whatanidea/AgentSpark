@@ -146,6 +146,11 @@ export default function Home({ demo, retentionDays, workspaceName, workspace, in
         <p>Reviewed for handoff, not confirmation of workflow facts or execution approval.</p>
         <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(decision.details.discovery_origin, null, 2)}</pre>
       </Card>}
+      {decision.details.conversation_origin && <Card title="Reviewed chat context - unverified snapshot">
+        <p>These selected excerpts and reviewed assertions were copied with explicit approval.
+          They remain unverified and follow this decision record's separate retention, not the private chat's expiry.</p>
+        <pre className="text-xs whitespace-pre-wrap break-words">{JSON.stringify(decision.details.conversation_origin, null, 2)}</pre>
+      </Card>}
       <Card title="Reviewed deployment target">
         <p className="text-sm">{decision.details.deployment_preferences?.target_cloud === "aws" ? "AWS" : "Azure"} / {decision.details.deployment_preferences?.preferred_region || "Region not specified"} (unverified)</p>
         <p className="text-sm mt-2">Data residency: {decision.details.deployment_preferences?.data_residency_requirements || "Not specified"}</p>

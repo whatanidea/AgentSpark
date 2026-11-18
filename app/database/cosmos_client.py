@@ -29,7 +29,7 @@ PRIVATE_FIELDS = (
     "interview_diagnosis", "interview_answers",
     "discovery", "executive_brief", "runtime_requirement_sources", "runtime_decision",
     "discovery_participants", "discovery_synthesis", "discovery_handoffs", "discovery_origin",
-    "discovery_tasks", "discovery_source_reviews", "discovery_import_sources", "document_source",
+    "discovery_tasks", "discovery_source_reviews", "discovery_import_sources", "document_source", "conversation_origin",
 )
 
 
@@ -101,6 +101,8 @@ class DatabaseClient:
                                       organization_id=workspace.organization_id or None, team_id=workspace.team_id or None)
                 self._authorize(state, "write")
                 return state
+            raise WorkflowNotFound()
+        if isinstance(data, dict) and data.get("record_kind") in ("conversation", "conversation_receipt"):
             raise WorkflowNotFound()
         state = self._decode(data)
         self._authorize(state)

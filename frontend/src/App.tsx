@@ -18,6 +18,7 @@ const LazyLanding = lazy(() => import("./components/Landing"));
 import Workspaces from "./components/Workspaces";
 import InviteOnboarding from "./components/InviteOnboarding";
 import Discovery from "./components/Discovery";
+import Conversations from "./components/Conversations";
 import DiscoveryOriginSummary from "./components/DiscoveryOriginSummary";
 import EvidenceRegister from "./components/EvidenceRegister";
 import ImplementationReadiness from "./components/ImplementationReadiness";
@@ -26,9 +27,10 @@ import { Button, Card } from "./components/ui";
 import useInactivitySignOut from "./useInactivitySignOut";
 import { AppearanceControl } from "./Appearance";
 
-type View = "home" | "intake" | "diagnose" | "evidence" | "readiness" | "analyze" | "blueprint" | "workspaces" | "portfolio" | "discovery" | "integrations";
+type View = "home" | "intake" | "diagnose" | "evidence" | "readiness" | "analyze" | "blueprint" | "workspaces" | "portfolio" | "discovery" | "integrations" | "conversations";
 const NAV: { id: View; label: string }[] = [
   { id: "home", label: "Home" },
+  { id: "conversations", label: "Chat" },
   { id: "discovery", label: "Discovery engagements" },
   { id: "intake", label: "1 · Enterprise Intake" },
   { id: "diagnose", label: "2 · Diagnostic Interview" },
@@ -94,6 +96,12 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
   const [editorUnsaved, setEditorUnsaved] = useState(false);
   const updateEditorUnsaved = useCallback((dirty: boolean) => setEditorUnsaved(dirty), []);
   const integrationUnsavedRef = useRef(false);
+  const [chatUnsaved, setChatUnsaved] = useState(false);
+  const chatUnsavedRef = useRef(false);
+  const updateChatUnsaved = useCallback((dirty: boolean) => {
+    chatUnsavedRef.current = dirty;
+    setChatUnsaved(dirty);
+  }, []);
   const updateIntegrationUnsaved = useCallback((dirty: boolean) => {
     integrationUnsavedRef.current = dirty;
     setEditorUnsaved(dirty);
@@ -125,10 +133,10 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
   const canWrite = snapshot ? snapshot.permissions.write : workspace?.permissions.write !== false;
   const canDelete = snapshot ? snapshot.permissions.delete : workspace?.permissions.delete !== false;
   const blocker = useBlocker(({ currentLocation, nextLocation, historyAction }) =>
-    historyAction === "POP" && (discoveryUnsavedRef.current || documentUnsavedRef.current || integrationUnsavedRef.current) && currentLocation.pathname === "/workspace" && nextLocation.pathname !== "/workspace");
+    historyAction === "POP" && (chatUnsavedRef.current || discoveryUnsavedRef.current || documentUnsavedRef.current || integrationUnsavedRef.current) && currentLocation.pathname === "/workspace" && nextLocation.pathname !== "/workspace");
   useEffect(() => {
     if (blocker.state === "blocked") {
-      if (window.confirm(documentUnsavedRef.current ? "Discard the unapproved document context?"
+      if (window.confirm(chatUnsavedRef.current ? "Discard your unsent message or unsaved chat preview edits?" : documentUnsavedRef.current ? "Discard the unapproved document context?"
         : integrationUnsavedRef.current ? "Discard unsaved integration changes?" : "Discard unsaved discovery changes?")) blocker.proceed();
       else blocker.reset();
     }
@@ -191,7 +199,7 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
     setView("home"); setShowLanding(false);
     void navigate("/workspace", { replace: true });
   }, [disconnect, navigate]);
-  const unsaved = discoveryUnsaved || documentUnsaved || editorUnsaved;
+  const unsaved = chatUnsaved || discoveryUnsaved || documentUnsaved || editorUnsaved;
   const { warning, staySignedIn } = useInactivitySignOut(
     auth?.mode === "oidc" ? identity?.identity || "" : "", unsaved, busy, signOutForInactivity,
   );
@@ -276,6 +284,7 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
     setSnapshot(state);
   }
   async function changeView(next: View) {
+    if (view === "conversations" && next !== view && chatUnsaved && !window.confirm("Discard your unsent message or unsaved chat preview edits?")) return;
     if (view === "discovery" && next !== view && discoveryUnsaved && !window.confirm("Discard unsaved discovery changes?")) return;
     if (view === "intake" && next !== view && documentUnsaved && !window.confirm("Discard the unapproved document context?")) return;
     if (view === "integrations" && next !== view && editorUnsaved && !window.confirm("Discard unsaved integration changes?")) return;
@@ -283,7 +292,7 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
     if (next === view) return;
     setBusy(true);
     try {
-      if (sessionId && !["workspaces", "discovery", "integrations"].includes(next)) await refreshSession();
+      if (sessionId && !["workspaces", "discovery", "integrations", "conversations"].includes(next)) await refreshSession();
       if (next === "discovery") setDiscoveryEntry(null);
       if (next === "home") setHomeLibrary("workflows");
       setView(next); setConfirmDelete(false);
@@ -349,6 +358,7 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
     finally { setBusy(false); }
   }
   function newWorkflow() {
+    if (view === "conversations" && chatUnsaved && !window.confirm("Discard your unsent message or unsaved chat preview edits?")) return;
     if (view === "discovery" && discoveryUnsaved && !window.confirm("Discard unsaved discovery changes?")) return;
     if (view === "intake" && documentUnsaved && !window.confirm("Discard the unapproved document context?")) return;
     if (view === "integrations" && editorUnsaved && !window.confirm("Discard unsaved integration changes?")) return;
@@ -357,6 +367,7 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
     setMessage("New workflow. The previous server session remains until expiry unless deleted.");
   }
   function changeWorkspace(value: WorkspaceSelection | null, library: "workflows" | "discovery" = "workflows") {
+    if (view === "conversations" && chatUnsaved && !window.confirm("Discard your unsent message or unsaved chat preview edits?")) return;
     setHomeLibrary(library);
     setWorkspace(value); selectWorkspace(value); setInvitedOrganization(""); forgetPointer(); setSnapshot(null);
     setView("home"); setConfirmDelete(false); setMessage("");
@@ -446,15 +457,15 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
         </div>
         <nav aria-label="Workflow steps" className="flex md:block md:flex-1 overflow-x-auto px-4 pb-4 md:pb-5 gap-2 md:space-y-1.5">
           <p className="hidden md:block px-3 pb-2 text-[10px] font-medium uppercase tracking-[0.14em] text-white/70">Workspace</p>
-          {NAV.map((n, index) => (
+          {NAV.map((n) => (
             <div key={n.id} className={`shrink-0 ${n.id === "portfolio" ? "md:mt-6 md:pt-5 md:border-t border-white/15" : ""}`}>
               {n.id === "portfolio" && <p className="hidden md:block px-3 pb-3 text-[10px] font-medium uppercase tracking-[0.14em] text-white/70">Explore</p>}
-              <button disabled={busy || !identity || starting || (!sessionId && !["home", "intake", "portfolio", "workspaces", "discovery", "integrations"].includes(n.id))
+              <button disabled={busy || !identity || starting || (!sessionId && !["home", "intake", "portfolio", "workspaces", "discovery", "integrations", "conversations"].includes(n.id))
                 || (n.id === "intake" && !sessionId && !canWrite)}
                 aria-label={n.label} aria-current={view === n.id ? "step" : undefined} onClick={() => void changeView(n.id)}
                 className="nav-item">
-                <span className="nav-number" aria-hidden="true">{n.id === "home" || n.id === "portfolio" || n.id === "workspaces" || n.id === "discovery" || n.id === "integrations"
-                  ? <Icon name={n.id === "workspaces" || n.id === "discovery" || n.id === "integrations" ? "portfolio" : n.id} className="h-4 w-4" /> : String(index - 1).padStart(2, "0")}</span>
+                <span className="nav-number" aria-hidden="true">{n.id === "home" || n.id === "portfolio" || n.id === "workspaces" || n.id === "discovery" || n.id === "integrations" || n.id === "conversations"
+                  ? <Icon name={n.id === "conversations" ? "chat" : n.id === "workspaces" || n.id === "discovery" || n.id === "integrations" ? "portfolio" : n.id} className="h-4 w-4" /> : String(NAV.filter(item => item.id !== "conversations").findIndex(item => item.id === n.id) - 1).padStart(2, "0")}</span>
                 <span>{n.label.replace(/^\d · /, "")}</span>
                 {view === n.id && <span aria-hidden="true" className="ml-auto text-brand-700">›</span>}
               </button>
@@ -487,7 +498,7 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
           }}>Sign out</Button>}
         </div>
       </aside>
-      <main id="main-content" className="flex-1 min-w-0 bg-canvas" aria-busy={busy}>
+      <main id="main-content" className="flex-1 min-w-0 bg-canvas" aria-busy={busy && view !== "conversations"}>
         {inactivityNotice}
         <div className="workspace-toolbar min-h-16 border-b border-line flex items-center justify-between flex-wrap gap-3 px-5 md:px-10 py-4">
           <p className="text-xs text-zinc-500">Workspace <span className="mx-2 text-zinc-300">/</span> <span className="font-medium text-zinc-700">{NAV.find((n) => n.id === view)?.label.replace(/^\d · /, "")}</span></p>
@@ -503,18 +514,21 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
                 <p className="mt-2">Pattern-based redaction is best-effort, not anonymization.
                   {" "}{auth?.mode === "local-demo" ? "Local demo is unauthenticated and shared; do not expose it publicly." : "Personal workflows are owner-private. Team workflows require active membership and scoped permissions. Team reviewers cannot review their own workflows; personal review requires the configured token role."}
                   {" "}Session retention: {auth?.retention_hours ?? "…"} hours; decision snapshots: {auth?.archive_retention_days ?? "…"} days.
+                  {" "}Those session limits apply to assessments. Chat conversations have a fixed 30-day expiry from creation,
+                  are author-private within the selected workspace in hosted mode, and do not renew on replies.
+                  Approved workflow copies, backups and model-provider records have separate retention.
                   {" "}Deleting a workflow also deletes its decision archive. An opaque session pointer and any pending invitation code are kept in this tab.
                 </p>
               </details>
             </div>
           </div>
           {message && <p role="status" className="notice">{message}</p>}
-          {snapshot && <p className="text-xs text-zinc-600">Assessment target: <strong>{snapshot.enterprise_context.target_cloud === "aws" ? "AWS" : "Azure"}</strong>
+          {snapshot && view !== "conversations" && <p className="text-xs text-zinc-600">Assessment target: <strong>{snapshot.enterprise_context.target_cloud === "aws" ? "AWS" : "Azure"}</strong>
             {" "} / Region: {snapshot.enterprise_context.preferred_region || "not specified"} (unverified). AgentSpark hosting is unchanged.</p>}
-          {snapshot && <p className="text-xs text-zinc-600">Assessment model: <strong>{snapshot.inference_model
+          {snapshot && view !== "conversations" && <p className="text-xs text-zinc-600">Assessment model: <strong>{snapshot.inference_model
             ? `${snapshot.inference_model.provider} / ${snapshot.inference_model.model}` : "Legacy Azure OpenAI default (historical provenance not recorded)"}</strong>.
             {" "}No automatic provider fallback.</p>}
-          {snapshot?.discovery_origin && <details className="notice">
+          {snapshot?.discovery_origin && view !== "conversations" && <details className="notice">
             <summary>Discovery origin: {snapshot.discovery_origin.title} (unverified)</summary>
             <p>Reviewed for handoff, not confirmed as workflow facts. All readiness and diagnostic gates still apply.</p>
             <DiscoveryOriginSummary origin={snapshot.discovery_origin} />
@@ -557,6 +571,16 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
               {!auth && <p role="alert">Access configuration unavailable. Reload to retry.</p>}
             </section>
           ) : <div key={sessionId || "new"}>
+            {view === "conversations" && <Conversations
+              key={`${identity.identity}:${workspace?.organization_id || ""}:${workspace?.team_id || ""}`}
+              demo={auth?.mode === "local-demo"} canCreate={workspace?.permissions.write !== false}
+              workspaceName={workspace ? `${workspace.organization_name} / ${workspace.team_name}` : undefined}
+              onBusyChange={setBusy} onUnsavedChange={updateChatUnsaved}
+              onOpen={async (kind, id) => {
+                if (kind === "discovery") {
+                  setDiscoveryEntry({ id, focusOverview: true }); setView("discovery"); setConfirmDelete(false); setMessage("");
+                } else await openWorkflow(id);
+              }} />}
             {view === "workspaces" && <Workspaces identity={identity.identity} demo={auth?.mode === "local-demo"}
               onSelect={changeWorkspace} onBusyChange={setBusy} onUnsavedChange={updateEditorUnsaved} initialOrganizationId={workspace?.organization_id || invitedOrganization} />}
             {view === "discovery" && <Discovery canCreate={workspace?.permissions.write !== false}
@@ -583,6 +607,14 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
                 setMessage("Workflow and all retained decision snapshots deleted.");
               }} />}
             {snapshot && !canWrite && ["intake", "diagnose", "analyze"].includes(view) && <p className="notice">Read-only access: your current team permissions do not allow workflow changes.</p>}
+            {snapshot?.conversation_origin && ["intake", "diagnose", "evidence", "readiness", "analyze", "blueprint"].includes(view) &&
+              <details className="notice">
+                <summary>Reviewed chat context (unverified)</summary>
+                <p>These selected excerpts and edited assertions were explicitly copied into this workflow. They are not confirmed evidence.
+                  Chat deletion/expiry does not remove this separately retained copy. Existing interview and readiness checks still apply.</p>
+                {snapshot.conversation_origin.sources.map(source => <blockquote key={source.id} className="border-l-2 pl-3 my-3 text-sm whitespace-pre-wrap break-words">
+                  <p>{source.statement}</p><cite>{source.label}</cite></blockquote>)}
+              </details>}
             {view === "intake" && <fieldset disabled={!canWrite || busy} className="min-w-0"><Intake key={intakeEntry} sessionId={sessionId} initialContext={snapshot ? { ...snapshot.enterprise_context, demo_scenario: snapshot.demo_scenario } : undefined}
               initialModel={snapshot?.inference_model}
               modelLocked={Boolean(snapshot && (snapshot.model_locked || snapshot.chat_history.length || snapshot.interview_diagnosis || snapshot.analysis_id || snapshot.trace.length))}

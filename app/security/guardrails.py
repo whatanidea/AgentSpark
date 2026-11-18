@@ -73,6 +73,8 @@ def redact_pii(text: str) -> str:
     # Opaque identity/digest values and server-generated discovery reference IDs are not phone numbers.
     if re.fullmatch(r"[0-9a-f]{64}|(?:note|participant|process|task|opportunity)\.[A-Za-z0-9_.-]+", text):
         return text
+    if re.fullmatch(r"(?:chat-t\d{20}-|conversation\.)[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}(?:\.[0-9a-f]{12})?", text):
+        return text
     for label, pat in _PII_PATTERNS.items():
         text = re.sub(pat, f"[REDACTED-{label}]", text)
     return text
