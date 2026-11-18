@@ -29,10 +29,42 @@ Local patch qualification: six dependency-security tests and TypeScript/build
 passed. A separate 112,464-case comparison against published picomatch 4.0.7
 preserved matching results. The published baseline exceeded an isolated
 one-second hostile-input deadline; the pinned patch completed. Full exact-source
-CI and staging acceptance remain required before reporting deployment complete.
+CI and staging acceptance subsequently passed, as recorded below.
 An intermediate CI run passed the source-aware advisory gate, backend, types and
 build, but timed out during browser OS package installation on Ubuntu 26. Delivery
 jobs now pin Ubuntu 24.04; the quality budget includes setup plus the full suite.
+
+### Staging release acceptance
+
+PR #56 merged as `19282360198fd5836cf2a0235b086458efc61186`.
+[Merged-source delivery gates](https://github.com/whatanidea/AgentSpark/actions/runs/44279861626)
+passed both jobs: 626 backend tests, six dependency-security tests, backend
+E2E/evaluations, TypeScript/build, 342 standard browser cases, 11 Discovery
+cases, Linux container lifecycle checks and the immutable release artifact.
+
+On 2026-11-18, the exact merged source was deployed to the existing staging
+Container App as revision `ca-web-6qyihtgdcltiy--0000050`, healthy at 100% traffic.
+ACR Linux/amd64 run `ds1j` succeeded; an independent registry lookup confirmed:
+
+```text
+cr6qyihtgdcltiy.azurecr.io/agentspark/web-agentspark-stg@sha256:aa8b7e93031c651b63ca78d2d0c89a3859c35726e74399b87ce72ba09c695dc9
+```
+
+Post-deployment acceptance passed for all 24 public pages, assets/fonts,
+OIDC/private readiness, authenticated Home, scoped libraries and the existing
+hosted connector. Live Cosmos chat create/read/ETag rename/list/delete passed,
+including exact creation+30-day expiry, unchanged expiry after rename, metadata-only
+history and anonymous rejection. The fictional acceptance chat was deleted and
+confirmed inaccessible. No live inference, real connector import or workflow
+creation was performed by this deployment check.
+
+The update changed only the image. Protected settings, identities, permissions,
+secrets and fonts remained unchanged. Revision49 remains healthy and inactive
+at 0% as rollback. Only the accepted image was persisted to the existing local
+deployment environment; every other environment value was verified unchanged.
+The source-pinned picomatch remediation remains temporary pending an official
+patched release. Moderate Vite advisory GHSA-8g5g-mxqh-grgj remains explicitly
+reported; this release does not claim zero advisories.
 
 ## Product and data contract
 
