@@ -11,6 +11,7 @@ import Portfolio from "./components/Portfolio";
 import Integrations from "./components/Integrations";
 import AzureDevOpsConnector from "./components/AzureDevOpsConnector";
 import Home from "./components/Home";
+import BrandMark from "./components/BrandMark";
 import type PublicLanding from "./components/Landing";
 import { publicPage } from "./components/publicPages";
 import { applyPageMetadata, pageMetadata } from "./publicMetadata";
@@ -440,11 +441,11 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
         <div className="px-5 py-5 md:px-6 md:pt-7 md:pb-6">
           <div className="flex items-center gap-3">
             <span className="portal-brand-mark grid place-items-center h-10 w-10" aria-hidden="true">
-              <svg width="23" height="23" viewBox="0 0 24 24" fill="none"><path d="m12 2 2.7 7.3L22 12l-7.3 2.7L12 22l-2.7-7.3L2 12l7.3-2.7L12 2Z" fill="currentColor" /></svg>
+              <BrandMark />
             </span>
             <div>
               <div className="text-xl font-medium tracking-tight text-white">AgentSpark</div>
-              <p className="text-[11px] text-white/70 mt-0.5">Enterprise transformation advisor</p>
+              <p className="text-[11px] text-white/70 mt-0.5">Enterprise AI decision workspace</p>
             </div>
           </div>
           <p className="hidden md:block text-xs leading-relaxed text-white/70 mt-5">The agent that tells you where agents belong.</p>
@@ -464,8 +465,7 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
                 || (n.id === "intake" && !sessionId && !canWrite)}
                 aria-label={n.label} aria-current={view === n.id ? "step" : undefined} onClick={() => void changeView(n.id)}
                 className="nav-item">
-                <span className="nav-number" aria-hidden="true">{n.id === "home" || n.id === "portfolio" || n.id === "workspaces" || n.id === "discovery" || n.id === "integrations" || n.id === "conversations"
-                  ? <Icon name={n.id === "conversations" ? "chat" : n.id === "workspaces" || n.id === "discovery" || n.id === "integrations" ? "portfolio" : n.id} className="h-4 w-4" /> : String(NAV.filter(item => item.id !== "conversations").findIndex(item => item.id === n.id) - 1).padStart(2, "0")}</span>
+                <span className="nav-number" aria-hidden="true"><Icon name={n.id === "conversations" ? "chat" : n.id} className="h-4 w-4" /></span>
                 <span>{n.label.replace(/^\d · /, "")}</span>
                 {view === n.id && <span aria-hidden="true" className="ml-auto text-brand-700">›</span>}
               </button>
@@ -595,6 +595,7 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
               demo={auth?.mode === "local-demo"} retentionDays={auth?.archive_retention_days ?? 30}
               workspaceName={workspace ? `${workspace.organization_name} / ${workspace.team_name}` : undefined}
               workspace={workspace} initialLibrary={homeLibrary} onWorkspaceSelect={changeWorkspace}
+              onChat={() => void changeView("conversations")}
               onManageAccess={() => void changeView("workspaces")}
               canCreate={workspace?.permissions.write !== false}
               onCreate={newWorkflow} onOpen={openWorkflow} onBusyChange={setBusy}

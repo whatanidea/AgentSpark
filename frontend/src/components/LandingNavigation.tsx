@@ -4,12 +4,13 @@ import { PUBLIC_PAGES } from "./publicPages";
 import { MarketingIcon, publicVisual } from "./MarketingVisuals";
 import { AppearanceControl } from "../Appearance";
 import { ConsultationLink } from "./ConsultationBooking";
+import BrandMark from "./BrandMark";
 
 const menus = {
-  Consulting: PUBLIC_PAGES.filter(page => ["/consulting/readiness", "/consulting/workflow-pilot", "/consulting/adoption"].includes(page.path)),
   Platform: PUBLIC_PAGES.filter(page => ["/platform/discovery", "/platform/assessment", "/platform/architecture"].includes(page.path)),
   Solutions: PUBLIC_PAGES.filter(page => ["/solutions/transformation", "/solutions/operations"].includes(page.path)),
   Resources: PUBLIC_PAGES.filter(page => ["/resources/how-it-works", "/resources/example-assessment", "/resources/trust"].includes(page.path)),
+  Consulting: PUBLIC_PAGES.filter(page => ["/consulting/readiness", "/consulting/workflow-pilot", "/consulting/adoption"].includes(page.path)),
 } as const;
 type Menu = keyof typeof menus;
 const menuCopy: Record<string, readonly [string, string]> = {
@@ -56,7 +57,7 @@ export default function LandingNavigation({ disabled, signedIn, onWorkspace, onB
   }}>
     <div className="landing-container marketing-header-inner">
       <Link className="landing-brand" to="/" aria-label="AgentSpark overview" onClick={close}>
-        <span className="landing-brand-mark" aria-hidden="true">✦</span> AgentSpark
+        <span className="landing-brand-mark" aria-hidden="true"><BrandMark /></span> AgentSpark
       </Link>
       <nav id="marketing-navigation" className="marketing-navigation" data-mobile-open={mobile} aria-label="Product navigation">
         {(Object.keys(menus) as Menu[]).map(name => <div className="marketing-menu" key={name}>
@@ -65,12 +66,6 @@ export default function LandingNavigation({ disabled, signedIn, onWorkspace, onB
             {name}<svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="m3 4 3 3 3-3" fill="none" stroke="currentColor" /></svg>
           </button>
           <div id={`marketing-${name.toLowerCase()}`} className="marketing-dropdown" hidden={open !== name}>
-            <div className="premium-menu-feature" aria-hidden="true">
-              <span className="premium-category-label">{name === "Consulting" ? "STRATEGY THROUGH ADOPTION" : name === "Platform" ? "FROM DISCOVERY TO DECISION" : name === "Solutions" ? "BUILT AROUND YOUR WORK" : "EXPLORE WITH CLARITY"}</span>
-              <strong>{name === "Consulting" ? "Build the capability. Not just the pilot." : name === "Platform" ? "Align. Assess. Decide." : name === "Solutions" ? "The outcome comes first." : "Prepare a better conversation."}</strong>
-              <div className="premium-menu-map"><MarketingIcon name="process" /><span /><MarketingIcon name="evidence" /><span /><MarketingIcon name="decision" /></div>
-              <small>Evidence-led. Human-reviewed.</small>
-            </div>
             <div className="premium-menu-links"><p className="landing-eyebrow">{name === "Consulting" ? "Practical support for your business" : name === "Platform" ? "Understand / review / decide" : name === "Solutions" ? "Start with a business problem" : "Examples & guidance"}</p>
             <ul>{menus[name].map(page => <li key={page.path}>
               <NavLink to={page.path} onClick={close}><span className="premium-menu-icon"><MarketingIcon name={publicVisual(page).icon} /></span>

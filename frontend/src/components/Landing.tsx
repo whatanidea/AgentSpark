@@ -5,22 +5,23 @@ import Icon, { type IconName } from "./Icon";
 import LandingNavigation from "./LandingNavigation";
 import DiscoveryShowcase from "./DiscoveryShowcase";
 import ProductShowcase from "./ProductShowcase";
-import HomeUseCases from "./HomeUseCases";
 import ArchitectureIllustration from "./ArchitectureIllustration";
-import DiscoveryInvitation from "./DiscoveryInvitation";
 import { TechnologyBoundaries } from "./BuyerConfidence";
-import ConsultingContent, { HomeConsulting } from "./Consulting";
+import ConsultingContent from "./Consulting";
 import ConsultationBooking, { ConsultationLink } from "./ConsultationBooking";
-import { MarketingIcon, PageVisual } from "./MarketingVisuals";
-import { SignalField } from "./EditorialExperience";
+import { PageVisual } from "./MarketingVisuals";
+import ClaimStory from "./ClaimStory";
 import { publicPage } from "./publicPages";
 import { FeaturedCapabilities, PublicCollection, SolutionStory } from "./PublicCollections";
+import BrandMark from "./BrandMark";
+import ExperiencePilot from "./ExperiencePilot";
 import "./Landing.css";
 import "./Marketing.css";
 import "./Premium.css";
 import "./Consulting.css";
 import "./Editorial.css";
 import "./PublicDesign.css";
+import "./WorkStory.css";
 
 type Step = { title: string; kind: "assist" | "rules" | "human"; detail: string; gap: string; azure: string; aws: string };
 type Example = { name: string; icon: IconName; team: string; steps: Step[] };
@@ -61,7 +62,7 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
   const example = EXAMPLES[exampleIndex];
   const step = example.steps[stepIndex];
   const startLabel = hasSession ? "Open your workspace" : "Assess my workflow";
-  const { pathname } = useLocation();
+  const { pathname, search, hash } = useLocation();
   const [bookingPath, setBookingPath] = useState<string | null>(null);
   const bookConsultation = () => setBookingPath(pathname);
   useEffect(() => { setBookingPath(null); }, [pathname]);
@@ -74,11 +75,16 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
   const site = useRef<HTMLDivElement>(null);
   const previousPath = useRef(pathname);
   useEffect(() => {
-    if (previousPath.current !== pathname) {
+    const destination = hash && document.getElementById(hash.slice(1));
+    if (destination) {
+      destination.scrollIntoView();
+      destination.setAttribute("tabindex", "-1");
+      destination.focus({ preventScroll: true });
+    } else if (previousPath.current !== pathname) {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
       title.current?.focus({ preventScroll: true });
-      previousPath.current = pathname;
     }
+    previousPath.current = pathname;
     if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches && "IntersectionObserver" in window) {
       const observer = new IntersectionObserver(entries => {
         for (const entry of entries) if (entry.isIntersecting) {
@@ -88,31 +94,23 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
       site.current?.querySelectorAll("[data-reveal]").forEach(element => observer.observe(element));
       return () => observer.disconnect();
     }
-  }, [page, pathname]);
+  }, [page, pathname, hash]);
 
-  return <div ref={site} className="landing multipage-site editorial-site concept-site" data-page={page?.path ?? "not-found"}>
+  if (new URLSearchParams(search).get("design") === "pilot" && (home || pathname === "/consulting/readiness")) {
+    return <><ExperiencePilot readiness={!home} titleRef={title} disabled={disabled} signedIn={signedIn}
+      onWorkspace={onWorkspace} onDiscover={onDiscover} onStart={onStart} onBook={bookConsultation} message={message} />
+      {bookingPath === pathname && <ConsultationBooking onClose={() => setBookingPath(null)} />}</>;
+  }
+
+  return <div ref={site} className="landing multipage-site editorial-site concept-site work-story" data-page={page?.path ?? "not-found"}>
     <a className="landing-skip" href="#landing-main">Skip to content</a>
     <LandingNavigation disabled={disabled} signedIn={signedIn} onWorkspace={onWorkspace} onBook={bookConsultation} />
 
     <main id="landing-main" key={page?.path ?? pathname}>
-      {home ? <section id="top" className="landing-hero landing-container" aria-labelledby="landing-title">
-        <div className="landing-hero-copy">
-          <div className="editorial-hero-meta"><div className="landing-kicker"><span aria-hidden="true" /> Practical AI consulting for small and medium-sized businesses</div>
-            <span>INDEPENDENT THINKING / PRACTICAL DELIVERY</span></div>
-          <h1 ref={title} tabIndex={-1} id="landing-title">Smarter work.<br /><span><em>Stronger</em> business.</span></h1>
-          <div className="editorial-hero-bottom">
-            <p>We help small and medium-sized businesses find practical uses for AI, reduce repetitive work and choose a sensible first project. Start with one business problem, not a list of tools.</p>
-            <div><div className="landing-actions">
-              <ConsultationLink onBook={bookConsultation} />
-              <Link className="landing-button landing-button-secondary" to="/consulting">Explore consulting <span aria-hidden="true">→</span></Link>
-            </div>
-            <a className="editorial-product-link" href="#product-showcase">See how it works <span aria-hidden="true">→</span></a></div>
-          </div>
-          <p className="landing-fine">Already have a workflow in mind? <button className="marketing-inline-action" disabled={disabled} onClick={onStart}>{startLabel}</button></p>
-          {message && <p role="status" className="landing-feedback">{message}</p>}
-        </div>
-        <SignalField />
-      </section> : <section id="top" className="marketing-page-hero landing-container" aria-labelledby="landing-title">
+      {home ? <><ClaimStory titleRef={title} onBook={bookConsultation} />
+        <div className="story-start landing-container"><strong>Ready to work on your own process?</strong>
+          <button disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">→</span></button><button disabled={disabled} onClick={onStart}>{startLabel} <span aria-hidden="true">→</span></button>
+          {message && <p role="status">{message}</p>}</div></> : <section id="top" className="marketing-page-hero landing-container" aria-labelledby="landing-title">
         <div className="premium-page-copy">
         <nav className="marketing-breadcrumb" aria-label="Breadcrumb"><Link to="/">Home</Link><span aria-hidden="true">/</span>
           {page && (consultingPage && page.path !== "/consulting" ? <Link to="/consulting">Consulting</Link> : <span>{page.section}</span>)}</nav>
@@ -125,23 +123,15 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
           {consultingPage ? <Link className="landing-button landing-button-secondary" to="/resources/example-assessment">Explore an example <span aria-hidden="true">→</span></Link>
             : <button className="landing-button landing-button-secondary" disabled={disabled} onClick={onStart}>{startLabel}</button>}
         </div>}
-        {consultingPage && <p className="consulting-note">Book through Cal.com or copy instructions for your AI assistant. The calendar loads only when you choose to open it. Consulting scope and authorization are agreed separately.</p>}
         {!page && <Link className="landing-button landing-button-primary" to="/">Return to overview</Link>}
         {message && <p role="status" className="landing-feedback">{message}</p>}
         </div>
         {page && <PageVisual page={page} />}
       </section>}
 
-      {home && <aside className="premium-proof-strip landing-container" aria-label="What the platform makes visible">
-        <div><MarketingIcon name="people" /><span>Agree priorities &amp; responsibilities</span></div>
-        <div><MarketingIcon name="evidence" /><span>Understand why an improvement is suggested</span></div>
-        <div><MarketingIcon name="blueprint" /><span>Review a clear plan before investing</span></div>
-      </aside>}
-      {(home || page?.path === "/platform" || page?.path === "/resources/whats-new") && <FeaturedCapabilities />}
-      {(home || page?.path === "/platform" || page?.path === "/resources/how-it-works") && <ProductShowcase />}
-      {home && <HomeConsulting disabled={disabled} onDiscover={onDiscover} onBook={bookConsultation} />}
-      {page?.path === "/solutions" && <HomeUseCases />}
-      {page?.path === "/platform" && <TechnologyBoundaries />}
+      {page?.path === "/resources/how-it-works" && <div className="clarity-story-band"><ProductShowcase /></div>}
+      {page?.path === "/resources/whats-new" && <FeaturedCapabilities />}
+      {page?.path === "/platform" && <><PublicCollection page={page} /><TechnologyBoundaries /></>}
       {consultingPage && <ConsultingContent path={page.path} disabled={disabled} onDiscover={onDiscover} onBook={bookConsultation} />}
 
       {page?.path === "/platform/architecture" && <section data-reveal className="landing-section landing-container" aria-labelledby="architecture-example-title">
@@ -152,7 +142,6 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
       {!!page?.details.length && page.section !== "Solutions" && <section data-reveal className="landing-section landing-container marketing-page-details" aria-label={`${page.name} capabilities`}>
         <div className="marketing-capabilities">{page.details.map(([heading, text], index) =>
           <article key={heading}><span>0{index + 1}</span><h2>{heading}</h2><p>{text}</p></article>)}</div>
-        <Link className="landing-button landing-button-secondary" to="/resources/example-assessment">Explore an example assessment →</Link>
       </section>}
       {page?.stage && <section data-reveal className="landing-container marketing-stage-section" aria-label="Fictional product walkthrough">
         <DiscoveryShowcase key={page.path} initialStage={page.stage} />
@@ -270,18 +259,20 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
         ].map(([title, detail]) => <details key={title}><summary>{title}<span aria-hidden="true">+</span></summary><p>{detail}</p></details>)}</div>
       </section>}
 
-      {page && <DiscoveryInvitation onBook={bookConsultation} />}
+      {page && !home && !consultingPage && <nav className="story-next landing-container" aria-label="Continue exploring">
+        <small>Continue exploring</small>{examplePage ? <Link to="/consulting/workflow-pilot">Plan a pilot with an adviser →</Link>
+          : <Link to="/resources/example-assessment">Try the sample assessment →</Link>}</nav>}
     </main>
     <footer className="landing-footer landing-container premium-footer">
-      <div><span className="landing-brand"><span className="landing-brand-mark" aria-hidden="true">✦</span>AgentSpark</span>
-        <p>Practical AI advice for small and medium-sized businesses.<br />Start with the work, not the technology.</p><small>Your team stays in control.</small></div>
+      <div><span className="landing-brand"><span className="landing-brand-mark" aria-hidden="true"><BrandMark /></span>AgentSpark</span>
+        <p>AI consulting and workflow assessment for SMEs.</p></div>
       <div><strong>Consulting</strong><Link to="/consulting">Consulting overview</Link><Link to="/consulting/readiness">Opportunity & readiness</Link>
         <Link to="/consulting/workspace-launch">Workspace launch</Link><Link to="/consulting/workflow-pilot">Workflow pilot</Link><Link to="/consulting/adoption">Adoption & optimization</Link></div>
       <div><strong>Platform</strong><Link to="/platform">Platform overview</Link><Link to="/platform/discovery">Discovery</Link><Link to="/platform/alignment">Alignment &amp; decisions</Link>
         <Link to="/platform/prioritization">Compare opportunities</Link><Link to="/platform/assessment">Assessment</Link><Link to="/platform/architecture">Visual blueprints</Link><Link to="/platform/workspaces">Team workspaces</Link></div>
       <div><strong>Explore</strong><Link to="/solutions">Solutions</Link><Link to="/resources">Resources</Link><Link to="/about">About</Link>
         <Link to="/resources/decision-guide">Decision review guide</Link><Link to="/resources/example-assessment">Example assessment</Link><Link to="/resources/trust">Trust & limitations</Link>
-        <ConsultationLink onBook={bookConsultation} className="consulting-text-link" label="Contact & booking" /></div>
+        <ConsultationLink onBook={bookConsultation} className="consulting-text-link" label="Book a consultation" /></div>
       <a className="premium-back-top" href="#top">Back to top ↑</a>
     </footer>
     {bookingPath === pathname && <ConsultationBooking onClose={() => setBookingPath(null)} />}

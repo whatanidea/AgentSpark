@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { publicPage } from "../src/components/publicPages";
 
 test("public examples explain workflow boundaries without authentication, writes or readiness probes", async ({ page }) => {
   const calls: string[] = [];
@@ -10,7 +11,8 @@ test("public examples explain workflow boundaries without authentication, writes
     mode: "oidc", retention_hours: 24, archive_retention_days: 30,
   } }));
   await page.goto("/");
-  await expect(page.getByRole("heading", { name: "Smarter work. Stronger business.", exact: true })).toBeVisible();
+  await expect(page.locator("#landing-title")).toHaveText("One claim. Three places to look.");
+  await expect(page).toHaveTitle("AgentSpark | AI Consulting & Assessment for SMEs");
   await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeEnabled();
   await expect(page.getByRole("group", { name: "Example workflow", exact: true })).toHaveCount(0);
   await page.goto("/platform/discovery");
@@ -77,7 +79,11 @@ test("landing supports keyboard operation, narrow viewports and reduced motion",
   await expect(page.getByRole("link", { name: "Skip to content", exact: true })).toBeAttached();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Skip to content", exact: true })).toBeFocused();
-  await page.goto("/resources/example-assessment");
+  const assessment = page.getByRole("link", { name: /Open the interactive assessment/i });
+  await assessment.focus();
+  await page.keyboard.press("Enter");
+  await expect(page).toHaveURL("/resources/example-assessment#workflow-explorer");
+  await expect(page.locator("#workflow-explorer")).toBeFocused();
   const example = page.getByRole("group", { name: "Example workflow" }).getByRole("button", { name: "Employee onboarding", exact: true });
   expect((await example.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await example.focus();
@@ -96,7 +102,8 @@ test("landing supports keyboard operation, narrow viewports and reduced motion",
 
 test("workspace entry and returning to overview preserve the active assessment", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Assess my workflow", exact: true }).first().click();
+  const actions = page.locator(".story-start");
+  await actions.getByRole("button", { name: /Assess my workflow/ }).click();
   await page.getByLabel("Business Domain", { exact: true }).fill("Fictional landing regression");
   await page.getByLabel("Target cloud", { exact: true }).selectOption("aws");
   await page.getByRole("button", { name: "Submit Intake", exact: true }).click();
@@ -104,12 +111,12 @@ test("workspace entry and returning to overview preserve the active assessment",
   const pointer = JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!);
   try {
     await page.getByRole("button", { name: "Product overview", exact: false }).click();
-    await expect(page.getByRole("heading", { name: "Smarter work. Stronger business.", exact: true })).toBeVisible();
-    await page.getByRole("button", { name: "Start a workflow review", exact: false }).first().click();
+    await expect(page.locator("#landing-title")).toHaveText(publicPage("/")!.title);
+    await actions.getByRole("button", { name: /Start discovery/ }).click();
     await expect(page.getByRole("heading", { name: "Discovery engagements", exact: true })).toBeVisible();
     expect(JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!).session).toBe(pointer.session);
     await page.getByRole("button", { name: "Product overview", exact: false }).click();
-    await page.getByRole("button", { name: "Open your workspace", exact: true }).first().click();
+    await actions.getByRole("button", { name: /Open your workspace/ }).click();
     await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible();
     expect(JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!).session).toBe(pointer.session);
     await page.getByRole("button", { name: "2 · Diagnostic Interview", exact: true }).click();
@@ -140,7 +147,7 @@ test("public workspace sign-in retains the destination and displays access error
   await expect(page.getByRole("status").filter({ hasText: "Fictional access denied." })).toBeVisible();
   expect(await page.evaluate(() => Object.values(sessionStorage).some(value => String(value).includes("fictional-invalid-token")))).toBe(false);
   await page.getByRole("button", { name: "Product overview", exact: false }).click();
-  await expect(page.getByRole("heading", { name: "Smarter work. Stronger business.", exact: true })).toBeVisible();
+  await expect(page.locator("#landing-title")).toHaveText(publicPage("/")!.title);
 });
 
 test("signing in from the assessment action opens intake without creating a workflow", async ({ page }) => {
@@ -151,13 +158,13 @@ test("signing in from the assessment action opens intake without creating a work
     identity: "fictional-browser-identity", can_review: false, platform_access: true,
   } }));
   await page.goto("/");
-  await page.getByRole("button", { name: "Assess my workflow", exact: true }).first().click();
+  await page.locator(".story-start").getByRole("button", { name: /Assess my workflow/ }).click();
   await page.getByLabel("Access token", { exact: true }).fill("fictional-browser-token");
   await page.getByRole("button", { name: "Connect securely", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Enterprise Context", exact: true })).toBeVisible();
   expect(await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1"))).toBeNull();
   await page.getByRole("button", { name: "Sign out", exact: true }).click();
-  await expect(page.getByRole("heading", { name: "Smarter work. Stronger business.", exact: true })).toBeVisible();
+  await expect(page.locator("#landing-title")).toHaveText(publicPage("/")!.title);
   await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeVisible();
 });
 
@@ -178,7 +185,7 @@ test("desktop dropdowns support keyboard dismissal, outside close and substantiv
   await expect(platform).toHaveAttribute("aria-expanded", "false");
   await page.locator("main").click({ position: { x: 8, y: 8 } });
   await expect(nav.getByRole("button", { name: "Solutions", exact: true })).toHaveAttribute("aria-expanded", "false");
-  for (const name of ["Consulting", "Platform", "Solutions", "Resources"]) {
+  for (const name of ["Platform", "Solutions", "Resources", "Consulting"]) {
     await nav.getByRole("button", { name, exact: true }).click();
     const links = nav.locator(".marketing-dropdown:visible a");
     for (const link of await links.all()) {
@@ -192,7 +199,7 @@ test("desktop dropdowns support keyboard dismissal, outside close and substantiv
   await nav.getByRole("button", { name: "Resources", exact: true }).click();
   await nav.getByRole("link", { name: "Trust & limitations", exact: false }).click();
   await expect(page).toHaveURL(/\/resources\/trust$/);
-  await expect(page.getByRole("heading", { name: "Know what is supported. Know what is still unknown.", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(publicPage("/resources/trust")!.title);
 });
 
 test("mobile navigation remains usable at 320px and closes after destination selection", async ({ page }) => {
@@ -221,7 +228,7 @@ test("mobile navigation remains usable at 320px and closes after destination sel
 
 test("discovery sign-in retries retain the destination and the restored assessment without writes", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Assess my workflow", exact: true }).click();
+  await page.locator(".story-start").getByRole("button", { name: /Assess my workflow/ }).click();
   await page.getByLabel("Business Domain", { exact: true }).fill("Fictional discovery entry regression");
   await page.getByLabel("Target cloud", { exact: true }).selectOption("aws");
   await page.getByRole("button", { name: "Submit Intake", exact: true }).click();

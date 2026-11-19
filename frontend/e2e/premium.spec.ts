@@ -6,13 +6,7 @@ test("editorial journey, product stages and technology boundaries explain capabi
     if (request.url().includes("/api/") || request.url().endsWith("/ready"))
       calls.push(`${request.method()} ${new URL(request.url()).pathname}`);
   });
-  await page.goto("/");
-  const hero = page.getByRole("figure", { name: "Illustrative journey from business friction to human-reviewed progress" });
-  await expect(hero).toContainText("Customer-owned tools");
-  await expect(hero).toContainText("Human-reviewed progress");
-  await expect(hero).toContainText("Not a connected system or an autonomous workflow");
-  await expect(hero).toHaveCSS("background-color", "rgb(16, 16, 23)");
-  await page.getByRole("link", { name: "See how it works", exact: false }).click();
+  await page.goto("/resources/how-it-works");
   const showcase = page.getByRole("region", { name: "See the work. Then decide what changes.", exact: true });
   await expect(showcase.getByRole("tabpanel", { name: /Discover/ })).toContainText("Clarification needed");
   for (const name of ["Align", "Prioritize", "Prepare", "Decide"]) {
@@ -23,7 +17,6 @@ test("editorial journey, product stages and technology boundaries explain capabi
   await expect(showcase.locator(".premium-screen-footer")).toContainText("No model calls or records created.");
   await expect(showcase).toContainText("it does not authorize implementation");
   await expect(showcase).toContainText("No measured savings or pilot authorization.");
-  await expect(showcase.locator(".premium-product-screen")).toHaveCSS("background-color", "rgb(8, 8, 12)");
   await expect(page.locator(".premium-technology")).toHaveCount(0);
   await page.goto("/platform");
   const technology = page.getByRole("region", { name: "Your decisions first. The stack follows.", exact: true });
@@ -43,7 +36,7 @@ test("editorial journey, product stages and technology boundaries explain capabi
 });
 
 test("product tabs expose consistent ARIA relationships and full keyboard navigation", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/resources/how-it-works");
   const tabs = page.getByRole("tablist", { name: "Product walkthrough stages" });
   await tabs.getByRole("tab", { name: /Discover/ }).focus();
   for (const [key, name] of [["ArrowRight", "Align"], ["ArrowRight", "Prioritize"], ["End", "Decide"], ["ArrowRight", "Discover"], ["ArrowLeft", "Decide"], ["Home", "Discover"]]) {
@@ -62,12 +55,12 @@ test("product tabs expose consistent ARIA relationships and full keyboard naviga
 });
 
 test("premium layouts, menus and diagrams fit mobile, tablet and desktop without hiding meaningful content", async ({ page }) => {
-  for (const path of ["/", "/platform/discovery", "/platform/prioritization", "/platform/assessment", "/platform/architecture", "/solutions/operations", "/resources/trust"]) {
+  for (const path of ["/resources/how-it-works", "/platform/discovery", "/platform/prioritization", "/platform/assessment", "/platform/architecture", "/solutions/operations", "/resources/trust"]) {
     await page.goto(path);
     for (const width of [320, 390, 768, 1024, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${path} at ${width}px`).toBe(true);
-      if (path === "/") {
+      if (path === "/resources/how-it-works") {
         for (const tab of await page.getByRole("tab").all())
           expect((await tab.boundingBox())!.height).toBeGreaterThanOrEqual(44);
       } else {
@@ -89,7 +82,7 @@ test("premium layouts, menus and diagrams fit mobile, tablet and desktop without
   const box = (await menu.boundingBox())!;
   expect(box.x).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width).toBeLessThanOrEqual(1440);
-  await expect(menu.locator(".premium-menu-feature")).toBeVisible();
+  await expect(menu.getByRole("link", { name: "All platform" })).toBeVisible();
   await expect(menu.getByRole("link")).toHaveCount(4);
 });
 
@@ -102,10 +95,10 @@ test("workflow review opens the protected existing discovery flow without a fake
   await page.route("**/api/v1/auth/config", route => route.fulfill({ json: {
     mode: "oidc", retention_hours: 24, archive_retention_days: 30,
   } }));
-  await page.goto("/");
-  const buyer = page.getByRole("region", { name: "A deliberate journey. Not another AI experiment.", exact: true });
-  await expect(buyer).toContainText("not a booked consultation or a promise of follow-up");
-  await buyer.getByRole("button", { name: "Start a workflow review", exact: false }).click();
+  await page.goto("/consulting");
+  const buyer = page.getByRole("region", { name: "Bring one business question.", exact: true });
+  await expect(buyer).toContainText("Starting discovery does not book a consultation");
+  await buyer.getByRole("button", { name: "Start in the platform", exact: false }).click();
   await expect(page.getByRole("heading", { name: "Organization access", exact: true })).toBeVisible();
   expect(await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1"))).toBeNull();
   expect(writes).toEqual([]);

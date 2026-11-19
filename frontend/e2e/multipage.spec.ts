@@ -1,124 +1,6 @@
 import { expect, test } from "@playwright/test";
-
-const pages = [
-  ["/", "Home", "Smarter work. Stronger business."],
-  ["/consulting", "Consulting overview", "Build an AI-native business. One deliberate step at a time."],
-  ["/consulting/readiness", "AI Opportunity & Readiness", "Find the right starting point. Not just another AI tool."],
-  ["/consulting/workspace-launch", "Secure AI Workspace Launch", "Give your team a considered start with AI."],
-  ["/consulting/workflow-pilot", "Workflow Pilot & Implementation", "Prove the workflow before scaling the investment."],
-  ["/consulting/adoption", "AI Adoption & Optimization", "Make adoption a capability. Not a launch event."],
-  ["/about", "About", "Better decisions before bigger commitments."],
-  ["/platform", "Platform overview", "Shared intent. Clear evidence. A better next decision."],
-  ["/platform/discovery", "Discovery & stakeholder input", "Hear the people who know the work."],
-  ["/platform/alignment", "Stakeholder alignment & decisions", "Agreement is not a meeting note."],
-  ["/platform/prioritization", "Synthesis & prioritization", "Build a shortlist you can explain."],
-  ["/platform/assessment", "Assessment & executive decisions", "Less text. More decision value."],
-  ["/platform/architecture", "Architecture & review", "See how the design fits together."],
-  ["/platform/workspaces", "Organizations & team workspaces", "The right work. In the right workspace."],
-  ["/solutions", "Solutions overview", "Different teams. The same need for clarity."],
-  ["/solutions/transformation", "Transformation teams", "Build the shortlist before the backlog."],
-  ["/solutions/operations", "Finance & operations", "Start with the friction people recognize."],
-  ["/solutions/advisory", "Consultancies & advisory teams", "A client recommendation they can inspect."],
-  ["/resources", "Resources overview", "Explore the product. Prepare the conversation."],
-  ["/resources/how-it-works", "How it works", "From business question to clearer next step."],
-  ["/resources/example-assessment", "Illustrative assessment", "Explore the work before signing in."],
-  ["/resources/decision-guide", "Decision review guide", "Five questions before the next commitment."],
-  ["/resources/whats-new", "Platform capabilities", "A clearer path from discovery to decision."],
-  ["/resources/trust", "Trust & limitations", "Know what is supported. Know what is still unknown."],
-] as const;
-
-test("discovery invitation animates once, replays accessibly and stays static on mobile or reduced motion", async ({ page }) => {
-  const writes: string[] = [];
-  page.on("request", request => {
-    if (request.url().includes("/api/") && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method()))
-      writes.push(request.method());
-  });
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/");
-  const invitation = page.getByRole("region", { name: "Start with a business question. Leave with a clearer next step.", exact: true });
-  await invitation.scrollIntoViewIfNeeded();
-  const journey = invitation.getByRole("figure", { name: "From business question to a reviewed next step" });
-  await expect(journey.getByRole("listitem")).toHaveText(["Business question", "Team insights", "Evidence", "Clear next step"]);
-  await expect(journey).toContainText("People review the next step");
-  await expect(invitation.locator(".invitation-art")).toHaveAttribute("data-animated", "true");
-  const contrast = await invitation.evaluate(section => {
-    const luminance = (color: string) => {
-      const channels = color.match(/[\d.]+/g)?.slice(0, 3).map(Number);
-      if (!channels || channels.length !== 3) throw new Error(`Unsupported color: ${color}`);
-      const linear = channels.map(value => {
-        const channel = value / 255;
-        return channel <= .04045 ? channel / 12.92 : ((channel + .055) / 1.055) ** 2.4;
-      });
-      return linear[0] * .2126 + linear[1] * .7152 + linear[2] * .0722;
-    };
-    const background = luminance(getComputedStyle(section).backgroundColor);
-    return [...section.querySelectorAll(".invitation-copy h2, .invitation-copy p")].map(node => {
-      const text = luminance(getComputedStyle(node).color);
-      return (Math.max(background, text) + .05) / (Math.min(background, text) + .05);
-    });
-  });
-  for (const ratio of contrast) expect(ratio).toBeGreaterThanOrEqual(4.5);
-  const height = (await invitation.boundingBox())!.height;
-  await expect.poll(() => invitation.evaluate(node =>
-    node.getAnimations({ subtree: true }).every(animation => animation.playState === "finished")
-  ), { timeout: 6000 }).toBe(true);
-  const replay = invitation.getByRole("button", { name: "Replay illustration", exact: true });
-  await replay.focus(); await page.keyboard.press("Enter");
-  await expect(replay).toBeFocused();
-  await expect.poll(() => invitation.evaluate(node =>
-    node.getAnimations({ subtree: true }).some(animation => animation.playState === "running")
-  )).toBe(true);
-  expect((await invitation.boundingBox())!.height).toBeCloseTo(height, 0);
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  expect(await invitation.evaluate(node => node.getAnimations({ subtree: true }).length)).toBe(0);
-  await expect(replay).toBeHidden();
-  await page.emulateMedia({ reducedMotion: "no-preference" });
-  await page.setViewportSize({ width: 320, height: 900 });
-  await invitation.scrollIntoViewIfNeeded();
-  expect(await invitation.evaluate(node => node.getAnimations({ subtree: true }).length)).toBe(0);
-  await expect(replay).toBeHidden();
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  expect((await invitation.getByRole("link", { name: "Book a consultation", exact: true }).boundingBox())!.height).toBeGreaterThanOrEqual(44);
-  expect(writes).toEqual([]);
-});
-
-test("solutions overview explains two use cases with original examples, outputs and clear limits", async ({ page }) => {
-  const calls: string[] = [];
-  page.on("request", request => {
-    if (request.url().includes("/api/") || request.url().endsWith("/ready"))
-      calls.push(`${request.method()} ${new URL(request.url()).pathname}`);
-  });
-  await page.goto("/solutions");
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Different teams. The same need for clarity.");
-  const useCases = page.getByRole("region", { name: "Understand the work. Prepare the next step.", exact: true });
-  await expect(useCases.getByRole("article")).toHaveCount(2);
-  const readiness = useCases.getByRole("article", { name: "AI readiness", exact: true });
-  const process = useCases.getByRole("article", { name: "Process intelligence", exact: true });
-  await expect(readiness).toContainText("Assess workflow suitability separately from pilot readiness");
-  await expect(readiness.getByRole("figure")).toContainText("Needs validation");
-  await expect(process).toContainText("rules-based automation and AI assistance");
-  await expect(process.getByRole("figure")).toContainText("not measured customer data");
-  await expect(useCases.getByRole("list", { name: "AgentSpark deliverables" }).getByRole("listitem")).toHaveCount(4);
-  await expect(useCases).toContainText("not automatic system monitoring or process mining");
-  for (const width of [320, 768, 1440]) {
-    await page.setViewportSize({ width, height: 900 });
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    for (const card of [readiness, process]) {
-      await card.scrollIntoViewIfNeeded();
-      await expect(card).toBeVisible();
-      expect((await card.getByRole("link").boundingBox())!.height).toBeGreaterThanOrEqual(44);
-    }
-  }
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await readiness.getByRole("link", { name: "Explore readiness assessment" }).focus();
-  await page.keyboard.press("Enter");
-  await expect(page).toHaveURL(/\/platform\/assessment$/);
-  await page.goBack();
-  await process.getByRole("link", { name: "Explore process discovery" }).click();
-  await expect(page).toHaveURL(/\/platform\/discovery$/);
-  expect(calls.filter(call => !["GET /api/v1/auth/config", "GET /api/v1/auth/me"].includes(call))).toEqual([]);
-  expect(await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1"))).toBeNull();
-});
+import { PUBLIC_PAGES, publicPage } from "../src/components/publicPages";
+import { pageMetadata } from "../src/publicMetadata";
 
 test("architecture illustration separates AI suggestions, human authority and customer delivery", async ({ page }) => {
   const writes: string[] = [];
@@ -154,15 +36,17 @@ test("architecture illustration separates AI suggestions, human authority and cu
   expect(writes).toEqual([]);
 });
 
-test("all 17 public URLs render focused content, metadata and refresh safely", async ({ page }) => {
-  for (const [path, name, heading] of pages) {
-    const response = await page.goto(path);
+test("all 24 public URLs render their content and metadata and refresh safely", async ({ page }) => {
+  expect(new Set(PUBLIC_PAGES.map(entry => entry.path)).size).toBe(24);
+  for (const entry of PUBLIC_PAGES) {
+    const response = await page.goto(entry.path);
     expect(response!.status()).toBe(200);
-    await expect(page.getByRole("heading", { level: 1, name: heading, exact: true })).toBeVisible();
-    await expect(page).toHaveTitle(path === "/" ? "AgentSpark | AI Consulting & Assessment for SMEs" : `${name} | AgentSpark`);
-    await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", /[a-zA-Z].{30}/);
+    const heading = page.getByRole("heading", { level: 1, name: entry.title, exact: true });
+    await expect(heading).toBeVisible();
+    await expect(page).toHaveTitle(pageMetadata(entry).title);
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute("content", entry.summary);
     await page.reload();
-    await expect(page.getByRole("heading", { level: 1, name: heading, exact: true })).toBeVisible();
+    await expect(heading).toBeVisible();
     for (const width of [320, 1440]) {
       await page.setViewportSize({ width, height: 900 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
@@ -193,40 +77,9 @@ test("menu links navigate without document reloads and history restores heading 
   expect(documents).toHaveLength(1);
 });
 
-test("homepage has a bounded product story with manual stages, stable layout and reduced motion", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 900 });
-  await page.goto("/");
-  const preview = page.getByRole("region", { name: "See the work. Then decide what changes.", exact: true });
-  await preview.scrollIntoViewIfNeeded();
-  await expect(page.getByRole("group", { name: "Example workflow" })).toHaveCount(0);
-  await expect(page.getByRole("group", { name: "Deliverable preview" })).toHaveCount(0);
-  expect(await page.locator("main > section").count()).toBeLessThanOrEqual(6);
-  expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(4800);
-  const height = (await preview.boundingBox())!.height;
-  await page.clock.install();
-  await page.clock.fastForward(60000);
-  await expect(preview.getByRole("tab", { name: /Discover/ })).toHaveAttribute("aria-selected", "true");
-  await preview.getByRole("tab", { name: /Discover/ }).focus();
-  await page.keyboard.press("ArrowRight");
-  await expect(preview.getByRole("tabpanel", { name: /Align/ })).toBeVisible();
-  expect((await preview.boundingBox())!.height).toBeCloseTo(height, 0);
-  await page.keyboard.press("ArrowRight");
-  await expect(preview.getByRole("tabpanel", { name: /Prioritize/ })).toBeVisible();
-  expect((await preview.boundingBox())!.height).toBeCloseTo(height, 0);
-  await page.keyboard.press("ArrowRight");
-  await expect(preview.getByRole("tabpanel", { name: /Prepare/ })).toBeVisible();
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.keyboard.press("ArrowRight");
-  await expect(page.locator(".premium-product-screen")).toHaveCSS("animation-name", "none");
-  await page.setViewportSize({ width: 320, height: 900 });
-  for (const button of await preview.getByRole("button").all())
-    expect((await button.boundingBox())!.height).toBeGreaterThanOrEqual(44);
-  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-});
-
 test("public deep links remain public with a restored assessment and preserve its cloud", async ({ page }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Assess my workflow", exact: true }).click();
+  await page.locator(".story-start").getByRole("button", { name: /Assess my workflow/ }).click();
   await page.getByLabel("Business Domain", { exact: true }).fill("Fictional multipage restoration");
   await page.getByLabel("Target cloud", { exact: true }).selectOption("aws");
   await page.getByRole("button", { name: "Submit Intake", exact: true }).click();
@@ -234,12 +87,12 @@ test("public deep links remain public with a restored assessment and preserve it
   const pointer = JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!);
   try {
     await page.goto("/consulting/workflow-pilot");
-    await expect(page.getByRole("heading", { level: 1, name: "Prove the workflow before scaling the investment.", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(publicPage("/consulting/workflow-pilot")!.title);
     expect(JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!).session).toBe(pointer.session);
     await page.goto("/solutions/operations");
-    await expect(page.getByRole("heading", { level: 1, name: "Start with the friction people recognize.", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(publicPage("/solutions/operations")!.title);
     await page.reload();
-    await expect(page.getByRole("heading", { level: 1, name: "Start with the friction people recognize.", exact: true })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(publicPage("/solutions/operations")!.title);
     await page.getByRole("button", { name: "Open your workspace", exact: true }).click();
     await expect(page).toHaveURL(/\/workspace$/);
     await page.getByRole("button", { name: "2 · Diagnostic Interview", exact: true }).click();
@@ -259,7 +112,7 @@ test("unknown public pages are explicit and unknown API paths remain JSON 404s",
   await expect(page.getByRole("heading", { name: "Page not found.", exact: true })).toBeVisible();
   await expect(page).toHaveTitle("Page not found | AgentSpark");
   await page.getByRole("link", { name: "Return to overview", exact: true }).click();
-  await expect(page.getByRole("heading", { level: 1, name: pages[0][2], exact: true })).toBeVisible();
+  await expect(page.locator("#landing-title")).toHaveText(publicPage("/")!.title);
 });
 
 test("browser Back protects an unsaved discovery draft without creating records", async ({ page }) => {
@@ -269,7 +122,7 @@ test("browser Back protects an unsaved discovery draft without creating records"
       writes.push(request.method());
   });
   await page.goto("/");
-  await page.getByRole("button", { name: "Start a workflow review", exact: false }).first().click();
+  await page.getByRole("button", { name: "Start discovery", exact: false }).first().click();
   await expect(page.getByRole("heading", { name: "Discovery engagements", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "New discovery engagement", exact: true }).click();
   const title = page.getByRole("textbox", { name: "Engagement title", exact: true });
@@ -283,7 +136,7 @@ test("browser Back protects an unsaved discovery draft without creating records"
   page.once("dialog", dialog => { confirmations.push(dialog.message()); return dialog.accept(); });
   await page.goBack();
   await expect(page).toHaveURL(/\/$/);
-  await expect(page.getByRole("heading", { level: 1, name: pages[0][2], exact: true })).toBeVisible();
+  await expect(page.locator("#landing-title")).toHaveText(publicPage("/")!.title);
   expect(confirmations).toEqual(["Discard unsaved discovery changes?", "Discard unsaved discovery changes?"]);
   expect(writes).toEqual([]);
 });

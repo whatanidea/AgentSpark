@@ -3,9 +3,7 @@ import type { PublicPage } from "./components/publicPages";
 export function pageMetadata(page?: PublicPage, workspace = false) {
   const title = workspace ? "Workspace | AgentSpark" : page?.path === "/"
     ? "AgentSpark | AI Consulting & Assessment for SMEs" : `${page?.name ?? "Page not found"} | AgentSpark`;
-  const description = workspace ? "Sign in to your private AgentSpark workspace." : page?.path === "/"
-    ? "AI consulting and an evidence-led assessment platform for SMEs. Align stakeholders, assess workflows and review practical next steps before investing in AI."
-    : page?.summary ?? "This AgentSpark page could not be found.";
+  const description = workspace ? "Sign in to your private AgentSpark workspace." : page?.summary ?? "This AgentSpark page could not be found.";
   return {
     title,
     canonical: !workspace && page ? page.path : null,

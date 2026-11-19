@@ -23,12 +23,12 @@ const STATUS: Record<HomeStatus, { label: string; tone: "positive" | "red" | "am
 };
 const date = (value: string) => value ? new Date(value).toLocaleString() : "Time unavailable";
 
-export default function Home({ demo, retentionDays, workspaceName, workspace, initialLibrary, canCreate, onCreate, onDiscover, onOpen, onDeleted, onBusyChange, onWorkspaceSelect, onManageAccess }: {
+export default function Home({ demo, retentionDays, workspaceName, workspace, initialLibrary, canCreate, onCreate, onChat, onDiscover, onOpen, onDeleted, onBusyChange, onWorkspaceSelect, onManageAccess }: {
   demo: boolean; retentionDays: number; onCreate: () => void;
   workspaceName?: string; canCreate: boolean;
   workspace: WorkspaceSelection | null; initialLibrary: HomeLibrary;
   onWorkspaceSelect: (value: WorkspaceSelection | null, library: HomeLibrary) => void;
-  onManageAccess: () => void;
+  onManageAccess: () => void; onChat: () => void;
   onDiscover: (id?: string) => void;
   onOpen: (session: string) => Promise<void>; onDeleted: (session: string) => void;
   onBusyChange: (busy: boolean) => void;
@@ -103,6 +103,10 @@ export default function Home({ demo, retentionDays, workspaceName, workspace, in
           {library === "discovery" ? "New discovery engagement" : "Create workflow"} <span aria-hidden="true">+</span>
         </Button>}
     </header>
+    {!decision && <section className="workspace-invitation" aria-labelledby="workspace-start">
+      <Icon name="chat" /><div><h2 id="workspace-start">Start with the work.</h2><p>Not sure what to assess? Talk through a bottleneck in Chat. If you already have a record, resume it in the library below.</p></div>
+      <Button variant="ghost" disabled={busy || !!deleting} onClick={onChat}>Explore in Chat</Button>
+    </section>}
     <WorkspaceSelector selection={workspace} disabled={busy || !!deleting}
       onSelect={value => onWorkspaceSelect(value, library)} onManageAccess={onManageAccess} />
     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">

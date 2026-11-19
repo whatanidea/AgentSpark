@@ -1,0 +1,63 @@
+.landing.work-story {
+  --canvas:#f6f2ea; --surface:#fffaf0; --raised:#eee8df; --soft:#eee7f5;
+  --ink:#272230; --muted:#625969; --accent:#684783; --line:#cfc6d1;
+  --button:#302439; --button-ink:#fff8ff; --color-brand-700:#564168;
+}
+:root:not([data-theme="light"]) .work-story {
+  --canvas:#17151e; --surface:#211e2a; --raised:#2b2634; --soft:#332c40;
+  --ink:#f7f1ed; --muted:#c8becf; --accent:#d9bdf1; --line:#4c4355;
+  --button:#e5d0f7; --button-ink:#282030; --color-brand-700:#cfb4e5;
+}
+.work-story .marketing-header { width:100%; padding-inline:clamp(12px,4vw,70px); background:var(--canvas); }
+.work-story .marketing-header-inner { min-height:68px; max-width:1420px; margin:auto }
+.work-story .landing-button { border-radius:30px }
+.work-story .marketing-dropdown:not([hidden]) {grid-template-columns:1fr}
+.work-story :is(.marketing-page-hero,.story-guide,.story-next,#workflow-explorer,[id^="claim-"]) {scroll-margin-top:78px}
+.work-story .marketing-page-hero { padding-block:clamp(32px,6vw,92px); border-bottom:1px solid var(--line); align-items:center }
+.work-story .marketing-page-hero h1 { font-family:Georgia,serif; font-weight:400; line-height:1.04; letter-spacing:-.055em; font-size:clamp(36px,4.6vw,72px); max-width:20ch }
+.work-story .marketing-page-details .marketing-capabilities {display:block}
+.work-story .marketing-capabilities article {display:grid; grid-template-columns:32px minmax(140px,.7fr) 1fr; gap:20px; align-items:baseline; margin:0; border-top:1px solid var(--line); padding:22px 0; background:none}
+.work-story .marketing-capabilities :is(h2,p) {margin:0}
+.claim-film {isolation:isolate;color:#f8f6f1}
+.work-story .claim-frame {display:flex;flex-direction:column;justify-content:center;align-items:center;gap:15px;text-align:center;padding:clamp(28px,5vh,64px) 16px;min-height:min(78svh,840px);background:radial-gradient(ellipse at 50% 75%,#39324e,transparent 58%),#13121c}
+.work-story .claim-review {background:radial-gradient(at 25% 80%,#372744,transparent 65%),#211c2b}
+.work-story .claim-frame :is(h1,h2) {color:#faf5f2;font:500 clamp(40px,6.6vw,92px)/1 system-ui,sans-serif;letter-spacing:-.066em;margin:0}
+.work-story .claim-frame em,.story-guide em {display:block;font:italic 1.02em/1.05 Georgia,serif;color:#ddc8ff}
+.work-story .claim-frame p {max-width:48ch;color:#e3dce7;margin:0}
+.work-story .claim-frame .claim-label {font:600 11px/1.5 monospace;letter-spacing:.12em;text-transform:uppercase;color:#d4c6ee}
+.claim-sources {position:relative;width:min(760px,100%);height:clamp(165px,27svh,260px)}
+.claim-sources div {position:absolute;top:50%;left:50%;width:clamp(105px,25vw,220px);height:clamp(105px,20svh,185px);padding:clamp(10px,2vw,20px);color:#322a36;text-align:left;overflow:hidden;box-shadow:0 12px 30px #12101b66}
+.claim-sources div:first-child {transform:translate(-120%,-43%) rotate(-12deg);background:#d7c6f7}
+.claim-sources div:nth-child(2) {transform:translate(18%,-45%) rotate(10deg);background:#d0d5da}
+.claim-sources div:last-child {transform:translate(-50%,-52%) rotate(-3deg);background:#f6f2e8}
+.claim-sources small,.story-guide small,.story-next small {font:600 10px/1.4 monospace;text-transform:uppercase;letter-spacing:.08em}
+.claim-sources b {display:block;font:normal clamp(17px,2.1vw,31px)/1.07 Georgia,serif;margin:10px 0}
+.claim-sources svg {width:100%;height:44%}.claim-sources i{display:block;height:35px;background:repeating-linear-gradient(transparent 0 8px,#68597455 8px 9px)}
+.claim-controls,.story-start,.story-next {display:flex;align-items:center;gap:18px;flex-wrap:wrap}
+.claim-controls button,.claim-frame>a:not(.claim-preview) {font-size:13px;text-decoration:underline;text-underline-offset:.25em}
+.claim-preview {display:grid;justify-items:center;gap:12px}
+.claim-preview img {display:block;width:auto;max-width:min(100%,720px);height:auto;max-height:47svh;border-radius:12px}
+.claim-preview span {background:#eee7fc;color:#241831;border-radius:30px;padding:10px 22px}
+@media(min-height:660px) {
+  .claim-film-moving .claim-frame {position:sticky;top:68px;min-height:calc(100svh - 68px)}
+  .claim-film-moving .claim-sources div:first-child {translate:calc(var(--gather,0) * 70%) 0;rotate:calc(var(--gather,0) * 12deg)}
+  .claim-film-moving .claim-sources div:nth-child(2) {translate:calc(var(--gather,0) * -65%) 0;rotate:calc(var(--gather,0) * -10deg)}
+  .claim-film-moving:has(:focus-visible) .claim-frame {position:relative;top:auto}
+}
+.story-guide {padding-block:clamp(44px,7vw,100px)}
+.work-story .story-guide h2 {max-width:17ch;font:500 clamp(38px,5.6vw,80px)/1.02 system-ui,sans-serif;letter-spacing:-.06em;margin:14px 0 30px}
+.story-guide em {color:var(--accent)}
+.story-guide blockquote {max-width:750px;border-left:3px solid var(--accent);background:var(--soft);padding:clamp(20px,4vw,44px);margin:0 0 36px}
+.story-guide blockquote strong {display:block;font:normal clamp(23px,3vw,42px)/1.2 Georgia,serif;margin:10px 0}
+.story-guide details {border-block-start:1px solid var(--line);padding-block:16px}
+.story-guide summary {cursor:pointer;font-size:clamp(18px,2vw,26px)}
+.story-guide details p {max-width:62ch;margin:12px 0;color:var(--muted)}
+.story-guide details a,.story-start button,.story-next a {text-decoration:underline;text-underline-offset:.22em}
+.story-start,.story-next {border-top:1px solid var(--line);padding-block:32px}
+.story-next a {font-size:clamp(20px,2.5vw,36px);font-family:Georgia,serif}
+@media(max-width:680px) {
+  .work-story .marketing-page-hero {gap:24px}
+  .work-story .marketing-capabilities article {grid-template-columns:24px 1fr;gap:8px}
+  .work-story .marketing-capabilities p {grid-column:2}
+  .work-story .claim-frame {gap:12px}
+}

@@ -1,4 +1,6 @@
 import { expect, test } from "@playwright/test";
+import { publicPage } from "../src/components/publicPages";
+import { pageMetadata } from "../src/publicMetadata";
 
 const offers = [
   ["/consulting/readiness", "AI Opportunity & Readiness", "A roadmap is advisory."],
@@ -17,11 +19,14 @@ test("consulting is integrated without vendor or funding claims and scheduling r
       schedulerRequests.push(request.url());
   });
   await page.goto("/");
-  const home = page.getByRole("region", { name: "A deliberate journey. Not another AI experiment.", exact: true });
+  await page.getByRole("contentinfo").getByRole("link", { name: "Consulting overview", exact: true }).click();
+  await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
+  const home = page.locator(".editorial-chapters");
   await expect(home.getByRole("article")).toHaveCount(4);
   for (const [path] of offers) await expect(home.locator(`a[href="${path}"]`)).toBeVisible();
-  await page.getByRole("link", { name: "Explore consulting", exact: false }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
+  await expect(page.locator(".consulting-responsibilities")).toContainText("commercial terms are agreed before delivery");
+  await expect(page.locator(".consulting-responsibilities")).toContainText("not Google Cloud generation");
+  await home.locator('a[href="/consulting/workspace-launch"]').click();
   const providers = page.getByRole("region", { name: "Choose for the work. Not for the logo.", exact: true });
   await expect(providers.getByRole("article")).toHaveCount(3);
   await expect(providers).toContainText("not a partner or reseller claim");
@@ -31,11 +36,10 @@ test("consulting is integrated without vendor or funding claims and scheduling r
     await expect(link).toHaveAttribute("href", /^https:\/\//);
     await expect(link).toHaveAttribute("rel", "noopener noreferrer");
   }
-  await expect(page.getByRole("region", { name: "Consulting and software. Complementary, not interchangeable.", exact: true }))
-    .toContainText("not Google Cloud generation");
-  const diligence = page.getByRole("region", { name: "Ambition, with an evidence trail.", exact: true });
-  await expect(diligence).toContainText("No blanket GDPR or AI Act certification is claimed");
-  await expect(diligence).toContainText("Estimates remain estimates");
+  await page.getByRole("contentinfo").getByRole("link", { name: "Trust & limitations" }).click();
+  await page.getByText("European projects need specific diligence", { exact: false }).first().click();
+  await expect(page.locator("#trust")).toContainText("No blanket GDPR compliance, AI Act certification");
+  await expect(page.locator("#trust")).toContainText("not suitability scores, guaranteed savings or verified confidence");
   await expect(page.getByRole("link", { name: "Book a consultation", exact: false }).first()).toBeVisible();
   await expect(page.locator("iframe")).toHaveCount(0);
   expect(schedulerRequests).toEqual([]);
@@ -52,9 +56,9 @@ test("each offer exposes its scope, outputs, method, related services and real p
     if (request.url().includes("/api/") && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method()))
       writes.push(request.method());
   });
-  for (const [path, name, boundary] of offers) {
+  for (const [path, , boundary] of offers) {
     await page.goto(path);
-    await expect(page).toHaveTitle(`${name} | AgentSpark`);
+    await expect(page).toHaveTitle(pageMetadata(publicPage(path)).title);
     await expect(page.locator(".consulting-deliverables li")).toHaveCount(4);
     await expect(page.locator(".consulting-deliverables")).toContainText(boundary);
     await expect(page.locator(".consulting-method li")).toHaveCount(4);

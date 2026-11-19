@@ -1,7 +1,22 @@
 import { expect, test } from "@playwright/test";
+import { publicPage } from "../src/components/publicPages";
+
+test("public feature refresh architecture connectors match their accent", async ({ page }) => {
+  await page.goto("/platform/architecture");
+  const flow = page.locator(".proof-connected-flow li").nth(1);
+  const connectorMatchesAccent = await flow.evaluate(element => {
+    const probe = document.createElement("span");
+    probe.style.color = "var(--accent)";
+    element.append(probe);
+    const matches = getComputedStyle(element, "::before").color === getComputedStyle(probe).color;
+    probe.remove();
+    return matches;
+  });
+  expect(connectorMatchesAccent).toBe(true);
+});
 
 test("public feature refresh surfaces shipped capabilities and connects them to dedicated pages", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/resources/whats-new");
   const features = page.getByRole("region", { name: "Get your team together. Make a clearer decision.", exact: true });
   const cards = features.locator(".public-capability-card");
   await expect(cards).toHaveCount(4);
@@ -34,7 +49,7 @@ test("public feature refresh previews alignment and outcome-led decisions withou
   await page.route("**/api/v1/auth/config", route => route.fulfill({ json: {
     mode: "oidc", retention_hours: 24, archive_retention_days: 30,
   } }));
-  await page.goto("/platform");
+  await page.goto("/resources/how-it-works");
   const tabs = page.getByRole("tablist", { name: "Product walkthrough stages" });
   await expect(tabs.getByRole("tab")).toHaveCount(5);
   await tabs.getByRole("tab", { name: /Align/ }).focus();
@@ -69,7 +84,7 @@ test("public feature refresh provides solution and resource collections with rea
   await expect(story).toContainText("THE REVIEWABLE OUTPUT");
   await expect(story.getByRole("listitem")).toHaveCount(3);
   await story.getByRole("link", { name: "Prepare your decision review", exact: false }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Five questions before the next commitment.");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(publicPage("/resources/decision-guide")!.title);
   await expect(page.locator(".marketing-capabilities article")).toHaveCount(5);
   await page.goto("/resources");
   const resources = page.getByRole("region", { name: "Resources directory" });
@@ -86,7 +101,7 @@ test("public feature refresh provides solution and resource collections with rea
   await page.goBack();
   await expect(resources).toBeVisible();
   await resources.locator('a[href="/resources/whats-new"]').click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("A clearer path from discovery to decision.");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(publicPage("/resources/whats-new")!.title);
   await expect(page.locator(".public-capability-card")).toHaveCount(4);
   await expect(page.locator("#top").getByText("Available features, not a roadmap.", { exact: false })).toBeVisible();
   await page.goto("/resources/example-assessment");
