@@ -44,6 +44,15 @@ Without JavaScript the static appearance is Dark. A small same-origin blocking
 script applies the saved browser preference before public content is painted,
 using the same preference validation and theme logic as the interactive provider.
 
+A separate two-page **product experience design pilot** is available at
+`/?design=pilot` and `/consulting/readiness?design=pilot`. It replaces the page
+composition with interactive product and deliverable demonstrations, rather than
+recolouring the existing layouts. It is an opt-in, JavaScript-only visual review:
+ordinary URLs and their prerendered documents retain the current design, including
+the fallback when JavaScript is disabled. This pilot is not approval for a
+site-wide rollout. Scope and test results are in the
+[design feature record](docs/clarity-engineered-design.md#product-experience-pilot).
+
 FastAPI serves the generated public documents with no-store HTML headers.
 The private workspace uses a separate empty client shell with `noindex,nofollow`;
 the same metadata is maintained on client navigation. Missing pages return HTTP

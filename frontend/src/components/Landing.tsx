@@ -16,6 +16,7 @@ import { SignalField } from "./EditorialExperience";
 import { publicPage } from "./publicPages";
 import { FeaturedCapabilities, PublicCollection, SolutionStory } from "./PublicCollections";
 import BrandMark from "./BrandMark";
+import ExperiencePilot from "./ExperiencePilot";
 import "./Landing.css";
 import "./Marketing.css";
 import "./Premium.css";
@@ -62,7 +63,7 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
   const example = EXAMPLES[exampleIndex];
   const step = example.steps[stepIndex];
   const startLabel = hasSession ? "Open your workspace" : "Assess my workflow";
-  const { pathname } = useLocation();
+  const { pathname, search } = useLocation();
   const [bookingPath, setBookingPath] = useState<string | null>(null);
   const bookConsultation = () => setBookingPath(pathname);
   useEffect(() => { setBookingPath(null); }, [pathname]);
@@ -90,6 +91,12 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
       return () => observer.disconnect();
     }
   }, [page, pathname]);
+
+  if (new URLSearchParams(search).get("design") === "pilot" && (home || pathname === "/consulting/readiness")) {
+    return <><ExperiencePilot readiness={!home} titleRef={title} disabled={disabled} signedIn={signedIn}
+      onWorkspace={onWorkspace} onDiscover={onDiscover} onStart={onStart} onBook={bookConsultation} message={message} />
+      {bookingPath === pathname && <ConsultationBooking onClose={() => setBookingPath(null)} />}</>;
+  }
 
   return <div ref={site} className="landing multipage-site editorial-site concept-site" data-page={page?.path ?? "not-found"}>
     <a className="landing-skip" href="#landing-main">Skip to content</a>

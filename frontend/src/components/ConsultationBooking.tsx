@@ -13,6 +13,7 @@ export function ConsultationLink({ onBook, className = "landing-button landing-b
   return <a className={className} href={BOOKING_URL} referrerPolicy="no-referrer" onClick={event => {
     if (event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
     event.preventDefault();
+    event.currentTarget.focus({ preventScroll: true });
     onBook();
   }}>{label} <span aria-hidden="true">↗</span></a>;
 }
