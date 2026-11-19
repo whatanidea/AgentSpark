@@ -4,12 +4,13 @@
 
 The public website now opens with the claims story rather than the earlier Clarity cover. Read the site in this order:
 
-- **Home:** three fictional source documents, the adviser’s question, the actual public assessment preview, then a coaching exercise. The screenshot links to the interactive claims explorer. Separate actions open consulting, discovery or assessment.
+- **Home:** three fictional source documents, the adviser’s question, the actual public assessment preview, then an interactive intake desk. Visitors compare the original clinic bill with a corrected bill to see when the service-date check sends the file to a specialist or on to eligibility review. Neither outcome decides coverage. The exercise uses local sample data and also explains both outcomes without JavaScript. The screenshot links to the interactive claims explorer. Separate actions open consulting, discovery or assessment.
 - **Consulting:** choose readiness, workspace launch, a workflow pilot or adoption support. Each service describes its outputs, scope and owner; provider comparisons belong on Workspace Launch.
+- **Intake desk automation:** AI extracts the service date and drafts a clarification when needed. A deterministic comparison routes mismatches to a specialist with both sources, or matching dates to eligibility review. The public demo previews this routing without creating tasks or contacting a clinic.
 - **Platform:** choose the capability needed for the decision. Technical limits, permissions and human approval stay explicit.
 - **Solutions, resources and firm:** choose a case by audience, try the interactive example, prepare for a decision review or read the firm’s approach. The full product walkthrough lives under How it works rather than repeating on Home.
 
-The React routes and pre-rendered documents share the same content. Home’s scroll motion can be switched off and starts off under reduced motion. The existing private workspace, booking consent, protected actions and public URLs remain intact. The optional `?design=pilot` comparison is historical, not the default.
+The React routes and pre-rendered documents share the same content. Home’s scroll motion runs by default without a toggle and respects the system reduced-motion preference. The preview and explorer start at “Receive a claim”; the fictional health insurance pilot compares a physiotherapy bill with a claim form and routes conflicting service dates to a claims specialist before eligibility review. This describes a candidate workflow, not a live claims integration. The existing private workspace, booking consent, protected actions and public URLs remain intact. The optional `?design=pilot` comparison is historical, not the default.
 
 ## Historical Clarity direction (superseded for the public site)
 
