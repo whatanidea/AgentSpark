@@ -25,6 +25,8 @@ test("consulting is integrated without vendor or funding claims and scheduling r
   await expect(home.getByRole("article")).toHaveCount(4);
   for (const [path] of offers) await expect(home.locator(`a[href="${path}"]`)).toBeVisible();
   await expect(page.locator(".consulting-responsibilities")).toContainText("commercial terms are agreed before delivery");
+  await expect(page.locator(".consulting-responsibilities")).toContainText("not Google Cloud generation");
+  await home.locator('a[href="/consulting/workspace-launch"]').click();
   const providers = page.getByRole("region", { name: "Choose for the work. Not for the logo.", exact: true });
   await expect(providers.getByRole("article")).toHaveCount(3);
   await expect(providers).toContainText("not a partner or reseller claim");
@@ -34,11 +36,10 @@ test("consulting is integrated without vendor or funding claims and scheduling r
     await expect(link).toHaveAttribute("href", /^https:\/\//);
     await expect(link).toHaveAttribute("rel", "noopener noreferrer");
   }
-  await expect(page.getByRole("region", { name: "Consulting and software. Complementary, not interchangeable.", exact: true }))
-    .toContainText("not Google Cloud generation");
-  const diligence = page.getByRole("region", { name: "Ambition, with an evidence trail.", exact: true });
-  await expect(diligence).toContainText("No blanket GDPR or AI Act certification is claimed");
-  await expect(diligence).toContainText("Estimates remain estimates");
+  await page.getByRole("contentinfo").getByRole("link", { name: "Trust & limitations" }).click();
+  await page.getByText("European projects need specific diligence", { exact: false }).first().click();
+  await expect(page.locator("#trust")).toContainText("No blanket GDPR compliance, AI Act certification");
+  await expect(page.locator("#trust")).toContainText("not suitability scores, guaranteed savings or verified confidence");
   await expect(page.getByRole("link", { name: "Book a consultation", exact: false }).first()).toBeVisible();
   await expect(page.locator("iframe")).toHaveCount(0);
   expect(schedulerRequests).toEqual([]);

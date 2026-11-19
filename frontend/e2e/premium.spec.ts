@@ -82,7 +82,7 @@ test("premium layouts, menus and diagrams fit mobile, tablet and desktop without
   const box = (await menu.boundingBox())!;
   expect(box.x).toBeGreaterThanOrEqual(0);
   expect(box.x + box.width).toBeLessThanOrEqual(1440);
-  await expect(menu.locator(".premium-menu-feature")).toBeVisible();
+  await expect(menu.getByRole("link", { name: "All platform" })).toBeVisible();
   await expect(menu.getByRole("link")).toHaveCount(4);
 });
 
@@ -96,9 +96,9 @@ test("workflow review opens the protected existing discovery flow without a fake
     mode: "oidc", retention_hours: 24, archive_retention_days: 30,
   } }));
   await page.goto("/consulting");
-  const buyer = page.getByRole("region", { name: "A clearer investment decision. Not another AI promise.", exact: true });
-  await expect(buyer).toContainText("not a booked consultation or a promise of follow-up");
-  await buyer.getByRole("button", { name: "Start a workflow review", exact: false }).click();
+  const buyer = page.getByRole("region", { name: "Bring one business question.", exact: true });
+  await expect(buyer).toContainText("Starting discovery does not book a consultation");
+  await buyer.getByRole("button", { name: "Start in the platform", exact: false }).click();
   await expect(page.getByRole("heading", { name: "Organization access", exact: true })).toBeVisible();
   expect(await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1"))).toBeNull();
   expect(writes).toEqual([]);
