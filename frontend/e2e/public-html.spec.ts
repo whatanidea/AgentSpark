@@ -177,10 +177,11 @@ test("public HTML stays readable during delayed startup and controls work at DOM
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   expect(await page.evaluate(() => localStorage.getItem("agentspark.appearance.v1"))).toBe("light");
   const motion = page.getByRole("button", { name: /Scroll motion/ });
-  const pressed = await motion.getAttribute("aria-pressed");
-  await motion.focus();
-  await page.keyboard.press("Enter");
-  await expect(motion).toHaveAttribute("aria-pressed", pressed === "true" ? "false" : "true");
+  await expect(motion).toHaveCount(0);
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await expect(page.locator(".claim-film")).toHaveClass(/claim-film-moving/);
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(page.locator(".claim-film")).not.toHaveClass(/claim-film-moving/);
   await expect(page.locator("h1")).toHaveCount(1);
 });
 

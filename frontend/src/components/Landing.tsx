@@ -55,7 +55,7 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
   signedIn: boolean; message: string;
 }) {
   const [exampleIndex, setExampleIndex] = useState(0);
-  const [stepIndex, setStepIndex] = useState(2);
+  const [stepIndex, setStepIndex] = useState(0);
   const [preview, setPreview] = useState<Preview>("Suitability");
   const [cloud, setCloud] = useState<CloudProvider>("azure");
   const [volume, setVolume] = useState(100);
@@ -156,7 +156,7 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
           <p className="landing-explorer-intro">Choose a workflow. Select a step to see where assistance belongs.</p>
           <div className="landing-example-picker" role="group" aria-label="Example workflow">
             {EXAMPLES.map((item, index) => <button key={item.name} aria-pressed={exampleIndex === index}
-              onClick={() => { setExampleIndex(index); setStepIndex(2); }}>
+              onClick={() => { setExampleIndex(index); setStepIndex(0); }}>
               <Icon name={item.icon} className="h-4 w-4" />{item.name}
             </button>)}
           </div>

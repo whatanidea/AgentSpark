@@ -3,12 +3,38 @@ import { Link } from "react-router-dom";
 import { CONSULTING_OFFERINGS } from "./consultingContent";
 import { ConsultationLink } from "./ConsultationBooking";
 
+function ClaimIntakeReview() {
+  const [corrected, setCorrected] = useState(false);
+  const formDate = "6 May";
+  const billDate = corrected ? formDate : "8 May";
+  const matches = billDate === formDate;
+  return <section className="intake-lab" aria-labelledby="intake-lab-title">
+    <small>Receive a claim · Fictional intake desk</small>
+    <h3 id="intake-lab-title">Check the visit date.</h3>
+    <p>AI finds the date of service on the clinic’s scanned bill, not the date the invoice was issued. A rule compares it with the claim form. The result determines which task opens next.</p>
+    <div className="intake-sources">
+      <div><small>01 / Claim form</small><p>Physiotherapy visit</p><strong>{formDate}</strong><span>Service date entered on the form</span></div>
+      <div><small>02 / {corrected ? "Corrected clinic bill" : "Original clinic bill"}</small><p>Physiotherapy visit</p><strong>{billDate}</strong><span>AI extraction · Bill, line 1: date of service</span></div>
+    </div>
+    <div className="intake-result" role="status" aria-atomic="true">
+      <small>Intake rule · Compare service dates</small>
+      <h4>{matches ? "Dates match. Check eligibility next." : "Dates differ. Ask the clinic to confirm."}</h4>
+      <p>{matches ? "Route to eligibility review. The corrected bill resolves the date check, not whether the visit is covered."
+        : "Open a date-discrepancy task in the claims specialist’s queue. Attach both source entries so the specialist can verify them."}</p>
+      {!matches && <p><b>AI-drafted query:</b> “The form lists 6 May and the bill lists 8 May. Which was the visit date?” The specialist reviews it before sending.</p>}
+    </div>
+    <button className="landing-button landing-button-primary intake-switch" type="button" onClick={() => setCorrected(!corrected)}>
+      {corrected ? "Compare the original bill" : "Try the clinic’s corrected bill"} <span aria-hidden="true">→</span>
+    </button>
+    <noscript><style>{".intake-switch{display:none!important}"}</style><p>A corrected bill dated 6 May would resolve the date check. Eligibility would still need review.</p></noscript>
+    <p className="intake-caption">Workflow preview only. No patient data is processed, task created or message sent.</p>
+  </section>;
+}
+
 export default function ClaimStory({ titleRef, onBook }: { titleRef: RefObject<HTMLHeadingElement>; onBook: () => void }) {
   const [motion, setMotion] = useState(false);
-  const [interactive, setInteractive] = useState(false);
   const film = useRef<HTMLDivElement>(null);
   useEffect(() => {
-    setInteractive(true);
     const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
     const sync = () => setMotion(!preference.matches);
     sync();
@@ -40,15 +66,15 @@ export default function ClaimStory({ titleRef, onBook }: { titleRef: RefObject<H
   return <>
     <div id="top" ref={film} className={`claim-film${motion ? " claim-film-moving" : ""}`}>
       <section className="claim-frame" aria-labelledby="landing-title">
-        <p className="claim-label">AI consulting for SMEs · Illustrative claim</p>
+        <p className="claim-label">AI consulting for SMEs · Illustrative health claim</p>
         <h1 ref={titleRef} id="landing-title" tabIndex={-1}>One claim. <em>Three places to look.</em></h1>
         <div className="claim-sources" aria-label="Three items in the file">
-          <div><small>01 / Inbox</small><b>Water came through the ceiling.</b></div>
-          <div><small>03 / Estimate</small><b>Roof repair</b><i /></div>
-          <div><small>02 / Inspection</small><b>Reported leak</b><svg viewBox="0 0 180 65" fill="none" aria-hidden="true"><path d="M6 38 78 7l94 24-63 30zM6 38v8l103 18 63-28v-5M55 18l102 22M36 26l102 23M98 13 29 44M130 20 60 51" stroke="currentColor"/><ellipse cx="93" cy="33" rx="19" ry="11" stroke="#743fa1" strokeWidth="3"/></svg></div>
+          <div><small>01 / Claim form</small><b>Physiotherapy · 6 May</b></div>
+          <div><small>03 / Plan record</small><b>Member eligibility</b><i /></div>
+          <div><small>02 / Itemized bill</small><b>Visit date: 8 May</b><svg viewBox="0 0 180 65" fill="none" aria-hidden="true"><path d="M8 10h148M8 23h86m20 0h42M8 36h70m36 0h42M8 52h148" stroke="currentColor"/><ellipse cx="136" cy="23" rx="28" ry="10" stroke="#743fa1" strokeWidth="3"/></svg></div>
         </div>
         <p>An examiner needs the facts before deciding coverage.</p>
-        <div className="claim-controls"><a href="#claim-review">Follow the file ↓</a>{interactive && <button type="button" onClick={() => setMotion(!motion)} aria-pressed={motion}>Scroll motion: {motion ? "on" : "off"}</button>}</div>
+        <div className="claim-controls"><a href="#claim-review">Follow the file ↓</a></div>
       </section>
       <section className="claim-frame claim-review" id="claim-review">
         <p className="claim-label">02 / At the table · Adviser + examiner</p>
@@ -60,16 +86,15 @@ export default function ClaimStory({ titleRef, onBook }: { titleRef: RefObject<H
         <p className="claim-label">03 / Platform · Sample assessment</p>
         <h2>Inside the assessment.</h2>
         <Link className="claim-preview" to="/resources/example-assessment#workflow-explorer"><picture>
-          <source media="(max-width: 550px)" srcSet="/story/claim-narrow.png"/><img src="/story/claim-wide.png" width="1200" height="654" alt="Claims workflow: rules register the claim, AI prepares evidence, and an examiner decides."/>
+          <source media="(max-width: 550px)" srcSet="/story/receive-claim-narrow.png"/><img src="/story/receive-claim-wide.png" width="1200" height="654" alt="Step 1 selected: Receive a claim. Rules register the request and check required fields."/>
         </picture><span>Open the interactive assessment →</span></Link>
         <a href="#claim-adoption">Next: bring it to the team ↓</a>
       </section>
     </div>
     <section id="claim-adoption" className="story-guide landing-container">
       <p className="landing-eyebrow">From the assessment to the team</p>
-      <h2>Now put it in an <em>examiner’s hands.</em></h2>
-      <blockquote><small>Illustrative coaching exercise · AI draft</small><strong>“The roof repair is complete.”</strong>
-        <p>The draft cites an estimate, not a completion record. The examiner flags the sentence and asks for evidence. Coverage stays undecided.</p></blockquote>
+      <h2>Take a seat at <em>the intake desk.</em></h2>
+      <ClaimIntakeReview />
       <h3>Where does your team need help?</h3>
       {CONSULTING_OFFERINGS.map(offer => <details key={offer.path} name="home-offers"><summary>{offer.question}</summary><p>{offer.summary}</p><Link to={offer.path}>{offer.name} →</Link></details>)}
       <div className="landing-actions"><ConsultationLink onBook={onBook}/><Link className="landing-button landing-button-secondary" to="/platform">Explore the platform →</Link></div>

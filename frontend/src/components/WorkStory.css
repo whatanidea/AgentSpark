@@ -34,7 +34,7 @@
 .claim-sources b {display:block;font:normal clamp(17px,2.1vw,31px)/1.07 Georgia,serif;margin:10px 0}
 .claim-sources svg {width:100%;height:44%}.claim-sources i{display:block;height:35px;background:repeating-linear-gradient(transparent 0 8px,#68597455 8px 9px)}
 .claim-controls,.story-start,.story-next {display:flex;align-items:center;gap:18px;flex-wrap:wrap}
-.claim-controls button,.claim-frame>a:not(.claim-preview) {font-size:13px;text-decoration:underline;text-underline-offset:.25em}
+.claim-controls a,.claim-frame>a:not(.claim-preview) {font-size:13px;text-decoration:underline;text-underline-offset:.25em}
 .claim-preview {display:grid;justify-items:center;gap:12px}
 .claim-preview img {display:block;width:auto;max-width:min(100%,720px);height:auto;max-height:47svh;border-radius:12px}
 .claim-preview span {background:#eee7fc;color:#241831;border-radius:30px;padding:10px 22px}
@@ -51,6 +51,18 @@
 .story-guide blockquote strong {display:block;font:normal clamp(23px,3vw,42px)/1.2 Georgia,serif;margin:10px 0}
 .story-guide details {border-block-start:1px solid var(--line);padding-block:16px}
 .story-guide summary {cursor:pointer;font-size:clamp(18px,2vw,26px)}
+.intake-lab {max-width:840px;margin:0 0 42px;padding:clamp(18px,4vw,40px);background:var(--soft);border:1px solid var(--line);border-radius:8px}
+.intake-lab h3 {font:normal clamp(26px,3vw,40px)/1.15 Georgia,serif;margin:8px 0 20px}
+.intake-sources {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.intake-sources>div {padding:clamp(12px,2vw,24px);background:var(--surface);border:1px solid var(--line);border-top:3px solid var(--accent)}
+.intake-sources p {margin:14px 0 0;color:var(--muted)}
+.intake-sources strong {display:block;font:normal clamp(28px,4vw,54px)/1.2 Georgia,serif;letter-spacing:-.04em}
+.intake-sources span,.intake-caption {color:var(--muted);font-size:12px}
+.intake-result {margin:20px 0;padding-inline-start:15px;border-inline-start:3px solid var(--accent)}
+.intake-result h4 {font-size:clamp(18px,2vw,24px);margin:4px 0}
+.intake-result p {max-width:58ch}
+.intake-caption {margin-top:12px}
+@media(max-width:420px){.intake-sources{gap:6px}.intake-sources>div{padding:10px}.intake-sources small{letter-spacing:0}}
 .story-guide details p {max-width:62ch;margin:12px 0;color:var(--muted)}
 .story-guide details a,.story-start button,.story-next a {text-decoration:underline;text-underline-offset:.22em}
 .story-start,.story-next {border-top:1px solid var(--line);padding-block:32px}
