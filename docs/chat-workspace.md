@@ -2,6 +2,8 @@
 
 ## Implementation status
 
+Home offers **Explore in Chat** without creating a conversation or a workflow. Each workspace destination has a distinct line icon and a visible label. Chat follows **Explore → Review a next step → Continue in workflow**, derived from the current suggestion, preview and confirmed link. A starter or follow-up fills the composer for editing; it never sends automatically or replaces an existing draft. Users can continue talking, dismiss a suggestion, review Discovery for an open question, or review Enterprise Intake for a known workflow. A confirmed thread opens its existing record rather than creating another. The work-story palette supports both appearance modes, with no change to retention or authorization.
+
 - [x] Phase 1: private, workspace-scoped conversations; fixed 30-day expiry;
   bounded generation, streamed response/progress, Stop and recoverable Retry.
 - [x] Phase 2: source-linked, editable Discovery and Enterprise Intake previews;

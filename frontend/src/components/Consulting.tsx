@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import { CONSULTING_OFFERINGS, type ConsultingOffering } from "./consultingContent";
 import { MarketingIcon } from "./MarketingVisuals";
-import BuyerConfidence from "./BuyerConfidence";
 import { ConsultationLink } from "./ConsultationBooking";
 
 type DiscoveryAction = { disabled: boolean; onDiscover: () => void; onBook: () => void };
@@ -50,35 +49,18 @@ function ProviderChoices() {
   </section>;
 }
 
-function DeliveryPrinciples() {
-  return <section className="consulting-section consulting-principles landing-container" aria-labelledby="consulting-principles-title">
-    <div><p className="landing-eyebrow">A business case others can inspect</p><h2 id="consulting-principles-title">Ambition, with an<br />evidence trail.</h2>
-      <p>For leadership, investment and programme-review conversations, explain the problem, the delivery method and what the evidence does not yet prove.</p>
-      <Link className="consulting-text-link" to="/resources/trust">Read our trust and delivery boundaries <span aria-hidden="true">→</span></Link></div>
-    <div className="consulting-principle-grid">{[
-      ["Business outcomes", "Define a baseline, an owner and acceptance measures before claiming improvement. Estimates remain estimates."],
-      ["Repeatable delivery", "Use a bounded method and reviewable outputs. Reuse the approach, not confidential customer information."],
-      ["Customer capability", "Train champions, document decisions and hand over ownership instead of creating avoidable dependency."],
-      ["European project diligence", "Review data roles, transfers, retention, accessibility and applicable AI Act obligations for the actual use case. No blanket GDPR or AI Act certification is claimed."],
-    ].map(([title, detail]) => <article key={title}><MarketingIcon name="decision" /><h3>{title}</h3><p>{detail}</p></article>)}</div>
-  </section>;
-}
-
 export default function ConsultingContent({ path, disabled, onDiscover, onBook }: DiscoveryAction & { path: string }) {
   const offering = CONSULTING_OFFERINGS.find(item => item.path === path);
   if (path !== "/consulting" && !offering) throw new Error(`Unknown consulting offering: ${path}`);
   return <>
     {offering ? <OfferingDetail offering={offering} /> : <>
       <section className="consulting-section landing-container" aria-labelledby="consulting-definition-title">
-        <div className="consulting-definition"><span className="premium-category-label">What AI-native means here</span>
-          <h2 id="consulting-definition-title">Better ways of working.<br />People still accountable.</h2>
-          <p>An AI-native organization considers AI when designing work, equips its people to use it responsibly and measures the result. It does not automate every decision or replace every process with an agent.</p></div>
-        <div className="consulting-offers-heading"><p className="landing-eyebrow">Four connected offerings</p><h2>Start where you are. Build what comes next.</h2></div>
+        <div className="consulting-offers-heading"><h2 id="consulting-definition-title">Choose your starting point.</h2></div>
         <OfferingCards />
       </section>
     </>}
-    {(path === "/consulting" || path === "/consulting/workspace-launch") && <ProviderChoices />}
-    <section className="consulting-section consulting-responsibilities landing-container" aria-labelledby="consulting-responsibilities-title">
+    {path === "/consulting/workspace-launch" && <ProviderChoices />}
+    {!offering && <section className="consulting-section consulting-responsibilities landing-container" aria-labelledby="consulting-responsibilities-title">
       <div className="premium-section-heading"><div><p className="landing-eyebrow">One brand. Clear responsibilities.</p>
         <h2 id="consulting-responsibilities-title">Consulting and software.<br /><span>Complementary, not interchangeable.</span></h2></div>
         <p>Engagement scope, deliverables, access and commercial terms are agreed before delivery. No automatic onboarding, deployment or business action is implied.</p></div>
@@ -87,11 +69,10 @@ export default function ConsultingContent({ path, disabled, onDiscover, onBook }
         ["AgentSpark Platform", "Structures source-linked discovery and assessment. Existing blueprint candidates cover Azure and AWS, not Google Cloud generation."],
         ["Your organization", "Owns provider accounts, contracts, data access, budget and approvals. Human owners authorize implementation and operating responsibilities."],
       ].map(([title, detail]) => <article key={title}><h3>{title}</h3><p>{detail}</p></article>)}</div>
-    </section>
-    {path === "/consulting" && <><DeliveryPrinciples /><BuyerConfidence disabled={disabled} onDiscover={onDiscover} /></>}
+    </section>}
     <section className="consulting-section consulting-next landing-container" aria-labelledby="consulting-next-title">
       <div><p className="landing-eyebrow">Your next decision</p><h2 id="consulting-next-title">Bring one business question.</h2>
-        <p>Book a consultation through Cal.com, or ask your AI assistant to help coordinate. Prefer to explore first? Platform discovery remains a separate, signed-in action. Consulting scope is agreed before delivery.</p></div>
+        <p>Talk it through with an adviser, or start a discovery in your own workspace. Starting discovery does not book a consultation.</p></div>
       <div className="landing-actions"><ConsultationLink onBook={onBook} />
         <button className="landing-button landing-button-secondary" disabled={disabled} onClick={onDiscover}>Start in the platform <span aria-hidden="true">→</span></button></div>
     </section>

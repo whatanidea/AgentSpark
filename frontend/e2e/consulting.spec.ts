@@ -1,4 +1,6 @@
 import { expect, test } from "@playwright/test";
+import { publicPage } from "../src/components/publicPages";
+import { pageMetadata } from "../src/publicMetadata";
 
 const offers = [
   ["/consulting/readiness", "AI Opportunity & Readiness", "A roadmap is advisory."],
@@ -17,14 +19,12 @@ test("consulting is integrated without vendor or funding claims and scheduling r
       schedulerRequests.push(request.url());
   });
   await page.goto("/");
-  await expect(page.locator("#top")).toContainText("The enterprise AI decision workspace");
-  await expect(page.locator(".editorial-chapters")).toHaveCount(0);
-  await page.getByRole("link", { name: "Explore consulting", exact: false }).click();
+  await page.getByRole("contentinfo").getByRole("link", { name: "Consulting overview", exact: true }).click();
   await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
-  const home = page.getByRole("region", { name: "A deliberate journey. Not another AI experiment.", exact: true });
+  const home = page.locator(".editorial-chapters");
   await expect(home.getByRole("article")).toHaveCount(4);
   for (const [path] of offers) await expect(home.locator(`a[href="${path}"]`)).toBeVisible();
-  await expect(page.locator(".clarity-service-boundary")).toContainText("separately scoped engagement");
+  await expect(page.locator(".consulting-responsibilities")).toContainText("commercial terms are agreed before delivery");
   const providers = page.getByRole("region", { name: "Choose for the work. Not for the logo.", exact: true });
   await expect(providers.getByRole("article")).toHaveCount(3);
   await expect(providers).toContainText("not a partner or reseller claim");
@@ -55,9 +55,9 @@ test("each offer exposes its scope, outputs, method, related services and real p
     if (request.url().includes("/api/") && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method()))
       writes.push(request.method());
   });
-  for (const [path, name, boundary] of offers) {
+  for (const [path, , boundary] of offers) {
     await page.goto(path);
-    await expect(page).toHaveTitle(`${name} | AgentSpark`);
+    await expect(page).toHaveTitle(pageMetadata(publicPage(path)).title);
     await expect(page.locator(".consulting-deliverables li")).toHaveCount(4);
     await expect(page.locator(".consulting-deliverables")).toContainText(boundary);
     await expect(page.locator(".consulting-method li")).toHaveCount(4);

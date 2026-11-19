@@ -1,6 +1,17 @@
 # Clarity, engineered: website and workspace design
 
-## Approved direction
+## Current public experience: Follow one claim
+
+The public website now opens with the claims story rather than the earlier Clarity cover. Read the site in this order:
+
+- **Home:** three fictional source documents, the adviser’s question, the actual public assessment preview, then a coaching exercise. The screenshot links to the interactive claims explorer. Separate actions open consulting, discovery or assessment.
+- **Consulting:** choose readiness, workspace launch, a workflow pilot or adoption support. Each service describes its outputs, scope and owner; provider comparisons belong on Workspace Launch.
+- **Platform:** choose the capability needed for the decision. Technical limits, permissions and human approval stay explicit.
+- **Solutions, resources and firm:** choose a case by audience, try the interactive example, prepare for a decision review or read the firm’s approach. The full product walkthrough lives under How it works rather than repeating on Home.
+
+The React routes and pre-rendered documents share the same content. Home’s scroll motion can be switched off and starts off under reduced motion. The existing private workspace, booking consent, protected actions and public URLs remain intact. The optional `?design=pilot` comparison is historical, not the default.
+
+## Historical Clarity direction (superseded for the public site)
 
 The user approved the interactive design study on 2026-11-18 and requested its
 implementation across AgentSpark. This is a presentation and public-positioning

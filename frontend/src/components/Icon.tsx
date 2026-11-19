@@ -1,6 +1,16 @@
-export type IconName = "home" | "finance" | "support" | "claims" | "payroll" | "portfolio" | "chat";
+export type IconName = "home" | "finance" | "support" | "claims" | "payroll" | "portfolio" | "chat"
+  | "discovery" | "intake" | "diagnose" | "evidence" | "readiness" | "analyze" | "blueprint" | "integrations" | "workspaces";
 
 const paths: Record<IconName, string[]> = {
+  discovery: ["M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z", "m16 8-2.5 5.5L8 16l2.5-5.5Z"],
+  intake: ["M8 5H5v16h14V5h-3", "M9 3h6v4H9z", "M8 12h8m-8 4h5"],
+  diagnose: ["M3 4h14v10H8l-5 4Z", "M20 9h1v12l-4-3h-5"],
+  evidence: ["M7 17 16 8a3 3 0 0 0-4-4L4 12a5 5 0 0 0 7 7l9-9", "m8 13 5-5"],
+  readiness: ["m3 7 2 2 4-5m3 3h9M3 16l2 2 4-5m3 3h9"],
+  analyze: ["M4 3v17h17M8 15v-3m5 3V7m5 8v-5"],
+  blueprint: ["M9 3h6v5H9zM3 16h6v5H3zm12 0h6v5h-6z", "M12 8v4M6 16v-4h12v4"],
+  integrations: ["m4 8 4-4 4 4-4 4zm8 8 4-4 4 4-4 4z", "m10 10 4 4"],
+  workspaces: ["M3 5h8v6H3zm10 0h8v6h-8zM3 13h8v6H3zm10 0h8v6h-8z"],
   chat: ["M21 11a8 8 0 0 1-8 8H7l-4 3V11a9 9 0 0 1 18 0Z", "M7 9h10M7 13h7"],
   home: ["m3 10 9-7 9 7", "M5 9v12h14V9", "M9 21v-8h6v8"],
   finance: ["M6 3h9l4 4v14H6V3Z", "M14 3v5h5", "M9 12h7M9 16h4"],

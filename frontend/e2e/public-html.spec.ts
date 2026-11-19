@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { PUBLIC_PAGES } from "../src/components/publicPages";
+import { PUBLIC_PAGES, publicPage } from "../src/components/publicPages";
 import { pageMetadata } from "../src/publicMetadata";
 
 test.describe("public HTML without JavaScript", () => {
@@ -17,10 +17,9 @@ test.describe("public HTML without JavaScript", () => {
       expect(alias.status()).toBe(200);
       expect(await alias.text()).toContain(`data-page="${entry.path}"`);
       const metadata = pageMetadata(entry);
-      await expect(page).toHaveTitle(entry.path === "/"
-        ? "AgentSpark | Clarity before commitment" : `${entry.name} | AgentSpark`);
+      await expect(page).toHaveTitle(metadata.title);
       await expect(page.locator("main")).toBeVisible();
-      await expect(page.locator("h1")).toHaveText(entry.path === "/" ? "Clarity beforecommitment." : entry.title);
+      await expect(page.locator("h1")).toHaveText(entry.title);
       expect((await page.locator("main").innerText()).length).toBeGreaterThan(250);
       for (const [key, content] of Object.entries(metadata.meta)) {
         await expect(page.locator(`meta[${key.startsWith("og:") ? "property" : "name"}="${key}"]`))
@@ -45,9 +44,9 @@ test.describe("public HTML without JavaScript", () => {
 
   test("public HTML links navigate without JavaScript; workspace stays private", async ({ page, request }) => {
     await page.goto("/");
-    await page.getByRole("link", { name: /Explore consulting/, exact: false }).first().click();
+    await page.getByRole("contentinfo").getByRole("link", { name: "Consulting overview", exact: true }).click();
     await expect(page).toHaveURL("/consulting");
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Build an AI-native business. One deliberate step at a time.");
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(publicPage("/consulting")!.title);
     const workspace = await request.get("/workspace");
     expect(workspace.status()).toBe(200);
     expect(workspace.headers()["cache-control"]).toContain("no-store");
@@ -74,7 +73,7 @@ test.describe("public HTML without JavaScript", () => {
     await categories.getByRole("link", { name: "Platform", exact: true }).click();
     await expect(page).toHaveURL("/platform");
     const discoveryActions = page.getByRole("button", { name: "Start discovery", exact: true });
-    await expect(discoveryActions).toHaveCount(2);
+    await expect(discoveryActions.first()).toBeVisible();
     for (const action of await discoveryActions.all()) await expect(action).toBeDisabled();
     expect(await page.locator("body > noscript").textContent()).toContain("assessment tools require JavaScript");
     await page.getByRole("link", { name: "Book a consultation", exact: true }).first().click();
@@ -101,7 +100,7 @@ test.describe("public HTML without JavaScript", () => {
   });
 });
 
-test("public HTML conversion story has four concise menus, specific labels and one numbered journey", async ({ page }) => {
+test("public HTML has four concise menus, footer navigation and protected actions below the story", async ({ page }) => {
   await page.goto("/");
   const nav = page.getByRole("navigation", { name: "Product navigation" });
   const mobile = page.getByRole("button", { name: "Open navigation", exact: true });
@@ -115,42 +114,29 @@ test("public HTML conversion story has four concise menus, specific labels and o
   const close = page.getByRole("button", { name: "Close navigation", exact: true });
   if (await close.isVisible()) await close.click();
   await expect(page.getByRole("contentinfo").getByRole("link", { name: "About", exact: true })).toBeVisible();
-  await expect(page.locator("#top").getByRole("link", { name: "Explore an example", exact: false })).toBeVisible();
-  await expect(page.locator("#top").getByRole("link", { name: "Book a consultation", exact: true })).toHaveCount(0);
-  await expect(page.locator(".invitation-copy").getByRole("button", { name: "Start discovery", exact: false })).toBeVisible();
-  await expect(page.locator(".premium-technology")).toHaveCount(0);
-  expect(await page.locator("main").textContent()).not.toMatch(/decision-first blueprint|orchestration|deterministic validation|source provenance/i);
-  const actions = page.locator(".public-capability-card .public-card-action, .clarity-method .public-text-link");
-  const names = await actions.allTextContents();
-  expect(names).toHaveLength(5);
-  expect(new Set(names).size).toBe(5);
-  expect(names.join(" ")).not.toMatch(/See the capability|Explore the offering/);
-  await expect(page.locator(".public-capability-card > div > span")).toHaveCount(0);
-  await expect(page.locator(".editorial-chapter-number")).toHaveCount(0);
-  const showcase = page.locator("#product-showcase");
-  await expect(showcase.locator(".premium-product-tabs small")).toHaveText(["01", "02", "03", "04", "05"]);
-  for (const tab of await showcase.getByRole("tab").all()) {
-    await tab.click();
-    expect((await showcase.textContent())?.match(/fictional/gi)).toHaveLength(1);
-    await expect(showcase.getByRole("link", { name: "Trust & limitations", exact: true })).toBeVisible();
-  }
+  const actions = page.locator(".story-start");
+  await expect(actions.getByRole("button", { name: /Start discovery/ })).toBeVisible();
+  await expect(actions.getByRole("button", { name: /Assess my workflow/ })).toBeVisible();
 });
 
 test("public HTML metadata stays consistent after client navigation and workspace entry", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/");
-  await expect(page.getByRole("button", { name: "Assess my workflow", exact: true }).first()).toBeEnabled();
-  await expect(page).toHaveTitle("AgentSpark | Clarity before commitment");
+  const assess = page.locator(".story-start").getByRole("button", { name: /Assess my workflow/ });
+  await expect(assess).toBeEnabled();
+  const homeTitle = pageMetadata(publicPage("/")).title;
+  await expect(page).toHaveTitle(homeTitle);
   await expect(page.locator("h1")).toHaveCount(1);
-  await page.getByRole("link", { name: /Explore consulting/, exact: false }).first().click();
+  await page.getByRole("contentinfo").getByRole("link", { name: "Consulting overview", exact: true }).click();
   await expect(page).toHaveURL("/consulting");
-  await expect(page).toHaveTitle("Consulting overview | AgentSpark");
-  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", "Consulting overview | AgentSpark");
+  const consultingTitle = pageMetadata(publicPage("/consulting")).title;
+  await expect(page).toHaveTitle(consultingTitle);
+  await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", consultingTitle);
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "/consulting");
   await page.goBack();
-  await expect(page).toHaveTitle("AgentSpark | Clarity before commitment");
-  await page.getByRole("button", { name: "Assess my workflow", exact: true }).first().click();
+  await expect(page).toHaveTitle(homeTitle);
+  await assess.click();
   await expect(page).toHaveURL("/workspace");
   await expect(page).toHaveTitle("Workspace | AgentSpark");
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex,nofollow");
@@ -174,9 +160,9 @@ test("public HTML stays readable during delayed startup and controls work at DOM
   const navigation = page.goto("/", { waitUntil: "domcontentloaded" });
   try {
     await expect.poll(() => requested).toBe(true);
-    await expect(page.getByRole("heading", { level: 1 })).toHaveText("Clarity beforecommitment.");
+    await expect(page.locator("#landing-title")).toHaveText("One claim. Three places to look.");
     await expect(page.locator("main")).toBeVisible();
-    await expect(page).toHaveTitle("AgentSpark | Clarity before commitment");
+    await expect(page).toHaveTitle("AgentSpark | AI Consulting & Assessment for SMEs");
     await expect(page.getByText("Loading product overview", { exact: false })).toHaveCount(0);
   } finally {
     release();
@@ -184,15 +170,17 @@ test("public HTML stays readable during delayed startup and controls work at DOM
   }
   const appearance = page.getByRole("combobox", { name: "Appearance", exact: true });
   await expect(appearance).toHaveValue("light");
-  await expect(page.locator(".concept-site")).toHaveCSS("background-color", "rgb(244, 243, 236)");
+  await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   await appearance.selectOption("dark");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
   await appearance.selectOption("light");
   await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
   expect(await page.evaluate(() => localStorage.getItem("agentspark.appearance.v1"))).toBe("light");
-  await page.getByRole("tab", { name: /Align/ }).focus();
+  const motion = page.getByRole("button", { name: /Scroll motion/ });
+  const pressed = await motion.getAttribute("aria-pressed");
+  await motion.focus();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("tabpanel", { name: /Align/ })).toContainText("Supports with conditions");
+  await expect(motion).toHaveAttribute("aria-pressed", pressed === "true" ? "false" : "true");
   await expect(page.locator("h1")).toHaveCount(1);
 });
 

@@ -5,14 +5,12 @@ import Icon, { type IconName } from "./Icon";
 import LandingNavigation from "./LandingNavigation";
 import DiscoveryShowcase from "./DiscoveryShowcase";
 import ProductShowcase from "./ProductShowcase";
-import HomeUseCases from "./HomeUseCases";
 import ArchitectureIllustration from "./ArchitectureIllustration";
-import DiscoveryInvitation from "./DiscoveryInvitation";
 import { TechnologyBoundaries } from "./BuyerConfidence";
-import ConsultingContent, { HomeConsulting } from "./Consulting";
+import ConsultingContent from "./Consulting";
 import ConsultationBooking, { ConsultationLink } from "./ConsultationBooking";
-import { MarketingIcon, PageVisual } from "./MarketingVisuals";
-import { SignalField } from "./EditorialExperience";
+import { PageVisual } from "./MarketingVisuals";
+import ClaimStory from "./ClaimStory";
 import { publicPage } from "./publicPages";
 import { FeaturedCapabilities, PublicCollection, SolutionStory } from "./PublicCollections";
 import BrandMark from "./BrandMark";
@@ -23,6 +21,7 @@ import "./Premium.css";
 import "./Consulting.css";
 import "./Editorial.css";
 import "./PublicDesign.css";
+import "./WorkStory.css";
 
 type Step = { title: string; kind: "assist" | "rules" | "human"; detail: string; gap: string; azure: string; aws: string };
 type Example = { name: string; icon: IconName; team: string; steps: Step[] };
@@ -63,7 +62,7 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
   const example = EXAMPLES[exampleIndex];
   const step = example.steps[stepIndex];
   const startLabel = hasSession ? "Open your workspace" : "Assess my workflow";
-  const { pathname, search } = useLocation();
+  const { pathname, search, hash } = useLocation();
   const [bookingPath, setBookingPath] = useState<string | null>(null);
   const bookConsultation = () => setBookingPath(pathname);
   useEffect(() => { setBookingPath(null); }, [pathname]);
@@ -76,11 +75,16 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
   const site = useRef<HTMLDivElement>(null);
   const previousPath = useRef(pathname);
   useEffect(() => {
-    if (previousPath.current !== pathname) {
+    const destination = hash && document.getElementById(hash.slice(1));
+    if (destination) {
+      destination.scrollIntoView();
+      destination.setAttribute("tabindex", "-1");
+      destination.focus({ preventScroll: true });
+    } else if (previousPath.current !== pathname) {
       window.scrollTo({ top: 0, left: 0, behavior: "auto" });
       title.current?.focus({ preventScroll: true });
-      previousPath.current = pathname;
     }
+    previousPath.current = pathname;
     if (!window.matchMedia("(prefers-reduced-motion: reduce)").matches && "IntersectionObserver" in window) {
       const observer = new IntersectionObserver(entries => {
         for (const entry of entries) if (entry.isIntersecting) {
@@ -90,7 +94,7 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
       site.current?.querySelectorAll("[data-reveal]").forEach(element => observer.observe(element));
       return () => observer.disconnect();
     }
-  }, [page, pathname]);
+  }, [page, pathname, hash]);
 
   if (new URLSearchParams(search).get("design") === "pilot" && (home || pathname === "/consulting/readiness")) {
     return <><ExperiencePilot readiness={!home} titleRef={title} disabled={disabled} signedIn={signedIn}
@@ -98,28 +102,15 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
       {bookingPath === pathname && <ConsultationBooking onClose={() => setBookingPath(null)} />}</>;
   }
 
-  return <div ref={site} className="landing multipage-site editorial-site concept-site" data-page={page?.path ?? "not-found"}>
+  return <div ref={site} className="landing multipage-site editorial-site concept-site work-story" data-page={page?.path ?? "not-found"}>
     <a className="landing-skip" href="#landing-main">Skip to content</a>
     <LandingNavigation disabled={disabled} signedIn={signedIn} onWorkspace={onWorkspace} onBook={bookConsultation} />
 
     <main id="landing-main" key={page?.path ?? pathname}>
-      {home ? <section id="top" className="landing-hero landing-container" aria-labelledby="landing-title">
-        <div className="landing-hero-copy">
-          <div className="editorial-hero-meta"><div className="landing-kicker"><span aria-hidden="true" /> The enterprise AI decision workspace</div></div>
-          <h1 ref={title} tabIndex={-1} id="landing-title">Clarity before<br /><span>commitment.</span></h1>
-        </div>
-          <div className="editorial-hero-bottom">
-            <p>Find where AI belongs in your business. Connect the evidence, compare the alternatives, and make the next decision with confidence.</p>
-            <div><div className="landing-actions">
-              <Link className="landing-button landing-button-primary" to="/resources/example-assessment">Explore an example <span aria-hidden="true">→</span></Link>
-              <button className="editorial-product-link" disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">→</span></button>
-            </div>
-            <a className="editorial-product-link" href="#product-showcase">See how it works <span aria-hidden="true">→</span></a></div>
-          <p className="landing-fine">Already have a workflow in mind? <button className="marketing-inline-action" disabled={disabled} onClick={onStart}>{startLabel}</button></p>
-          {message && <p role="status" className="landing-feedback">{message}</p>}
-          </div>
-        <SignalField />
-      </section> : <section id="top" className="marketing-page-hero landing-container" aria-labelledby="landing-title">
+      {home ? <><ClaimStory titleRef={title} onBook={bookConsultation} />
+        <div className="story-start landing-container"><strong>Ready to work on your own process?</strong>
+          <button disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">→</span></button><button disabled={disabled} onClick={onStart}>{startLabel} <span aria-hidden="true">→</span></button>
+          {message && <p role="status">{message}</p>}</div></> : <section id="top" className="marketing-page-hero landing-container" aria-labelledby="landing-title">
         <div className="premium-page-copy">
         <nav className="marketing-breadcrumb" aria-label="Breadcrumb"><Link to="/">Home</Link><span aria-hidden="true">/</span>
           {page && (consultingPage && page.path !== "/consulting" ? <Link to="/consulting">Consulting</Link> : <span>{page.section}</span>)}</nav>
@@ -132,31 +123,16 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
           {consultingPage ? <Link className="landing-button landing-button-secondary" to="/resources/example-assessment">Explore an example <span aria-hidden="true">→</span></Link>
             : <button className="landing-button landing-button-secondary" disabled={disabled} onClick={onStart}>{startLabel}</button>}
         </div>}
-        {consultingPage && <p className="consulting-note">Book through Cal.com or copy instructions for your AI assistant. The calendar loads only when you choose to open it. Consulting scope and authorization are agreed separately.</p>}
         {!page && <Link className="landing-button landing-button-primary" to="/">Return to overview</Link>}
         {message && <p role="status" className="landing-feedback">{message}</p>}
         </div>
         {page && <PageVisual page={page} />}
       </section>}
 
-      {home && <aside className="premium-proof-strip landing-container" aria-label="What the platform makes visible">
-        <div><MarketingIcon name="people" /><span>Agree priorities &amp; responsibilities</span></div>
-        <div><MarketingIcon name="evidence" /><span>Understand why an improvement is suggested</span></div>
-        <div><MarketingIcon name="blueprint" /><span>Review a clear plan before investing</span></div>
-      </aside>}
-      {(home || page?.path === "/platform" || page?.path === "/resources/how-it-works") && <div className="clarity-story-band"><ProductShowcase /></div>}
-      {(home || page?.path === "/platform" || page?.path === "/resources/whats-new") && <FeaturedCapabilities />}
-      {home && <section className="clarity-method landing-container" aria-labelledby="clarity-method-title">
-        <div><p className="landing-eyebrow">The AgentSpark method</p><h2 id="clarity-method-title">Good judgment is knowing<br />what not to automate.</h2></div>
-        <div><p>Process improvement, predictable rules, AI assistance and human decisions belong in the same conversation. Technology is a choice, not the starting assumption.</p>
-          <Link className="public-text-link" to="/resources/decision-guide">Prepare a better decision <span aria-hidden="true">→</span></Link>
-          <p className="clarity-advisory-note">Looking for hands-on advisory support? <Link to="/consulting">Explore consulting</Link>. Services are separately scoped; they are not included with the software.</p></div>
-      </section>}
-      {page?.path === "/solutions" && <HomeUseCases />}
-      {page?.path === "/platform" && <TechnologyBoundaries />}
-      {consultingPage && <><p className="clarity-service-boundary landing-container">ADVISORY SERVICES / A separately scoped engagement, not a software subscription.</p>
-        {page.path === "/consulting" && <HomeConsulting disabled={disabled} onDiscover={onDiscover} onBook={bookConsultation} />}
-        <ConsultingContent path={page.path} disabled={disabled} onDiscover={onDiscover} onBook={bookConsultation} /></>}
+      {page?.path === "/resources/how-it-works" && <div className="clarity-story-band"><ProductShowcase /></div>}
+      {page?.path === "/resources/whats-new" && <FeaturedCapabilities />}
+      {page?.path === "/platform" && <><PublicCollection page={page} /><TechnologyBoundaries /></>}
+      {consultingPage && <ConsultingContent path={page.path} disabled={disabled} onDiscover={onDiscover} onBook={bookConsultation} />}
 
       {page?.path === "/platform/architecture" && <section data-reveal className="landing-section landing-container" aria-labelledby="architecture-example-title">
         <ArchitectureIllustration />
@@ -166,7 +142,6 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
       {!!page?.details.length && page.section !== "Solutions" && <section data-reveal className="landing-section landing-container marketing-page-details" aria-label={`${page.name} capabilities`}>
         <div className="marketing-capabilities">{page.details.map(([heading, text], index) =>
           <article key={heading}><span>0{index + 1}</span><h2>{heading}</h2><p>{text}</p></article>)}</div>
-        <Link className="landing-button landing-button-secondary" to="/resources/example-assessment">Explore an example assessment →</Link>
       </section>}
       {page?.stage && <section data-reveal className="landing-container marketing-stage-section" aria-label="Fictional product walkthrough">
         <DiscoveryShowcase key={page.path} initialStage={page.stage} />
@@ -284,11 +259,13 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
         ].map(([title, detail]) => <details key={title}><summary>{title}<span aria-hidden="true">+</span></summary><p>{detail}</p></details>)}</div>
       </section>}
 
-      {page && <DiscoveryInvitation onBook={bookConsultation} onDiscover={onDiscover} disabled={disabled} consulting={consultingPage} />}
+      {page && !home && !consultingPage && <nav className="story-next landing-container" aria-label="Continue exploring">
+        <small>Continue exploring</small>{examplePage ? <Link to="/consulting/workflow-pilot">Plan a pilot with an adviser →</Link>
+          : <Link to="/resources/example-assessment">Try the sample assessment →</Link>}</nav>}
     </main>
     <footer className="landing-footer landing-container premium-footer">
       <div><span className="landing-brand"><span className="landing-brand-mark" aria-hidden="true"><BrandMark /></span>AgentSpark</span>
-        <p>Clarity before commitment.<br />The enterprise AI decision workspace.</p><small>Evidence-led. Human-reviewed.</small></div>
+        <p>AI consulting and workflow assessment for SMEs.</p></div>
       <div><strong>Consulting</strong><Link to="/consulting">Consulting overview</Link><Link to="/consulting/readiness">Opportunity & readiness</Link>
         <Link to="/consulting/workspace-launch">Workspace launch</Link><Link to="/consulting/workflow-pilot">Workflow pilot</Link><Link to="/consulting/adoption">Adoption & optimization</Link></div>
       <div><strong>Platform</strong><Link to="/platform">Platform overview</Link><Link to="/platform/discovery">Discovery</Link><Link to="/platform/alignment">Alignment &amp; decisions</Link>

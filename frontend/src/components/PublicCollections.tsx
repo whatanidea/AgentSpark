@@ -34,7 +34,7 @@ export function SolutionStory({ page }: { page: PublicPage }) {
   if (!example) throw new Error(`No solution scenario configured for ${page.path}`);
   return <section className="public-solution-story landing-container" aria-labelledby="solution-story-title">
     <div className="public-section-heading"><div><p className="landing-eyebrow">An illustrative engagement</p>
-      <h2 id="solution-story-title">{example.example}</h2></div><p>Start with the work. Leave with a clearer decision, not a promise of automated delivery.</p></div>
+      <h2 id="solution-story-title">{example.example}</h2></div></div>
     <div className="public-solution-outcome"><div><span>THE STARTING QUESTION</span><p>{example.challenge}</p></div>
       <span className="public-outcome-arrow" aria-hidden="true">→</span><div><span>THE REVIEWABLE OUTPUT</span><p>{example.deliverable}</p></div></div>
     <ol className="public-solution-steps">{page.details.map(([heading, text], index) =>
@@ -56,7 +56,7 @@ export function PublicCollection({ page }: { page: PublicPage }) {
   return <section className={`public-collection public-collection-${page.section.toLowerCase()} landing-container`} aria-label={`${page.section} directory`}>
     <div className="public-collection-grid">{pages.map(item => <Link key={item.path} to={item.path} className="public-directory-card">
       <div className="public-directory-cover"><MarketingIcon name={publicVisual(item).icon} />
-        <span>{page.section === "Resources" ? resourceFormats[item.path] : "A business-first evaluation"}</span>
+        <span>{page.section === "Resources" ? resourceFormats[item.path] : item.section}</span>
         <div aria-hidden="true" className="public-cover-lines"><span /><span /><span /></div></div>
       <div className="public-directory-copy"><h2>{item.name}</h2><p>{item.summary}</p>
         <span className="public-card-action">{page.section === "Resources" ? "Read" : "Explore"} {item.name} <span aria-hidden="true">→</span></span></div>

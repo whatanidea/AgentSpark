@@ -465,8 +465,7 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
                 || (n.id === "intake" && !sessionId && !canWrite)}
                 aria-label={n.label} aria-current={view === n.id ? "step" : undefined} onClick={() => void changeView(n.id)}
                 className="nav-item">
-                <span className="nav-number" aria-hidden="true">{n.id === "home" || n.id === "portfolio" || n.id === "workspaces" || n.id === "discovery" || n.id === "integrations" || n.id === "conversations"
-                  ? <Icon name={n.id === "conversations" ? "chat" : n.id === "workspaces" || n.id === "discovery" || n.id === "integrations" ? "portfolio" : n.id} className="h-4 w-4" /> : String(NAV.filter(item => item.id !== "conversations").findIndex(item => item.id === n.id) - 1).padStart(2, "0")}</span>
+                <span className="nav-number" aria-hidden="true"><Icon name={n.id === "conversations" ? "chat" : n.id} className="h-4 w-4" /></span>
                 <span>{n.label.replace(/^\d · /, "")}</span>
                 {view === n.id && <span aria-hidden="true" className="ml-auto text-brand-700">›</span>}
               </button>
@@ -596,6 +595,7 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
               demo={auth?.mode === "local-demo"} retentionDays={auth?.archive_retention_days ?? 30}
               workspaceName={workspace ? `${workspace.organization_name} / ${workspace.team_name}` : undefined}
               workspace={workspace} initialLibrary={homeLibrary} onWorkspaceSelect={changeWorkspace}
+              onChat={() => void changeView("conversations")}
               onManageAccess={() => void changeView("workspaces")}
               canCreate={workspace?.permissions.write !== false}
               onCreate={newWorkflow} onOpen={openWorkflow} onBusyChange={setBusy}

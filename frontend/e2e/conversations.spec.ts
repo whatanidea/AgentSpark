@@ -37,18 +37,20 @@ async function discoveryReview(page: Page) {
   return review;
 }
 
-test("Conversation workspace shares the Clarity identity in both themes without creating chats or losing composer input", async ({ page }) => {
+test("Conversation workspace shares the work-story identity in both themes without creating chats or losing composer input", async ({ page }) => {
   const writes: string[] = [];
   page.on("request", request => {
     if (new URL(request.url()).pathname.startsWith("/api/v1/conversations") && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) writes.push(request.method());
   });
-  await open(page);
+  await page.goto("/workspace");
+  await page.getByRole("button", { name: "Explore in Chat" }).click();
+  await expect(root(page).locator(".chat-journey [aria-current=step]")).toHaveText("01Explore");
   await composer(page).fill("An unsent fictional design check");
   for (const theme of ["dark", "light"]) {
     await page.getByRole("combobox", { name: "Appearance", exact: true }).selectOption(theme);
     await expect(composer(page)).toHaveValue("An unsent fictional design check");
-    await expect(root(page)).toHaveCSS("background-color", theme === "dark" ? "rgb(24, 37, 31)" : "rgb(253, 253, 247)");
-    await expect(root(page).locator(".chat-orb")).toHaveCSS("color", theme === "dark" ? "rgb(210, 237, 170)" : "rgb(56, 89, 35)");
+    await expect(root(page)).toHaveCSS("background-color", theme === "dark" ? "rgb(33, 30, 42)" : "rgb(255, 250, 240)");
+    await expect(root(page).locator(".chat-orb")).toHaveCSS("color", theme === "dark" ? "rgb(217, 189, 241)" : "rgb(104, 71, 131)");
     await expectReadable(root(page));
     for (const width of [320, 390, 768, 1440]) {
       await page.setViewportSize({ width, height: 956 });
@@ -83,6 +85,11 @@ test("Conversation workspace creates Discovery only after an edited, saved and a
   let confirmations = 0;
   await page.route("**/api/v1/conversations/*/confirm", route => { confirmations++; return route.continue(); });
   await open(page); await message(page);
+  const currentStep = root(page).locator(".chat-journey [aria-current=step]");
+  await expect(currentStep).toContainText("Review a next step");
+  await root(page).getByRole("button", { name: /Identify the people involved/ }).click();
+  await expect(composer(page)).toHaveValue("Who should we hear from before we scope discovery?");
+  await composer(page).fill("");
   expect(confirmations).toBe(0);
   const review = await discoveryReview(page);
   const create = review.getByRole("button", { name: "Create Discovery", exact: true });
@@ -97,6 +104,7 @@ test("Conversation workspace creates Discovery only after an edited, saved and a
   await create.click();
   const saved = await (await completion).json();
   expect(saved.link.kind).toBe("discovery");
+  await expect(currentStep).toContainText("Discovery");
   expect(confirmations).toBe(1);
   await expect(root(page).getByRole("button", { name: "Open Discovery", exact: true })).toBeVisible();
   const load = page.waitForResponse(response => response.url().endsWith(`/engagements/${saved.link.workflow_id}`));

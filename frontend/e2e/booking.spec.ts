@@ -205,7 +205,7 @@ test("a calendar that becomes ready after the timeout replaces the fallback with
 test("dialog traps keyboard focus, fits mobile/reduced motion and closes on history navigation", async ({ page }) => {
   await page.emulateMedia({ reducedMotion: "reduce" });
   await page.goto("/");
-  await page.getByRole("link", { name: "Explore consulting", exact: false }).click();
+  await page.getByRole("contentinfo").getByRole("link", { name: "Consulting overview", exact: true }).click();
   const trigger = page.getByRole("link", { name: "Book a consultation", exact: false }).first();
   await trigger.click();
   const dialog = page.getByRole("dialog");

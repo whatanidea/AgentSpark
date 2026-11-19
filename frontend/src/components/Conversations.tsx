@@ -5,6 +5,7 @@ import { api, ApiError, uid } from "../api";
 import { conversations, type ChatDraft, type ChatKind, type ChatSummary, type Conversation } from "../conversations";
 import { Button } from "./ui";
 import BrandMark from "./BrandMark";
+import Icon from "./Icon";
 import "./Conversations.css";
 
 const labels: Record<string, string> = {
@@ -286,6 +287,8 @@ export default function Conversations({ workspaceName, demo, canCreate, onBusyCh
   }
   const last = chat?.messages[chat.messages.length - 1];
   const activeDraft = chat?.draft && (previewOpen || chat.creation_pending) ? chat.draft : null;
+  const journey = chat?.link ? 2 : activeDraft || chat?.suggestion ? 1 : 0;
+  const destination = chat?.link?.kind || activeDraft?.kind || chat?.suggestion?.kind;
   const filtered = items.filter(item => item.title.toLowerCase().includes(search.toLowerCase()));
   return <section className="conversation-workspace" aria-label="Conversation workspace">
     <aside className="chat-sidebar" aria-label="Private conversation history">
@@ -320,8 +323,8 @@ export default function Conversations({ workspaceName, demo, canCreate, onBusyCh
     </aside>
     <div className="chat-main">
       <header className="chat-topbar">
-        <div><h1>{chat?.title || "A conversation with a clear next step"}</h1>
-          <p>{chat ? `Expires ${date(chat.expires_at)} · ${chat.model.provider} / ${chat.model.model}` : "Think together. Review the context. Choose when to act."}</p></div>
+        <div><h1>{chat?.title || "Workspace Chat"}</h1>
+          <p>{chat ? `Expires ${date(chat.expires_at)} · ${chat.model.provider} / ${chat.model.model}` : workspaceName || "Personal workspace"}</p></div>
         <div className="chat-tools">
           <Button variant="ghost" disabled={busy} onClick={() => void reload()}>Reload saved</Button>
           {chat && <Button variant="ghost" disabled={busy || chat.creation_pending} onClick={() => { setTitle(chat.title); setRenaming(!renaming); }}>Rename</Button>}
@@ -335,6 +338,10 @@ export default function Conversations({ workspaceName, demo, canCreate, onBusyCh
           }}>Delete chat</Button>}
         </div>
       </header>
+      <ol className="chat-journey" aria-label="Conversation journey">
+        {["Explore", "Review a next step", "Continue in workflow"].map((label, index) =>
+          <li key={label} aria-current={index === journey ? "step" : undefined}><small aria-hidden="true">0{index + 1}</small>{index === 2 && chat?.link ? actionLabel(chat.link.kind) : label}</li>)}
+      </ol>
       {renaming && chat && <form className="chat-rename" onSubmit={event => {
         event.preventDefault(); void run(async () => { remember(await conversations.rename(chat, title.trim())); setRenaming(false); });
       }}><label>Conversation title<input className="form-control" value={title} maxLength={100} required onChange={event => setTitle(event.target.value)} /></label>
@@ -350,14 +357,16 @@ export default function Conversations({ workspaceName, demo, canCreate, onBusyCh
       }}>
         {!chat?.messages.length && !sending && <div className="chat-welcome">
           <span className="chat-orb" aria-hidden="true"><BrandMark /></span>
-          <p className="eyebrow">From conversation to clarity</p>
+          <p className="eyebrow">Start with one business problem</p>
           <h2>What could work better?</h2>
-          <p>Explore a process, untangle a bottleneck or assess a known workflow.
-            We'll surface a next step when it helps. You stay in control.</p>
+          <p>Describe a recent example: who did the work, where it slowed down, and what you want to improve. Choose a starter to edit, or write your own.</p>
           <div className="chat-starters">
-            {["Explore opportunities across our customer onboarding process.", "I have a known workflow to assess through Enterprise Intake.",
-              "Help me think through a process problem before choosing a next step."].map(text =>
-              <button key={text} onClick={() => { setComposer(text); textarea.current?.focus(); }}>{text}<span aria-hidden="true"> ↗</span></button>)}
+            {([
+              ["discovery", "Find an opportunity", "Explore discovery opportunities across our customer onboarding process."],
+              ["intake", "Assess a workflow", "I have a known workflow to assess through Enterprise Intake."],
+              ["readiness", "Plan team adoption", "How could we train the people reviewing AI drafts and measure whether their work improves?"],
+            ] as const).map(([icon, label, text]) =>
+              <button key={icon} disabled={busy || !!composer.trim()} onClick={() => { setComposer(text); textarea.current?.focus(); }}><Icon name={icon} />{label}</button>)}
           </div>
         </div>}
         {chat?.messages.map(message => <article key={message.id} className={`chat-message chat-${message.role}`} aria-label={message.role === "user" ? "Your message" : "AgentSpark response"}>
@@ -367,14 +376,20 @@ export default function Conversations({ workspaceName, demo, canCreate, onBusyCh
             {message.interrupted && <p className="chat-interrupted">Response interrupted. No completed assistant reply was saved.</p>}
           </div>
         </article>)}
+        {last?.role === "assistant" && !sending && !activeDraft && !chat?.link && !chat?.pending && !chat?.creation_pending && <div className="chat-followup">
+          <span>Keep exploring</span><button disabled={busy || !!composer.trim()} onClick={() => {
+            setComposer(destination === "intake" ? "What facts about this workflow are still missing before intake?" : destination === "discovery" ? "Who should we hear from before we scope discovery?" : "What evidence would help us decide the next step?");
+            textarea.current?.focus();
+          }}>{destination === "intake" ? "Check missing facts" : destination === "discovery" ? "Identify the people involved" : "Identify the evidence we need"} ↗</button>
+        </div>}
         {sending && <article className="chat-message chat-assistant" aria-label="Response being curated">
           <div className="chat-avatar" aria-hidden="true">AS</div>
           <div className="chat-message-content">{partial ? <Markdown text={partial} /> : <div className="chat-skeleton" aria-hidden="true"><i /><i /><i /></div>}</div>
         </article>}
         {chat?.suggestion && !sending && !activeDraft && !chat.link && <section className="chat-suggestion" aria-label="Suggested next step">
-          <p className="eyebrow">An option, not an automatic action</p>
+          <p className="eyebrow">Optional handoff</p>
           <h3>{actionLabel(chat.suggestion.kind)} could help here</h3><p>{chat.suggestion.reason}</p>
-          <p className="chat-muted">Based on {chat.suggestion.source_ids.length} of your messages. Review and edit before creating anything.</p>
+          <p className="chat-muted">{chat.suggestion.kind === "discovery" ? "Use Discovery to gather perspectives and compare opportunities." : "Use Enterprise Intake when you know which workflow to assess."} Preview the context from {chat.suggestion.source_ids.length} of your messages before deciding.</p>
           <div className="chat-actions"><Button disabled={busy || !canCreate || !chat.can_create} onClick={() => void prepare(chat.suggestion!.kind)}>
             Start {actionLabel(chat.suggestion.kind)}</Button>
             <Button variant="ghost" disabled={busy} onClick={() => void run(async () => remember(await conversations.dismiss(chat)))}>Not now</Button></div>
@@ -410,7 +425,7 @@ export default function Conversations({ workspaceName, demo, canCreate, onBusyCh
         {last?.role === "user" && last.interrupted && !chat?.pending && !sending &&
           <Button disabled={busy} variant="ghost" onClick={() => void send(true)}>Retry last response</Button>}
         {chat?.messages.length && !chat.link && !activeDraft ? <div className="chat-manual-actions">
-          <span>Choose your next step:</span>
+          <span>Prefer to choose your own path?</span>
           <button disabled={busy || !canCreate || !chat.can_create} onClick={() => void prepare("discovery")}>Review Discovery preview</button>
           <button disabled={busy || !canCreate || !chat.can_create} onClick={() => void prepare("intake")}>Review Enterprise Intake preview</button>
           {(!canCreate || !chat.can_create) && <span>Read-only workspace: you may chat, but workflow creation needs write permission.</span>}

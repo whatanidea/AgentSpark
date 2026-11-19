@@ -6,25 +6,12 @@ async function openPortal(page: Page) {
 }
 
 async function verifyPalette(page: Page) {
-  await expect(page.locator(".portal-sidebar")).toHaveCSS("background-color", "rgb(24, 37, 31)");
-  await expect(page.getByRole("main")).toHaveCSS("background-color", "rgb(17, 27, 24)");
+  await expect(page.locator(".portal-sidebar")).toHaveCSS("background-color", "rgb(33, 30, 42)");
+  await expect(page.getByRole("main")).toHaveCSS("background-color", "rgb(23, 21, 30)");
   const active = page.locator(".nav-item[aria-current]");
-  await expect(active).toHaveCSS("background-color", "rgb(38, 59, 43)");
-  await expect(active).toHaveCSS("color", "rgb(210, 237, 170)");
-  const legacyViolet = await page.locator(".portal").evaluate(root => {
-    const isViolet = (value: string) => {
-      const rgb = value.match(/^rgba?\((\d+),\s*(\d+),\s*(\d+)/);
-      if (!rgb || value.endsWith(", 0)")) return false;
-      const [r, g, b] = rgb.slice(1).map(Number);
-      return b > g + 35 && r > g + 10;
-    };
-    return [...root.querySelectorAll("*")].filter(element => {
-      if (!element.getClientRects().length) return false;
-      const style = getComputedStyle(element);
-      return [style.color, style.backgroundColor, style.borderTopColor, style.fill, style.stroke].some(isViolet);
-    }).map(element => element.tagName + "." + element.classList.value);
-  });
-  expect(legacyViolet).toEqual([]);
+  await expect(active).toHaveCSS("background-color", "rgb(51, 44, 64)");
+  await expect(active).toHaveCSS("color", "rgb(217, 189, 241)");
+  await expect(active.locator(".nav-number svg")).toBeVisible();
 }
 
 test("editorial portal retains a consistent palette and bounded layouts across private views", async ({ page }) => {
@@ -45,7 +32,7 @@ test("editorial form controls retain visible focus, disabled states and accessib
   await page.getByRole("button", { name: "1 · Enterprise Intake", exact: true }).click();
   const field = page.getByLabel("Business Domain", { exact: true });
   await field.focus();
-  await expect(field).toHaveCSS("border-color", "rgb(210, 237, 170)");
+  await expect(field).toHaveCSS("border-color", "rgb(217, 189, 241)");
   await expect(field).toHaveCSS("border-radius", "10px");
   await page.keyboard.press("Tab");
   await expect(page.getByRole("combobox", { name: "Team Size", exact: true })).toBeFocused();
@@ -56,8 +43,8 @@ test("editorial form controls retain visible focus, disabled states and accessib
   await page.getByLabel("Target cloud", { exact: true }).selectOption("azure");
   await expect(submit).toBeEnabled();
   await expect(submit).toHaveCSS("min-height", "44px");
-  await expect(submit).toHaveCSS("background-color", "rgb(210, 237, 170)");
-  await expect(submit).toHaveCSS("color", "rgb(23, 32, 29)");
+  await expect(submit).toHaveCSS("background-color", "rgb(229, 208, 247)");
+  await expect(submit).toHaveCSS("color", "rgb(40, 32, 48)");
   await expect(page.locator(".surface-card").first()).toHaveCSS("border-radius", "12px");
   await verifyPalette(page);
   const contrast = await page.locator(".nav-item, .action-primary, .eyebrow").evaluateAll(elements => {
@@ -87,7 +74,7 @@ test("editorial form controls retain visible focus, disabled states and accessib
   await home.focus();
   await expect(home).toBeFocused();
   await expect(home).toHaveCSS("outline-style", "solid");
-  await expect(home).toHaveCSS("outline-color", "rgb(210, 237, 170)");
+  await expect(home).toHaveCSS("outline-color", "rgb(217, 189, 241)");
 });
 
 test("positive portfolio statuses and score bars use the shared lime identity while retaining their labels", async ({ page }) => {
@@ -105,5 +92,5 @@ test("positive portfolio statuses and score bars use the shared lime identity wh
   await expect(positive).toBeVisible();
   await expect(positive).toHaveCSS("background-color", "rgb(47, 71, 50)");
   await expect(positive).toHaveCSS("color", "rgb(237, 245, 226)");
-  await expect(page.getByText("84/100", { exact: true })).toHaveCSS("color", "rgb(210, 237, 170)");
+  await expect(page.getByText("84/100", { exact: true })).toHaveCSS("color", "rgb(217, 189, 241)");
 });

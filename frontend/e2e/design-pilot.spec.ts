@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { publicPage } from "../src/components/publicPages";
 import { expectReadable } from "./appearance";
 
 const HOME = "/?design=pilot";
@@ -12,7 +13,7 @@ test("design pilot changes composition, makes the product tangible and keeps the
   await page.goto(HOME);
   await page.evaluate(() => document.fonts.ready);
   await expect(page.getByRole("heading", { level: 1 })).toHaveAccessibleName("Big questions. Clear next moves.");
-  await expect(page.locator(".public-capability-card, .editorial-signal, .premium-proof-strip")).toHaveCount(0);
+  await expect(page.locator("#claim-review")).toHaveCount(0);
   const demo = page.getByRole("region", { name: "Interactive fictional product experience" });
   await expect(demo.getByRole("tab")).toHaveCount(3);
   const box = (await page.locator(".pilot-app-window").boundingBox())!;
@@ -28,7 +29,7 @@ test("design pilot changes composition, makes the product tangible and keeps the
   await page.getByRole("link", { name: "Compare current design", exact: true }).click();
   await expect(page).toHaveURL("/");
   await expect(page.locator(".pilot-site")).toHaveCount(0);
-  await expect(page.getByRole("heading", { level: 1 })).toHaveAccessibleName("Clarity before commitment.");
+  await expect(page.locator("#landing-title")).toHaveText(publicPage("/")!.title);
   await page.goto("/platform?design=pilot");
   await expect(page.locator(".pilot-site")).toHaveCount(0);
   expect(navigationWarnings).toEqual([]);
@@ -246,7 +247,7 @@ test("design pilot without JavaScript falls back to the existing complete public
   try {
     for (const path of [HOME, READINESS]) {
       await page.goto("http://127.0.0.1:8767" + path);
-      await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+      await expect(page.getByRole("heading", { level: 1 })).toHaveText(publicPage(path.split("?")[0])!.title);
       await expect(page.locator(".concept-site")).toBeVisible();
       await expect(page.locator(".pilot-site")).toHaveCount(0);
     }

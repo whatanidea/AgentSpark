@@ -1,26 +1,7 @@
 import { expect, test } from "@playwright/test";
+import { publicPage } from "../src/components/publicPages";
 
-test("public feature refresh Clarity hero shows original evidence and a reviewable artifact before the fold", async ({ page }) => {
-  await page.setViewportSize({ width: 1440, height: 1000 });
-  await page.emulateMedia({ reducedMotion: "reduce" });
-  await page.goto("/");
-  await page.evaluate(() => document.fonts.ready);
-  const hero = page.locator("#top");
-  await expect(hero.getByRole("heading", { level: 1 })).toHaveAccessibleName("Clarity before commitment.");
-  await expect(hero.locator(".clarity-source")).toHaveCount(3);
-  const brief = hero.locator(".clarity-decision");
-  await expect(brief).toContainText("Fictional example");
-  await expect(brief).toContainText("Unverified inputs");
-  await expect(brief).toContainText("Human review");
-  const bounds = (await brief.boundingBox())!;
-  expect(bounds.y).toBeGreaterThan(0);
-  expect(bounds.y + bounds.height).toBeLessThanOrEqual(1000);
-  await expect(hero.getByRole("link", { name: "Explore an example", exact: false })).toHaveAttribute("href", "/resources/example-assessment");
-  await expect(page.locator(".clarity-story-band")).toHaveCSS("background-color", "rgb(244, 243, 236)");
-  await expect(page.locator(".clarity-method")).toContainText("not included with the software");
-  await hero.getByRole("link", { name: "Explore an example", exact: false }).click();
-  await expect(page).toHaveURL(/\/resources\/example-assessment$/);
-  await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
+test("public feature refresh architecture connectors match their accent", async ({ page }) => {
   await page.goto("/platform/architecture");
   const flow = page.locator(".proof-connected-flow li").nth(1);
   const connectorMatchesAccent = await flow.evaluate(element => {
@@ -35,7 +16,7 @@ test("public feature refresh Clarity hero shows original evidence and a reviewab
 });
 
 test("public feature refresh surfaces shipped capabilities and connects them to dedicated pages", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/resources/whats-new");
   const features = page.getByRole("region", { name: "Get your team together. Make a clearer decision.", exact: true });
   const cards = features.locator(".public-capability-card");
   await expect(cards).toHaveCount(4);
@@ -68,7 +49,7 @@ test("public feature refresh previews alignment and outcome-led decisions withou
   await page.route("**/api/v1/auth/config", route => route.fulfill({ json: {
     mode: "oidc", retention_hours: 24, archive_retention_days: 30,
   } }));
-  await page.goto("/platform");
+  await page.goto("/resources/how-it-works");
   const tabs = page.getByRole("tablist", { name: "Product walkthrough stages" });
   await expect(tabs.getByRole("tab")).toHaveCount(5);
   await tabs.getByRole("tab", { name: /Align/ }).focus();
@@ -103,7 +84,7 @@ test("public feature refresh provides solution and resource collections with rea
   await expect(story).toContainText("THE REVIEWABLE OUTPUT");
   await expect(story.getByRole("listitem")).toHaveCount(3);
   await story.getByRole("link", { name: "Prepare your decision review", exact: false }).click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("Five questions before the next commitment.");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(publicPage("/resources/decision-guide")!.title);
   await expect(page.locator(".marketing-capabilities article")).toHaveCount(5);
   await page.goto("/resources");
   const resources = page.getByRole("region", { name: "Resources directory" });
@@ -120,7 +101,7 @@ test("public feature refresh provides solution and resource collections with rea
   await page.goBack();
   await expect(resources).toBeVisible();
   await resources.locator('a[href="/resources/whats-new"]').click();
-  await expect(page.getByRole("heading", { level: 1 })).toHaveText("A clearer path from discovery to decision.");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(publicPage("/resources/whats-new")!.title);
   await expect(page.locator(".public-capability-card")).toHaveCount(4);
   await expect(page.locator("#top").getByText("Available features, not a roadmap.", { exact: false })).toBeVisible();
   await page.goto("/resources/example-assessment");

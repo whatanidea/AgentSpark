@@ -66,12 +66,6 @@ export default function LandingNavigation({ disabled, signedIn, onWorkspace, onB
             {name}<svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="m3 4 3 3 3-3" fill="none" stroke="currentColor" /></svg>
           </button>
           <div id={`marketing-${name.toLowerCase()}`} className="marketing-dropdown" hidden={open !== name}>
-            <div className="premium-menu-feature" aria-hidden="true">
-              <span className="premium-category-label">{name === "Consulting" ? "STRATEGY THROUGH ADOPTION" : name === "Platform" ? "FROM DISCOVERY TO DECISION" : name === "Solutions" ? "BUILT AROUND YOUR WORK" : "EXPLORE WITH CLARITY"}</span>
-              <strong>{name === "Consulting" ? "Build the capability. Not just the pilot." : name === "Platform" ? "Align. Assess. Decide." : name === "Solutions" ? "The outcome comes first." : "Prepare a better conversation."}</strong>
-              <div className="premium-menu-map"><MarketingIcon name="process" /><span /><MarketingIcon name="evidence" /><span /><MarketingIcon name="decision" /></div>
-              <small>Evidence-led. Human-reviewed.</small>
-            </div>
             <div className="premium-menu-links"><p className="landing-eyebrow">{name === "Consulting" ? "Practical support for your business" : name === "Platform" ? "Understand / review / decide" : name === "Solutions" ? "Start with a business problem" : "Examples & guidance"}</p>
             <ul>{menus[name].map(page => <li key={page.path}>
               <NavLink to={page.path} onClick={close}><span className="premium-menu-icon"><MarketingIcon name={publicVisual(page).icon} /></span>

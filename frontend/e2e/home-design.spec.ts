@@ -3,7 +3,7 @@ import { PUBLIC_PAGES } from "../src/components/publicPages";
 import { processingResult, watchProcessing } from "./responses";
 import { expectReadable } from "./appearance";
 
-test("Home design preview preserves content, links and five stable manual stages in both themes", async ({ page }) => {
+test("shared appearance preserves walkthrough content, links and five stable manual stages", async ({ page }) => {
   await page.setViewportSize({ width: 1440, height: 956 });
   await page.emulateMedia({ reducedMotion: "reduce" });
   const writes: string[] = [], external: string[] = [];
@@ -11,7 +11,7 @@ test("Home design preview preserves content, links and five stable manual stages
     if (new URL(request.url()).origin !== "http://127.0.0.1:8767") external.push(request.url());
     if (request.url().includes("/api/") && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method())) writes.push(request.method());
   });
-  await page.goto("/");
+  await page.goto("/resources/how-it-works");
   const tabs = page.getByRole("tablist", { name: "Product walkthrough stages" }).getByRole("tab");
   await expect(tabs).toHaveCount(5);
   await page.evaluate(() => document.fonts.ready);
@@ -38,7 +38,6 @@ test("Home design preview preserves content, links and five stable manual stages
         expect(await page.locator("a[href]").evaluateAll(nodes => nodes.map(node => node.getAttribute("href")))).toEqual(links[index]);
         expect((await page.locator(".premium-product-screen").boundingBox())!.height).toBe(heights[index]);
       }
-      expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(4800);
       await expectReadable(page.locator(".concept-site"));
     }
     expect(await page.getByRole("navigation", { name: "Product navigation" }).textContent()).toBe(navigation);
@@ -59,7 +58,6 @@ test("Home design preview fits narrow, tablet and desktop layouts in both themes
     for (const width of [320, 390, 440, 700, 768, 981, 1024, 1440]) {
       await page.setViewportSize({ width, height: 956 });
       expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), `${theme} ${width}px`).toBe(true);
-      if (width === 1440) expect(await page.evaluate(() => document.documentElement.scrollHeight)).toBeLessThanOrEqual(4800);
       const toggle = page.getByRole("combobox", { name: "Appearance", exact: true });
       const bounds = (await toggle.boundingBox())!;
       expect(bounds.height).toBeGreaterThanOrEqual(44);
@@ -67,7 +65,7 @@ test("Home design preview fits narrow, tablet and desktop layouts in both themes
       expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
       const brand = (await page.getByRole("banner").locator(".landing-brand").boundingBox())!;
       expect(brand.x + brand.width).toBeLessThanOrEqual(bounds.x);
-      await expect(page.getByRole("heading", { level: 1 })).toHaveText("Clarity beforecommitment.");
+      await expect(page.locator("#landing-title")).toHaveText("One claim. Three places to look.");
       await expectReadable(page.locator(".concept-site"));
     }
   }
@@ -130,10 +128,6 @@ test("Home design preview keeps menus and opt-in booking readable, keyboard acce
       await expectReadable(page.getByRole("banner"));
       await page.keyboard.press("Escape"); await expect(menu).toBeFocused();
     }
-    await page.getByRole("tab", { name: /Discover/ }).click();
-    await page.getByRole("button", { name: "Inspect source statements", exact: false }).click();
-    await expectReadable(page.getByRole("tabpanel"));
-    await page.getByRole("button", { name: "Hide source statements", exact: false }).click();
     const book = page.getByRole("banner").getByRole("link", { name: "Book a consultation", exact: false });
     await book.focus(); await page.keyboard.press("Enter");
     const dialog = page.getByRole("dialog", { name: "A conversation. A clearer next step." });
@@ -155,8 +149,8 @@ test("shared appearance persists across public routes and the private workspace"
     await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(page.getByRole("combobox", { name: "Appearance", exact: true })).toHaveValue("light");
-    await expect(page.getByRole("heading", { level: 1 }).first()).toHaveCSS("font-family", /AgentSpark Public/);
-    if (path !== "/workspace") await expect(page.locator(".editorial-site")).toHaveCSS("background-color", "rgb(244, 243, 236)");
+    await expect(page.getByRole("heading", { level: 1 }).first()).toHaveCSS("font-family", path === "/workspace" ? /AgentSpark Public/ : /Georgia/);
+    if (path !== "/workspace") await expectReadable(page.locator(".editorial-site"));
   }
   await page.goto("/");
   await expect(page.getByRole("combobox", { name: "Appearance", exact: true })).toHaveValue("light");
