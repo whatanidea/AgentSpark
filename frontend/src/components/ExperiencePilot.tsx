@@ -1,4 +1,4 @@
-import { useEffect, useId, useState, type RefObject } from "react";
+import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { AppearanceControl } from "../Appearance";
 import BrandMark from "./BrandMark";
@@ -159,6 +159,38 @@ function ReadinessBrief() {
   </section>;
 }
 
+function AmbientBackdrop({ readiness }: { readiness: boolean }) {
+  const backdrop = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const element = backdrop.current;
+    if (!element) return;
+    const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      element.style.setProperty("--ambient-offset", preference.matches ? "0px" : `${-Math.min(Math.max(window.scrollY, 0) * .12, 160)}px`);
+    };
+    const scroll = () => { if (!frame) frame = window.requestAnimationFrame(update); };
+    const configure = () => {
+      window.removeEventListener("scroll", scroll);
+      window.cancelAnimationFrame(frame);
+      frame = 0;
+      update();
+      if (!preference.matches) window.addEventListener("scroll", scroll, { passive: true });
+    };
+    configure();
+    preference.addEventListener("change", configure);
+    return () => {
+      window.removeEventListener("scroll", scroll);
+      preference.removeEventListener("change", configure);
+      window.cancelAnimationFrame(frame);
+    };
+  }, []);
+  return <div ref={backdrop} className="pilot-ambient" data-scene={readiness ? "readiness" : "home"} aria-hidden="true">
+    <div key={readiness ? "readiness" : "home"} className="pilot-ambient-field" />
+  </div>;
+}
+
 export default function ExperiencePilot({ readiness, titleRef, disabled, signedIn, onWorkspace, onDiscover, onStart, onBook, message }: {
   readiness: boolean; titleRef: RefObject<HTMLHeadingElement>; disabled: boolean; signedIn: boolean;
   onWorkspace: () => void; onDiscover: () => void; onStart: () => void; onBook: () => void; message: string;
@@ -174,6 +206,7 @@ export default function ExperiencePilot({ readiness, titleRef, disabled, signedI
     }
   }, [hash, readiness]);
   return <div className="pilot-site" data-pilot-page={readiness ? "readiness" : "home"}>
+    <AmbientBackdrop readiness={readiness} />
     <Link className="pilot-skip" to={`${readiness ? READINESS : HOME}#landing-main`}>Skip to content</Link>
     <header className="pilot-header"><div className="pilot-header-inner">
       <Link to={HOME} className="pilot-brand" aria-label="AgentSpark pilot overview"><BrandMark />AgentSpark</Link>

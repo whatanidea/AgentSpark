@@ -167,3 +167,29 @@ Nothing about the demo represents an already delivered customer engagement.
 - No backend implementation or dependency manifest changed; the prior 626-test
   backend qualification was not rerun or represented as a fresh pilot result.
 - Work is isolated on `feat/product-experience-design-pilot`. Staging is unchanged.
+
+### Ambient gradient follow-up
+
+The pilot now includes soft blue/lilac background gradients on both pages. Their
+positions change between Home and Readiness, with a 3.8-second arrival sweep and
+gentle scroll-linked movement. There is no endless animation, flashing, added
+dependency or change to the original public pages or workspace.
+
+The decorative layer is hidden from assistive technology, cannot intercept
+pointer input and stays behind content. Product windows and paper previews keep
+their opaque surfaces. Scroll work is passive, bounded and scheduled once per
+animation frame; listeners and pending frames are removed on unmount.
+Reduced-motion preference disables the arrival animation and scroll movement,
+including when changed while the page is open, but retains a static gradient.
+
+The light-theme muted text was slightly darkened to retain contrast over the
+gradients. A separate regression composites the strongest possible overlap of
+both actual gradient colour stops and requires at least 4.5:1 for main, muted and
+accent text in both themes, rather than relying on solid-background checks alone.
+
+Follow-up validation passed: six dependency-security tests, both TypeScript
+checks, build/24-route prerender and all **22 pilot browser cases** across
+Chromium/mobile Safari. New checks verify actual animation progression, finite
+duration, scroll response, page-specific positioning, live reduced-motion
+changes and worst-case gradient contrast. The local light-theme composition was
+also visually reviewed. No merge or deployment was performed.

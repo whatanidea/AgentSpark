@@ -164,6 +164,82 @@ test("design pilot reduced-motion changes disable scene transitions without hidi
   await expect(page.getByRole("tabpanel")).toContainText("Find the work");
 });
 
+test("design pilot ambient gradients advance, follow scrolling and change scene without capturing input", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto(HOME);
+  const backdrop = page.locator(".pilot-ambient");
+  const field = page.locator(".pilot-ambient-field");
+  await expect(backdrop).toHaveAttribute("aria-hidden", "true");
+  await expect(backdrop).toHaveCSS("pointer-events", "none");
+  await expect(field).toHaveCSS("animation-iteration-count", "1");
+  await expect(field).toHaveCSS("animation-duration", "3.8s");
+  const before = await field.evaluate(element => getComputedStyle(element).transform);
+  await expect.poll(() => field.evaluate(element => getComputedStyle(element).transform)).not.toBe(before);
+  await page.evaluate(() => window.scrollTo(0, 600));
+  await expect.poll(() => backdrop.evaluate(element => element.style.getPropertyValue("--ambient-offset"))).toBe("-72px");
+  await page.getByRole("navigation", { name: "Pilot navigation" }).getByRole("link", { name: "Advisory", exact: true }).click();
+  await expect(backdrop).toHaveAttribute("data-scene", "readiness");
+  await expect.poll(() => backdrop.evaluate(element => element.style.getPropertyValue("--ambient-offset"))).toBe("0px");
+  const position = await field.evaluate(element => getComputedStyle(element, "::before").transform);
+  expect(position).not.toBe("none");
+  await page.getByRole("tab", { name: /reality check/ }).click();
+  await expect(page.getByRole("tabpanel")).toContainText("Not verified");
+});
+
+test("design pilot ambient motion stops immediately for reduced motion and resumes only when allowed", async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await page.goto(HOME);
+  const backdrop = page.locator(".pilot-ambient");
+  const field = page.locator(".pilot-ambient-field");
+  await page.evaluate(() => window.scrollTo(0, 600));
+  await expect.poll(() => backdrop.evaluate(element => element.style.getPropertyValue("--ambient-offset"))).toBe("-72px");
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await expect(field).toHaveCSS("animation-name", "none");
+  await expect(backdrop).toHaveCSS("transform", "none");
+  await expect.poll(() => backdrop.evaluate(element => element.style.getPropertyValue("--ambient-offset"))).toBe("0px");
+  await page.evaluate(() => window.scrollTo(0, 300));
+  await expect(backdrop).toHaveCSS("transform", "none");
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+  await expect.poll(() => backdrop.evaluate(element => element.style.getPropertyValue("--ambient-offset"))).toBe("-36px");
+  await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+});
+
+test("design pilot text contrast stays readable even at maximum gradient overlap in both themes", async ({ page }) => {
+  await page.goto(HOME);
+  for (const theme of ["light", "dark"]) {
+    await page.getByRole("combobox", { name: "Appearance", exact: true }).selectOption(theme);
+    const ratios = await page.locator(".pilot-site").evaluate(element => {
+      const style = getComputedStyle(element);
+      const context = document.createElement("canvas").getContext("2d", { willReadFrequently: true });
+      if (!context) throw new Error("Gradient contrast checks require a canvas context.");
+      const color = (property: string) => {
+        const value = style.getPropertyValue(property).trim();
+        if (!CSS.supports("color", value)) throw new Error(`Invalid gradient theme colour: ${property}`);
+        context.clearRect(0, 0, 1, 1);
+        context.fillStyle = value;
+        context.fillRect(0, 0, 1, 1);
+        return [...context.getImageData(0, 0, 1, 1).data];
+      };
+      let background = color("--p-bg").slice(0, 3);
+      for (const property of ["--p-glow-cool", "--p-glow-warm"]) {
+        const layer = color(property);
+        const alpha = Math.min(1, (layer[3] + 1) / 255);
+        background = background.map((channel, index) => layer[index] * alpha + channel * (1 - alpha));
+      }
+      const luminance = (channels: number[]) => channels.slice(0, 3).map(channel => {
+        const value = channel / 255;
+        return value <= .04045 ? value / 12.92 : ((value + .055) / 1.055) ** 2.4;
+      }).reduce((sum, channel, index) => sum + channel * [.2126, .7152, .0722][index], 0);
+      const surface = luminance(background);
+      return ["--p-ink", "--p-muted", "--p-accent"].map(property => {
+        const foreground = luminance(color(property));
+        return { property, ratio: (Math.max(foreground, surface) + .05) / (Math.min(foreground, surface) + .05) };
+      });
+    });
+    for (const result of ratios) expect(result.ratio, `${theme}: ${result.property} against maximum overlapping gradients`).toBeGreaterThanOrEqual(4.5);
+  }
+});
+
 test("design pilot without JavaScript falls back to the existing complete public documents", async ({ browser }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
   const page = await context.newPage();
