@@ -79,7 +79,7 @@ test("landing supports keyboard operation, narrow viewports and reduced motion",
   await expect(page.getByRole("link", { name: "Skip to content", exact: true })).toBeAttached();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Skip to content", exact: true })).toBeFocused();
-  const assessment = page.getByRole("link", { name: /Open the interactive assessment/i });
+  const assessment = page.getByRole("link", { name: /See the full sample assessment/i });
   await assessment.focus();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL("/resources/example-assessment#workflow-explorer");
