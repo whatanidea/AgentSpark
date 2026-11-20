@@ -10,7 +10,7 @@ import { TechnologyBoundaries } from "./BuyerConfidence";
 import ConsultingContent from "./Consulting";
 import ConsultationBooking, { ConsultationLink } from "./ConsultationBooking";
 import { PageVisual } from "./MarketingVisuals";
-import ClaimStory from "./ClaimStory";
+import StudioHome from "./StudioHome";
 import { publicPage } from "./publicPages";
 import { FeaturedCapabilities, PublicCollection, SolutionStory } from "./PublicCollections";
 import BrandMark from "./BrandMark";
@@ -107,8 +107,8 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
     <LandingNavigation disabled={disabled} signedIn={signedIn} onWorkspace={onWorkspace} onBook={bookConsultation} />
 
     <main id="landing-main" key={page?.path ?? pathname}>
-      {home ? <><ClaimStory titleRef={title} onBook={bookConsultation} />
-        <div className="story-start landing-container"><strong>Ready to work on your own process?</strong>
+      {home ? <><StudioHome titleRef={title} onBook={bookConsultation} />
+        <div className="story-start landing-container"><div><p className="landing-eyebrow">Self-service platform</p><strong>Prefer to assess a workflow yourself?</strong></div>
           <button disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">→</span></button><button disabled={disabled} onClick={onStart}>{startLabel} <span aria-hidden="true">→</span></button>
           {message && <p role="status">{message}</p>}</div></> : <section id="top" className="marketing-page-hero landing-container" aria-labelledby="landing-title">
         <div className="premium-page-copy">

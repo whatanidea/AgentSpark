@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Should we fund an AI pilot for claims intake? | AgentSpark decision brief</title>
+<meta name="description" content="An illustrative workflow review for an operations lead: evidence, alternatives, pilot criteria and a funding recommendation.">
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f6f3ed;color:#282431;font:16px/1.55 system-ui,sans-serif}main{max-width:760px;margin:0 auto;padding:clamp(22px,6vw,64px) clamp(18px,4vw,48px);background:#fffdf8}header,section{border-bottom:1px solid #d5cdd7;padding-bottom:16px}section{padding-top:12px}small,dt{font-weight:650;color:#5e406f}h1,h2{font-family:Georgia,serif;line-height:1.13}h1{font-size:clamp(28px,5vw,43px);margin:14px 0}h2{font-size:22px;margin:12px 0}p,dd{margin:6px 0 12px}.decision{border-left:3px solid #76578d;padding-left:14px}a{color:#52326b}footer{margin-top:20px}@media print{@page{margin:13mm}body,main{background:white}main{padding:0;max-width:none;font-size:10pt}section{break-inside:avoid}footer{display:none}h1{font-size:22pt}}
+</style></head>
+<body><main>
+<header><small>AGENTSPARK / SAMPLE WORKFLOW REVIEW</small>
+<h1>Should we fund an AI pilot for claims intake?</h1>
+<p>For the claims operations lead and finance partner. Fictional example, not a client result.</p>
+<p class="decision"><strong>Recommendation: fund measurement first, not software.</strong> One conflicting date tells us a check is needed. It tells us nothing about the size or cause of the backlog.</p></header>
+<section><h2>What the file shows</h2><p>A physiotherapy claim form records a visit on 6 May; the itemised bill says 8 May. Neither source establishes which date is correct. A specialist checks both before asking the clinic. The examiner retains the coverage decision.</p></section>
+<section><h2>What the operations lead should measure</h2><p>With the data owner’s permission, sample consecutive cases across bill formats and shifts, not just known mismatches. Record cases per week, hands-on checking time, time waiting for replies and corrections. Have a second reviewer check a subset for missed discrepancies.</p>
+<p>Separate staff time from waiting time: faster reading will not fix a queue that is waiting on clinic replies.</p></section>
+<section><h2>Three choices for the budget owner</h2><dl>
+<dt>Change the form</dt><dd>If people enter the invoice date instead of the visit date, clarify the field and measure rework again.</dd>
+<dt>Use a fixed rule</dt><dd>If both dates already arrive as structured fields, compare them directly. A mismatch goes to a person; no model is needed.</dd>
+<dt>Test AI extraction</dt><dd>If finding dates on varied bills consumes most staff time, test extraction on authorised examples. Use the same comparison rule. Include unclear scans and abstentions in the results.</dd>
+</dl></section>
+<section><h2>When to release pilot funding</h2><p>The claims lead sets acceptable missed-discrepancy and unnecessary-referral rates before testing. Compare the candidate with the current method on the same held-out cases. Count review, correction and escalation time, not just model response time.</p>
+<p><strong>Finance check:</strong> weekly cases × net minutes saved per case ÷ 60 = potential hours released per week. Compare their usable value with setup, running and supervision costs. Released capacity is not cash savings unless spending actually changes.</p>
+<p><strong>Next decision:</strong> the operations lead and finance partner review the baseline together. Stop if a form change solves the problem. Scope a pilot only if the remaining burden is material and the data owner approves testing.</p></section>
+<footer><a href="/#first-conversation">Discuss a workflow with AgentSpark</a> · <a href="/#claim-adoption">Try the fictional date check</a></footer>
+</main></body></html>

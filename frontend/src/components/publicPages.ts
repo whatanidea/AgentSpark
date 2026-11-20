@@ -7,8 +7,8 @@ export type PublicPage = {
 };
 
 export const PUBLIC_PAGES: readonly PublicPage[] = [
-  { path: "/", name: "Home", section: "Overview", title: "One claim. Three places to look.",
-    summary: "AgentSpark helps SMEs choose where AI belongs, test a workflow and train the people who use it. Follow one claim from a business question to a team decision.", details: [] },
+  { path: "/", name: "Home", section: "Overview", title: "Where are you with AI?",
+    summary: "AI consulting for service operations. Review one recurring workflow, compare process changes with automation, and take a written funding recommendation to finance.", details: [] },
   { ...CONSULTING_OVERVIEW, section: "Consulting", details: [] },
   ...CONSULTING_OFFERINGS.map(offering => ({
     path: offering.path, name: offering.name, title: offering.title, summary: offering.summary,

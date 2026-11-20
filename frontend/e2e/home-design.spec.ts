@@ -65,7 +65,7 @@ test("Home design preview fits narrow, tablet and desktop layouts in both themes
       expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
       const brand = (await page.getByRole("banner").locator(".landing-brand").boundingBox())!;
       expect(brand.x + brand.width).toBeLessThanOrEqual(bounds.x);
-      await expect(page.locator("#landing-title")).toHaveText("One claim. Three places to look.");
+      await expect(page.locator("#landing-title")).toHaveText("Where are you with AI?");
       await expectReadable(page.locator(".concept-site"));
     }
   }

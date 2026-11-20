@@ -176,24 +176,25 @@ html, body, #root { background: var(--color-canvas); color: var(--color-ink); }
 .data-table tbody tr:hover { background: var(--color-raised); }
 .portal-sidebar { background: var(--color-surface); border-color: var(--color-line); }
 .portal {
-  --color-canvas:#17151e; --color-surface:#211e2a; --color-raised:#2b2634;
-  --color-line:#4c4355; --color-muted:#c8becf; --color-ink:#f7f1ed;
-  --color-accent:#d9bdf1; --color-button:#e5d0f7; --color-button-ink:#282030;
-  --color-brand-50:#332c40; --color-brand-200:#62536e; --color-brand-500:#d9bdf1;
-  --color-brand-600:#d9bdf1; --color-brand-700:#cfb4e5;
+  --color-canvas:#111719; --color-surface:#182221; --color-raised:#233331;
+  --color-line:#435754; --color-muted:#bdcbc5; --color-ink:#f0f3eb;
+  --color-accent:#c1fd7f; --color-button:#c1fd7f; --color-button-ink:#15201a;
+  --color-brand-50:#223930; --color-brand-200:#547669; --color-brand-500:#b5ed95;
+  --color-brand-600:#c1fd7f; --color-brand-700:#c6eea9;
   background:var(--color-canvas); color:var(--color-ink);
 }
 :root[data-theme="light"] .portal {
-  --color-canvas:#f6f2ea; --color-surface:#fffaf0; --color-raised:#eee8df;
-  --color-line:#cfc6d1; --color-muted:#625969; --color-ink:#272230;
-  --color-accent:#684783; --color-button:#302439; --color-button-ink:#fff8ff;
-  --color-brand-50:#eee7f5; --color-brand-200:#d6c6e2; --color-brand-500:#74548a;
-  --color-brand-600:#684783; --color-brand-700:#564168;
+  --color-canvas:#f4f6ef; --color-surface:#fcfdf9; --color-raised:#e8eee6;
+  --color-line:#a9baae; --color-muted:#46594e; --color-ink:#18241f;
+  --color-accent:#305d3e; --color-button:#253e31; --color-button-ink:#f6fbf3;
+  --color-brand-50:#e1ecd9; --color-brand-200:#b6cbb9; --color-brand-500:#416647;
+  --color-brand-600:#305d3e; --color-brand-700:#365c45;
 }
 .workspace-invitation {display:flex;flex-wrap:wrap;align-items:center;gap:14px;padding:clamp(16px,3vw,30px);border-inline-start:3px solid var(--color-accent);background:var(--color-brand-50)}
 .workspace-invitation>svg {color:var(--color-accent)}
 .workspace-invitation>div {flex:1 1 270px;min-width:0}
-.workspace-invitation h2 {font:normal clamp(22px,2.4vw,36px)/1.1 Georgia,serif;letter-spacing:-.04em}
+.workspace-invitation{border-radius:16px;border:1px solid var(--color-line);background:radial-gradient(ellipse at top right,color-mix(in srgb,var(--color-accent) 15%,transparent),transparent 65%),var(--color-surface)}
+.workspace-invitation h2 {font:550 clamp(22px,2.4vw,32px)/1.1 "AgentSpark Public Sans",sans-serif;letter-spacing:-.04em}
 .workspace-invitation p {font-size:13px;color:var(--color-muted);max-width:60ch;margin-top:8px}
 .portal-sidebar [class~="text-white/70"] { color: var(--color-muted); }
 .portal-sidebar [class~="text-white/85"] { color: var(--color-ink); }

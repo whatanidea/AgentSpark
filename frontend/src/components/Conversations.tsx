@@ -356,7 +356,7 @@ export default function Conversations({ workspaceName, demo, canCreate, onBusyCh
         follow.current = element.scrollHeight - element.scrollTop - element.clientHeight < 120;
       }}>
         {!chat?.messages.length && !sending && <div className="chat-welcome">
-          <span className="chat-orb" aria-hidden="true"><BrandMark /></span>
+          <div className="chat-signal" aria-hidden="true"><StudioRibbon variant={1}/><span className="chat-orb"><BrandMark /></span></div>
           <p className="eyebrow">Start with one business problem</p>
           <h2>What could work better?</h2>
           <p>Describe a recent example: who did the work, where it slowed down, and what you want to improve. Choose a starter to edit, or write your own.</p>
@@ -450,3 +450,4 @@ export default function Conversations({ workspaceName, demo, canCreate, onBusyCh
     </div>
   </section>;
 }
+import StudioRibbon from "./StudioRibbon";

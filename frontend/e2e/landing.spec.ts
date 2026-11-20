@@ -11,7 +11,7 @@ test("public examples explain workflow boundaries without authentication, writes
     mode: "oidc", retention_hours: 24, archive_retention_days: 30,
   } }));
   await page.goto("/");
-  await expect(page.locator("#landing-title")).toHaveText("One claim. Three places to look.");
+  await expect(page.locator("#landing-title")).toHaveText("Where are you with AI?");
   await expect(page).toHaveTitle("AgentSpark | AI Consulting & Assessment for SMEs");
   await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeEnabled();
   await expect(page.getByRole("group", { name: "Example workflow", exact: true })).toHaveCount(0);
