@@ -11,7 +11,7 @@ test("public examples explain workflow boundaries without authentication, writes
     mode: "oidc", retention_hours: 24, archive_retention_days: 30,
   } }));
   await page.goto("/");
-  await expect(page.locator("#landing-title")).toHaveText("One claim. Three places to look.");
+  await expect(page.locator("#landing-title")).toHaveText("Where are you with AI?");
   await expect(page).toHaveTitle("AgentSpark | AI Consulting & Assessment for SMEs");
   await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeEnabled();
   await expect(page.getByRole("group", { name: "Example workflow", exact: true })).toHaveCount(0);
@@ -79,7 +79,7 @@ test("landing supports keyboard operation, narrow viewports and reduced motion",
   await expect(page.getByRole("link", { name: "Skip to content", exact: true })).toBeAttached();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Skip to content", exact: true })).toBeFocused();
-  const assessment = page.getByRole("link", { name: /Open the interactive assessment/i });
+  const assessment = page.getByRole("link", { name: /See the full sample assessment/i });
   await assessment.focus();
   await page.keyboard.press("Enter");
   await expect(page).toHaveURL("/resources/example-assessment#workflow-explorer");

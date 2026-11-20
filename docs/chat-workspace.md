@@ -206,3 +206,4 @@ backup/provider-retention policy approval are outside this local implementation.
 
 The shared local demo is process-local and loses conversations on restart.
 Hosted mode uses Cosmos durability and the approved Azure OpenAI connection.
+Chat’s Studio presentation shares the public site’s animated ribbon, graphite and leaf-green dark theme, and daylight theme. The welcome signal respects reduced motion. User messages have a separate surface; the live progress indicator remains tied to actual requests, not decorative animation.

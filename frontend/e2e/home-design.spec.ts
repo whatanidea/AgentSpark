@@ -65,7 +65,7 @@ test("Home design preview fits narrow, tablet and desktop layouts in both themes
       expect(bounds.x + bounds.width).toBeLessThanOrEqual(width);
       const brand = (await page.getByRole("banner").locator(".landing-brand").boundingBox())!;
       expect(brand.x + brand.width).toBeLessThanOrEqual(bounds.x);
-      await expect(page.locator("#landing-title")).toHaveText("One claim. Three places to look.");
+      await expect(page.locator("#landing-title")).toHaveText("Where are you with AI?");
       await expectReadable(page.locator(".concept-site"));
     }
   }
@@ -149,7 +149,7 @@ test("shared appearance persists across public routes and the private workspace"
     await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(page.getByRole("combobox", { name: "Appearance", exact: true })).toHaveValue("light");
-    await expect(page.getByRole("heading", { level: 1 }).first()).toHaveCSS("font-family", path === "/workspace" ? /AgentSpark Public/ : /Georgia/);
+    await expect(page.getByRole("heading", { level: 1 }).first()).toHaveCSS("font-family", /AgentSpark Public/);
     if (path !== "/workspace") await expectReadable(page.locator(".editorial-site"));
   }
   await page.goto("/");

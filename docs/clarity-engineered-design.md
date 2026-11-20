@@ -1,16 +1,16 @@
 # Clarity, engineered: website and workspace design
 
-## Current public experience: Follow one claim
+## Current public experience: Consulting first
 
-The public website now opens with the claims story rather than the earlier Clarity cover. Read the site in this order:
+The Studio homepage opens with “Where are you with AI?” Three buyer paths change the sample deliverable and its ribbon. Below, sources flow horizontally into a linked record and a human-reviewed task. The self-service comparison precedes the four consulting services. Navigation, booking consent, the public example, protected workflow actions and theme choice remain available.
 
-- **Home:** three fictional source documents, the adviser’s question, the actual public assessment preview, then an interactive intake desk. Visitors compare the original clinic bill with a corrected bill to see when the service-date check sends the file to a specialist or on to eligibility review. Neither outcome decides coverage. The exercise uses local sample data and also explains both outcomes without JavaScript. The screenshot links to the interactive claims explorer. Separate actions open consulting, discovery or assessment.
+- **Home:** visitors can inspect a shortlist, pilot scorecard or team playbook, read the ungated [printable decision brief](../frontend/public/briefs/claim-intake.html), or see what to bring to a first conversation before booking. The fictional examples illustrate methods, not measured customer results.
 - **Consulting:** choose readiness, workspace launch, a workflow pilot or adoption support. Each service describes its outputs, scope and owner; provider comparisons belong on Workspace Launch.
 - **Intake desk automation:** AI extracts the service date and drafts a clarification when needed. A deterministic comparison routes mismatches to a specialist with both sources, or matching dates to eligibility review. The public demo previews this routing without creating tasks or contacting a clinic.
 - **Platform:** choose the capability needed for the decision. Technical limits, permissions and human approval stay explicit.
 - **Solutions, resources and firm:** choose a case by audience, try the interactive example, prepare for a decision review or read the firm’s approach. The full product walkthrough lives under How it works rather than repeating on Home.
 
-The React routes and pre-rendered documents share the same content. Home’s scroll motion runs by default without a toggle and respects the system reduced-motion preference. The preview and explorer start at “Receive a claim”; the fictional health insurance pilot compares a physiotherapy bill with a claim form and routes conflicting service dates to a claims specialist before eligibility review. This describes a candidate workflow, not a live claims integration. The existing private workspace, booking consent, protected actions and public URLs remain intact. The optional `?design=pilot` comparison is historical, not the default.
+Public pages prerender. The ribbon and flow lines respect reduced motion. The linked explorer starts at “Receive a claim.” Workspace uses the same graphite, leaf-green and daylight palettes. Chat uses a ribbon signal, colored starter cards and distinct user messages; its streaming, privacy and approval model are unchanged. The optional `?design=pilot` comparison is historical.
 
 ## Historical Clarity direction (superseded for the public site)
 

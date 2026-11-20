@@ -160,7 +160,7 @@ test("public HTML stays readable during delayed startup and controls work at DOM
   const navigation = page.goto("/", { waitUntil: "domcontentloaded" });
   try {
     await expect.poll(() => requested).toBe(true);
-    await expect(page.locator("#landing-title")).toHaveText("One claim. Three places to look.");
+    await expect(page.locator("#landing-title")).toHaveText("Where are you with AI?");
     await expect(page.locator("main")).toBeVisible();
     await expect(page).toHaveTitle("AgentSpark | AI Consulting & Assessment for SMEs");
     await expect(page.getByText("Loading product overview", { exact: false })).toHaveCount(0);
@@ -179,9 +179,10 @@ test("public HTML stays readable during delayed startup and controls work at DOM
   const motion = page.getByRole("button", { name: /Scroll motion/ });
   await expect(motion).toHaveCount(0);
   await page.emulateMedia({ reducedMotion: "no-preference" });
-  await expect(page.locator(".claim-film")).toHaveClass(/claim-film-moving/);
+  const ribbon = page.locator(".studio-plate animate");
+  await expect(ribbon).toHaveCount(34);
   await page.emulateMedia({ reducedMotion: "reduce" });
-  await expect(page.locator(".claim-film")).not.toHaveClass(/claim-film-moving/);
+  await expect(ribbon).toHaveCount(0);
   await expect(page.locator("h1")).toHaveCount(1);
 });
 

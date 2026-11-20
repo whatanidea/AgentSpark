@@ -49,8 +49,8 @@ test("Conversation workspace shares the work-story identity in both themes witho
   for (const theme of ["dark", "light"]) {
     await page.getByRole("combobox", { name: "Appearance", exact: true }).selectOption(theme);
     await expect(composer(page)).toHaveValue("An unsent fictional design check");
-    await expect(root(page)).toHaveCSS("background-color", theme === "dark" ? "rgb(33, 30, 42)" : "rgb(255, 250, 240)");
-    await expect(root(page).locator(".chat-orb")).toHaveCSS("color", theme === "dark" ? "rgb(217, 189, 241)" : "rgb(104, 71, 131)");
+    await expect(root(page)).toHaveCSS("background-color", theme === "dark" ? "rgb(24, 34, 33)" : "rgb(252, 253, 249)");
+    await expect(root(page).locator(".chat-orb")).toHaveCSS("color", theme === "dark" ? "rgb(193, 253, 127)" : "rgb(48, 93, 62)");
     await expectReadable(root(page));
     for (const width of [320, 390, 768, 1440]) {
       await page.setViewportSize({ width, height: 956 });
