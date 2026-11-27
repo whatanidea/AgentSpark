@@ -106,7 +106,7 @@ test("public HTML has four concise menus, footer navigation and protected action
   const mobile = page.getByRole("button", { name: "Open navigation", exact: true });
   if (await mobile.isVisible()) await mobile.click();
   await expect(nav.getByRole("button")).toHaveText(["Platform", "Solutions", "Resources", "Consulting"]);
-  expect(await nav.locator("a").count()).toBe(15);
+  expect(await nav.locator("a").count()).toBe(16);
   for (const summary of await nav.locator(".premium-menu-links li small").allTextContents()) {
     expect(summary.length).toBeLessThanOrEqual(60);
   }
