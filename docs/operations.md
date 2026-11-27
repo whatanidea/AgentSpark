@@ -634,7 +634,7 @@ azd provision --preview                     # review the what-if first
 azd up                                      # provision + remote ACR build + deploy
 ./infra/scripts/seed-search.ps1 -Python <venv python>   # create and seed patterns-index
 # enable browser sign-in at the app URL (SPA redirect URI + tenant-wide consent; needs an Entra admin)
-./infra/scripts/create-entra-app.ps1 -SpaRedirectUris "https://<app-fqdn>/auth-redirect.html,http://localhost:5173/auth-redirect.html"
+./infra/scripts/create-entra-app.ps1 -SpaRedirectUris "https://app.kaisersol.com/auth-redirect.html,https://<app-fqdn>/auth-redirect.html,http://localhost:5173/auth-redirect.html"
 ```
 
 For a new deployment, sign in as the deliberately chosen administrator and copy

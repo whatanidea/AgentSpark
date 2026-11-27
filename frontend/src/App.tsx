@@ -129,7 +129,9 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
   const pendingInvite = invitation.code;
   const [signedInAs, setSignedInAs] = useState("");
   const [invitationInput, setInvitationInput] = useState("");
-  const websiteDestination = useRef<View | null>(null);
+  const entry = location.pathname === "/workspace" && window.location.hostname === "app.kaisersol.com"
+    ? new URLSearchParams(location.search).get("entry") : null;
+  const websiteDestination = useRef<View | null>(entry === "discovery" || entry === "intake" ? entry : null);
   const sessionId = snapshot?.session_id || "";
   const canWrite = snapshot ? snapshot.permissions.write : workspace?.permissions.write !== false;
   const canDelete = snapshot ? snapshot.permissions.delete : workspace?.permissions.delete !== false;
@@ -379,7 +381,13 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
     setView(["completed", "rejected", "awaiting_human_review"].includes(state.status) ? "blueprint"
       : state.status === "needs_clarification" ? "analyze" : state.chat_history.length ? "diagnose" : "intake");
   }
-  function enterFromWebsite(next: View) {
+  function enterFromWebsite(next: "home" | "discovery" | "intake") {
+    if (["www.kaisersol.com", "kaisersol.com"].includes(window.location.hostname)) {
+      const url = new URL("https://app.kaisersol.com/workspace");
+      if (next !== "home") url.searchParams.set("entry", next);
+      window.location.assign(url.href);
+      return;
+    }
     websiteDestination.current = identity ? null : next;
     void navigate("/workspace");
     void changeView(next);
@@ -450,6 +458,10 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
             onClick={() => {
               if (view === "discovery" && discoveryUnsaved && !window.confirm("Discard unsaved discovery changes?")) return;
               if (view === "intake" && documentUnsaved && !window.confirm("Discard the unapproved document context?")) return;
+              if (window.location.hostname === "app.kaisersol.com") {
+                window.location.assign("https://www.kaisersol.com/");
+                return;
+              }
               void navigate("/"); setShowLanding(true);
             }}>Product overview <span aria-hidden="true">↗</span></button>
         </div>
