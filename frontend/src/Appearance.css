@@ -1,20 +1,13 @@
 @font-face {
-  font-family: "Instrument Serif";
-  src: url("/brand/InstrumentSerif-Regular.ttf") format("truetype");
+  font-family: Inter;
+  src: url("/fonts/inter.woff2") format("woff2");
   font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-}
-@font-face {
-  font-family: "Instrument Serif";
-  src: url("/fonts/instrument-serif-italic.woff2") format("woff2");
-  font-style: italic;
-  font-weight: 400;
+  font-weight: 100 900;
   font-display: swap;
 }
 
 :root {
-  --ks-type: "Instrument Serif", serif;
+  --ks-type: Inter, sans-serif;
   font-family: var(--ks-type);
   color-scheme: dark;
   --color-canvas: #111b18;

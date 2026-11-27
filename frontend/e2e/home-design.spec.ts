@@ -149,7 +149,7 @@ test("shared appearance persists across public routes and the private workspace"
     await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(page.getByRole("combobox", { name: "Appearance", exact: true })).toHaveValue("light");
-    await expect(page.getByRole("heading", { level: 1 }).first()).toHaveCSS("font-family", /^["']?Instrument Serif["']?,\s*serif$/);
+    await expect(page.getByRole("heading", { level: 1 }).first()).toHaveCSS("font-family", /^["']?Inter["']?,\s*sans-serif$/);
     if (path !== "/workspace") await expectReadable(page.locator(".editorial-site"));
   }
   await page.goto("/");
