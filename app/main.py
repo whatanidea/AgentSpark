@@ -2,7 +2,7 @@ import os
 import logging
 
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
 from dotenv import load_dotenv
@@ -98,7 +98,9 @@ if os.path.isdir(_DIST):
         return FileResponse(os.path.join(_DIST, "spa.html"), status_code=status_code, headers=_NO_CACHE)
 
     @app.get("/")
-    def spa_root():
+    def spa_root(request: Request):
+        if request.url.hostname == "app.kaisersol.com":
+            return RedirectResponse("/workspace", headers=_NO_CACHE)
         return FileResponse(os.path.join(_DIST, "index.html"), headers=_NO_CACHE)
 
     @app.get("/{full_path:path}")
