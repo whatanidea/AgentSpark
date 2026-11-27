@@ -32,7 +32,7 @@ class Blueprint(BaseModel):
     code_scaffold: str = Field(..., description="Illustrative untested scaffold, NOT deployment-ready code")
 
 
-_SYSTEM = """You are AgentSpark's Blueprint Agent. Design the CUSTOMER workflow, never AgentSpark's
+_SYSTEM = """You are Kaisersol's Blueprint Agent. Design the CUSTOMER workflow, never Kaisersol's
 diagnostic/scoring pipeline. Use ALL supplied context, workflow facts and evidence, prescribed design,
 selected cloud mapping, grounded pattern IDs/source references, optional business value, and policy outcome.
 If business value is deferred or inputs are missing, do not invent financial numbers, automation percentages,

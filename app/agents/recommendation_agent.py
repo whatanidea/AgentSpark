@@ -37,8 +37,8 @@ def _data_completeness(intel: WorkflowIntelligence, diagnosis: WorkflowDiagnosis
     return round(len(set(ESSENTIAL_FACTS) & intel.model_fields_set) / len(ESSENTIAL_FACTS), 2)
 
 
-_SYSTEM = """You are AgentSpark's Recommendation Agent. Explain the prescribed design for this
-CUSTOMER workflow, not AgentSpark itself. The required design family, primary pattern, autonomy,
+_SYSTEM = """You are Kaisersol's Recommendation Agent. Explain the prescribed design for this
+CUSTOMER workflow, not Kaisersol itself. The required design family, primary pattern, autonomy,
 and human gate are authoritative constraints from the evidence-backed adoption assessment.
 Use ONLY IDs in retrieved_patterns, include every required_pattern_id, and match the prescribed
 design and autonomy exactly. The descriptive profile score does not select architecture.

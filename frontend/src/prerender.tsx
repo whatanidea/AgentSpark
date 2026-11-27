@@ -3,6 +3,7 @@ import { StaticRouter } from "react-router-dom";
 import { AppearanceProvider } from "./Appearance";
 import Landing from "./components/Landing";
 import { PUBLIC_PAGES } from "./components/publicPages";
+import { documents } from "./components/documents/catalog";
 import { pageMetadata } from "./publicMetadata";
 
 function requiresBrowser() {
@@ -21,7 +22,7 @@ export function renderMetadata(metadata: ReturnType<typeof pageMetadata>) {
 export const workspaceHead = renderMetadata(pageMetadata(undefined, true));
 
 export function renderPublicPages() {
-  return PUBLIC_PAGES.map(page => ({
+  return [...PUBLIC_PAGES, ...documents].map(page => ({
     path: page.path,
     head: renderMetadata(pageMetadata(page)),
     body: renderToStaticMarkup(<StaticRouter location={page.path}>

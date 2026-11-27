@@ -15,7 +15,7 @@ Public pages prerender. The ribbon and flow lines respect reduced motion. The li
 ## Historical Clarity direction (superseded for the public site)
 
 The user approved the interactive design study on 2026-11-18 and requested its
-implementation across AgentSpark. This is a presentation and public-positioning
+implementation across Kaisersol. This is a presentation and public-positioning
 change, not a workflow, permission, scoring or infrastructure redesign.
 
 ## Phases
@@ -206,5 +206,9 @@ duration, scroll response, page-specific positioning, live reduced-motion
 changes and worst-case gradient contrast. The local light-theme composition was
 also visually reviewed. No merge or deployment was performed.
 # Agent implementation offering
+
+All first-party site and workspace text uses Instrument Serif, including interface controls, labels, code, chat and printable HTML. Regular and italic are hosted locally. Preserve the supplied logo artwork. Use Night/Panel/Mist/Lime in dark mode and Paper/Ink/Forest in light mode. Status colors remain semantic, independent of brand accents.
+
+Public guides and the printable brief use the shared Kaisersol navigation, footer and metadata at their existing URLs. Their JSX content lives in `frontend/src/components/documents`. Use the supplied light/dark wordmarks, not typeset approximations. External booking destinations and existing authentication, storage and infrastructure identifiers are intentionally unchanged.
 
 The Studio homepage places agent implementation after the self-service exercise. Solutions navigation and the directory link to the same overview. The four public guides in `frontend/public/solutions/agent-implementation` work without sign-in or JavaScript; optional walkthrough animation respects reduced motion. Their pilots are fictional examples, not integrations or claims of vendor partnership.

@@ -17,7 +17,7 @@
 .consultation-options .landing-button { min-height: 44px; white-space: normal; text-align: center; line-height: 1.5; }
 .consultation-options .consulting-text-link { flex-wrap: wrap; }
 .consultation-options label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 8px; }
-.consultation-options textarea { display: block; width: 100%; min-height: 100px; padding: 12px; resize: vertical; border: 1px solid #c9c1dc; border-radius: 8px; background: #faf8fd; color: var(--ink); font: 12px/1.7 ui-monospace, Consolas, monospace; }
+.consultation-options textarea { display: block; width: 100%; min-height: 100px; padding: 12px; resize: vertical; border: 1px solid #c9c1dc; border-radius: 8px; background: #faf8fd; color: var(--ink); font: 12px/1.7 var(--ks-type); }
 .consultation-dialog .consultation-copy-status { margin: 8px 0; font-size: 12px; }
 .consultation-dialog [role="alert"] { color: #8c2828; border-left: 3px solid #b64343; padding-left: 12px; }
 .consultation-calendar { margin-top: 24px; }

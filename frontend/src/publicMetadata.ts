@@ -1,9 +1,9 @@
 import type { PublicPage } from "./components/publicPages";
 
 export function pageMetadata(page?: PublicPage, workspace = false) {
-  const title = workspace ? "Workspace | AgentSpark" : page?.path === "/"
-    ? "AgentSpark | AI Consulting & Assessment for SMEs" : `${page?.name ?? "Page not found"} | AgentSpark`;
-  const description = workspace ? "Sign in to your private AgentSpark workspace." : page?.summary ?? "This AgentSpark page could not be found.";
+  const title = workspace ? "Workspace | Kaisersol" : page?.path === "/"
+    ? "Kaisersol | AI Consulting & Assessment for SMEs" : `${page?.name ?? "Page not found"} | Kaisersol`;
+  const description = workspace ? "Sign in to your private Kaisersol workspace." : page?.summary ?? "This Kaisersol page could not be found.";
   return {
     title,
     canonical: !workspace && page ? page.path : null,
@@ -11,10 +11,13 @@ export function pageMetadata(page?: PublicPage, workspace = false) {
       description,
       robots: !workspace && page ? "index,follow" : "noindex,nofollow",
       "og:type": "website",
-      "og:site_name": "AgentSpark",
+      "og:site_name": "Kaisersol",
       "og:title": title,
       "og:description": description,
-      "twitter:card": "summary",
+      "og:image": "/brand/kaisersol-og-image.png",
+      "og:image:alt": "Kaisersol",
+      "twitter:image": "/brand/kaisersol-og-image.png",
+      "twitter:card": "summary_large_image",
       "twitter:title": title,
       "twitter:description": description,
     },

@@ -18,7 +18,7 @@ test("architecture illustration separates AI suggestions, human authority and cu
   await expect(figure.locator('.architecture-connector[aria-hidden="true"]')).toHaveCount(3);
   await expect(figure.getByRole("heading", { name: "Human approval", exact: true })).toBeVisible();
   await expect(figure).toContainText("Suggestions, not actions");
-  await expect(figure).toContainText("not AgentSpark's internal architecture or a connected, deployed workflow");
+  await expect(figure).toContainText("not Kaisersol's internal architecture or a connected, deployed workflow");
   await expect(figure).toContainText("it does not authorize actions in your business systems");
   await expect(figure.getByRole("heading", { name: "What your delivery team still does", exact: true })).toBeVisible();
   for (const width of [1440, 320]) {
@@ -110,7 +110,7 @@ test("unknown public pages are explicit and unknown API paths remain JSON 404s",
   expect(await response.json()).toEqual({ detail: "Not found." });
   await page.goto("/missing-public-page");
   await expect(page.getByRole("heading", { name: "Page not found.", exact: true })).toBeVisible();
-  await expect(page).toHaveTitle("Page not found | AgentSpark");
+  await expect(page).toHaveTitle("Page not found | Kaisersol");
   await page.getByRole("link", { name: "Return to overview", exact: true }).click();
   await expect(page.locator("#landing-title")).toHaveText(publicPage("/")!.title);
 });

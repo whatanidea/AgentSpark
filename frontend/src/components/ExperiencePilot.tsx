@@ -1,7 +1,7 @@
 import { useEffect, useId, useRef, useState, type RefObject } from "react";
 import { Link, useLocation } from "react-router-dom";
-import { AppearanceControl } from "../Appearance";
 import BrandMark from "./BrandMark";
+import LandingNavigation from "./LandingNavigation";
 import { ConsultationLink } from "./ConsultationBooking";
 import "./ExperiencePilot.css";
 
@@ -61,7 +61,7 @@ function ProductExperience() {
   return <section id="pilot-experience" className="pilot-experience pilot-width" tabIndex={-1} aria-label="Interactive fictional product experience">
     <ChapterTabs<ProductChapter> items={chapters} value={chapter} onChange={setChapter} id={id} label="Explore the product" />
     <div className="pilot-app-window">
-      <div className="pilot-window-bar"><span><BrandMark /> AgentSpark</span><span>Northstar / Finance <span className="pilot-sample-dot" /> Fictional workspace</span></div>
+      <div className="pilot-window-bar"><span><BrandMark /> Kaisersol</span><span>Northstar / Finance <span className="pilot-sample-dot" /> Fictional workspace</span></div>
       <div className="pilot-app-layout">
         <aside className="pilot-app-sidebar" aria-label="Preview workspace context">
           <span className="pilot-sidebar-label">YOUR WORKSPACE</span>
@@ -136,7 +136,7 @@ function ReadinessBrief() {
   return <section id="pilot-brief" className="pilot-brief-experience pilot-width" tabIndex={-1} aria-label="Illustrative engagement deliverables">
     <ChapterTabs<Deliverable> items={deliverables} value={deliverable} onChange={setDeliverable} id={id} label="Explore the engagement outputs" />
     <div className="pilot-brief-stage">
-      <div className="pilot-brief-margin" aria-hidden="true"><span>FROM QUESTION<br />TO DIRECTION.</span><span>AGENTSPARK<br />ADVISORY</span></div>
+      <div className="pilot-brief-margin" aria-hidden="true"><span>FROM QUESTION<br />TO DIRECTION.</span><span>KAISERSOL<br />ADVISORY</span></div>
       <div className="pilot-engagement-paper" id={`${id}-panel`} role="tabpanel" aria-labelledby={`${id}-${deliverable}`} tabIndex={0}>
         <div className="pilot-paper-top"><span>OPPORTUNITY &amp; READINESS</span><span>Illustrative draft</span></div>
         <div className="pilot-scene" key={deliverable}>
@@ -208,14 +208,13 @@ export default function ExperiencePilot({ readiness, titleRef, disabled, signedI
   return <div className="pilot-site" data-pilot-page={readiness ? "readiness" : "home"}>
     <AmbientBackdrop readiness={readiness} />
     <Link className="pilot-skip" to={`${readiness ? READINESS : HOME}#landing-main`}>Skip to content</Link>
-    <header className="pilot-header"><div className="pilot-header-inner">
-      <Link to={HOME} className="pilot-brand" aria-label="AgentSpark pilot overview"><BrandMark />AgentSpark</Link>
+    <div className="landing concept-site work-story"><LandingNavigation disabled={disabled} signedIn={signedIn} onWorkspace={onWorkspace} onBook={onBook}/></div>
+    <div className="pilot-header"><div className="pilot-header-inner">
       <nav aria-label="Pilot navigation"><Link to={HOME} aria-current={readiness ? undefined : "page"}>Overview</Link><Link to={READINESS} aria-current={readiness ? "page" : undefined}>Advisory</Link><Link to="/resources/example-assessment">Example</Link></nav>
-      <div className="pilot-header-actions"><AppearanceControl /><button type="button" className="pilot-workspace" disabled={disabled} onClick={onWorkspace}>{signedIn ? "Workspace" : "Sign in"} <span aria-hidden="true">↗</span></button></div>
-    </div></header>
+    </div></div>
     <main id="landing-main" tabIndex={-1}>
       <section id="top" className="pilot-hero pilot-width" aria-labelledby="landing-title">
-        <p className="pilot-hero-category">{readiness ? "Opportunity & readiness. A separately scoped advisory service." : "AgentSpark. The enterprise AI decision workspace."}</p>
+        <p className="pilot-hero-category">{readiness ? "Opportunity & readiness. A separately scoped advisory service." : "Kaisersol. The enterprise AI decision workspace."}</p>
         <h1 ref={titleRef} tabIndex={-1} id="landing-title">{readiness ? <>Your first move.<br /><span>Not your next experiment.</span></> : <>Big questions.<br /><span>Clear next moves.</span></>}</h1>
         <p className="pilot-hero-summary">{readiness ? "Find a worthwhile opportunity. Understand what is missing. Agree where to go next." : "Bring the evidence together. Weigh the possibilities. Decide what deserves your next investment."}</p>
         <div className="pilot-hero-actions">{readiness
@@ -258,7 +257,7 @@ export default function ExperiencePilot({ readiness, titleRef, disabled, signedI
         <div className="pilot-hero-actions">{readiness ? <ConsultationLink onBook={onBook} className="pilot-button" /> : <><button type="button" className="pilot-button" disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">↗</span></button><button type="button" className="pilot-text-action" disabled={disabled} onClick={onStart}>Assess my workflow <span aria-hidden="true">↗</span></button></>}</div>
       </div></section>
     </main>
-    <footer className="pilot-footer pilot-width"><div><Link to={HOME} className="pilot-brand"><BrandMark />AgentSpark</Link><p>Evidence-led. Human-reviewed.</p></div>
+    <footer className="pilot-footer pilot-width"><div><Link to={HOME} className="pilot-brand"><BrandMark />Kaisersol</Link><p>Evidence-led. Human-reviewed.</p></div>
       <nav aria-label="Pilot footer"><Link to={readiness ? HOME : READINESS}>{readiness ? "The platform" : "Separately scoped advisory"}</Link><Link to="/resources/example-assessment">Full example</Link><Link to="/resources/trust">Trust & limitations</Link><Link to={readiness ? "/consulting/readiness" : "/"}>Compare current design</Link></nav>
       <p className="pilot-disclosure">Working design pilot. Fictional demonstration data. No live analysis or workflow creation through the previews.</p>
     </footer>

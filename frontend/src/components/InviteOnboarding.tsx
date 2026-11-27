@@ -29,7 +29,7 @@ export default function InviteOnboarding({ code, warning, auth, identity, accoun
   return <main className="min-h-screen bg-canvas px-4 py-8 md:py-16">
     <div className="max-w-xl mx-auto space-y-6">
       <div className="flex items-center justify-between gap-3"><a className="text-xl font-bold text-graphite" href="/"
-        onClick={event => { event.preventDefault(); if (!working) onCancel(); }}>AgentSpark</a><AppearanceControl /></div>
+        onClick={event => { event.preventDefault(); if (!working) onCancel(); }}>Kaisersol</a><AppearanceControl /></div>
       <Card>
         <p className="eyebrow mb-3">Your workspace invitation</p>
         <h1 className="text-2xl font-bold break-words">{preview ? `Join ${preview.organization_name}` : "Let's get you connected"}</h1>
@@ -67,7 +67,7 @@ export default function InviteOnboarding({ code, warning, auth, identity, accoun
                   onChange={event => setEmail(event.target.value)} />
               </label>
               <Button type="submit" disabled={working || !email.trim()}>{busy ? "Verifying your account..." : "Continue with email"}</Button>
-              <p className="text-xs text-zinc-500">A secure sign-in window will open. No Microsoft password is collected by AgentSpark.</p>
+              <p className="text-xs text-zinc-500">A secure sign-in window will open. No Microsoft password is collected by Kaisersol.</p>
             </form> : <p role="alert" className="notice notice-warning">Browser sign-in is unavailable. Ask the administrator to configure Entra sign-in before accepting this invitation.</p>}
           </> : <>
             <p className="text-sm text-zinc-600">{accountLabel ? <>Signed in as <strong className="break-all">{accountLabel}</strong>.</>

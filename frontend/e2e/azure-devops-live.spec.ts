@@ -216,6 +216,6 @@ test("Real Azure DevOps entry is available to authenticated hosted users without
   await expect(root(page).getByRole("heading", { name: "Azure DevOps connector", exact: true })).toBeVisible();
   await expect(page.getByText("Local simulator only.", { exact: true })).toHaveCount(0);
   await root(page).getByRole("button", { name: "Connect Microsoft account", exact: true }).click();
-  await expect(root(page).getByRole("alert")).toContainText("Sign in to AgentSpark with the Microsoft sign-in button");
+  await expect(root(page).getByRole("alert")).toContainText("Sign in to Kaisersol with the Microsoft sign-in button");
   expect(DISCOVERY_BRIEF_FIELDS).toHaveLength(8);
 });

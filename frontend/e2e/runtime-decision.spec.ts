@@ -80,7 +80,7 @@ test("structured runtime requirements persist the same advisory decision in anal
     const downloading = page.waitForEvent("download");
     await page.getByRole("button", { name: "⬇ Export .md", exact: true }).click();
     const download = await downloading;
-    expect(download.suggestedFilename()).toBe("AgentSpark_Blueprint.md");
+    expect(download.suggestedFilename()).toBe("Kaisersol_Blueprint.md");
     const stream = await download.createReadStream();
     if (!stream) throw new Error("Markdown download stream unavailable");
     const chunks: Buffer[] = [];

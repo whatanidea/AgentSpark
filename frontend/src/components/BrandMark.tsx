@@ -1,5 +1,8 @@
+import "./Kaisersol.css";
 export default function BrandMark() {
-  return <svg width="26" height="30" viewBox="0 0 28 32" fill="none" aria-hidden="true" focusable="false">
-    <path d="M2 25 14 3l12 22M7 18h14M14 13v17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-  </svg>;
+  return <img src="/brand/kaisersol-icon-dark.svg" width="28" height="28" alt="" />;
+}
+export function Wordmark() {
+  return <span className="ks-wordmark"><img className="ks-on-light" src="/brand/kaisersol-wordmark-on-light.svg" alt="Kaisersol"/>
+    <img className="ks-on-dark" src="/brand/kaisersol-wordmark-on-dark.svg" alt="Kaisersol"/></span>;
 }

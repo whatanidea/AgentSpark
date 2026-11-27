@@ -21,7 +21,7 @@ function OfferingCards({ compact = false }: { compact?: boolean }) {
 
 export function HomeConsulting({ disabled, onDiscover, onBook }: DiscoveryAction) {
   return <section className="consulting-home landing-container" aria-labelledby="consulting-home-title">
-    <div className="premium-section-heading"><div><p className="landing-eyebrow">AgentSpark Consulting</p>
+    <div className="premium-section-heading"><div><p className="landing-eyebrow">Kaisersol Consulting</p>
       <h2 id="consulting-home-title">A deliberate journey.<br /><span>Not another AI experiment.</span></h2></div>
       <div><p>Find a useful starting point, choose tools for your team and test one improvement before investing more. Get support where you need it, with responsibilities agreed before work starts.</p>
         <Link className="consulting-text-link" to="/consulting">Explore our consulting services <span aria-hidden="true">→</span></Link></div></div>
@@ -65,8 +65,8 @@ export default function ConsultingContent({ path, disabled, onDiscover, onBook }
         <h2 id="consulting-responsibilities-title">Consulting and software.<br /><span>Complementary, not interchangeable.</span></h2></div>
         <p>Engagement scope, deliverables, access and commercial terms are agreed before delivery. No automatic onboarding, deployment or business action is implied.</p></div>
       <div className="consulting-role-grid">{[
-        ["AgentSpark Consulting", "Facilitates discovery, advises on provider selection and can support agreed onboarding, training and pilot delivery."],
-        ["AgentSpark Platform", "Structures source-linked discovery and assessment. Existing blueprint candidates cover Azure and AWS, not Google Cloud generation."],
+        ["Kaisersol Consulting", "Facilitates discovery, advises on provider selection and can support agreed onboarding, training and pilot delivery."],
+        ["Kaisersol Platform", "Structures source-linked discovery and assessment. Existing blueprint candidates cover Azure and AWS, not Google Cloud generation."],
         ["Your organization", "Owns provider accounts, contracts, data access, budget and approvals. Human owners authorize implementation and operating responsibilities."],
       ].map(([title, detail]) => <article key={title}><h3>{title}</h3><p>{detail}</p></article>)}</div>
     </section>}

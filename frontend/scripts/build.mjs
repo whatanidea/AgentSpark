@@ -59,7 +59,7 @@ try {
   const pages = renderPublicPages();
   await writeFile(join(dist, "spa.html"), template.replace(metadataMarker, () => workspaceHead));
   for (const page of pages) {
-    const destination = join(dist, page.path.slice(1), "index.html");
+    const destination = page.path.endsWith(".html") ? join(dist, page.path.slice(1)) : join(dist, page.path.slice(1), "index.html");
     const html = publicTemplate.replace(metadataMarker, () => page.head)
       .replace("</head>", `${stylesheetLinks}\n</head>`)
       .replace('<html lang="en">', '<html lang="en" data-theme="dark" data-appearance="dark" style="color-scheme:dark">')

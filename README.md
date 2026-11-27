@@ -1,10 +1,10 @@
-![AgentSpark agentic architecture overview](docs/agentspark-architecture.png)
+![Kaisersol agentic architecture overview](docs/agentspark-architecture.png)
 
-# AgentSpark
+# Kaisersol
 
 **The agent that tells you where agents belong.**
 
-AgentSpark is an **evidence-led enterprise AI decision workspace**.
+Kaisersol is an **evidence-led enterprise AI decision workspace**.
 It helps teams decide whether, where, and how to use AI agents, turning discovery
 and workflow interviews into scored assessments, cloud-specific architecture
 recommendations, an illustrative business case, and a reviewable blueprint.
@@ -15,7 +15,7 @@ recommendations, an illustrative business case, and a reviewable blueprint.
 all public routes from the same React components and route definitions. The initial
 HTTP response contains the real page content, links, design styles and page-specific
 titles, descriptions and social preview metadata, without requiring JavaScript.
-Home is titled **AgentSpark | Clarity before commitment**. Canonical
+Home is titled **Kaisersol | Clarity before commitment**. Canonical
 paths resolve against the serving origin, without assuming a production domain.
 
 This is build-time HTML generation followed by a client mount, not runtime SSR
@@ -71,7 +71,7 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
 
 - **Talk before choosing a workflow:** open **Chat** for a familiar conversation
   thread, private saved history, streamed paragraphs, real progress, Stop and Retry.
-  AgentSpark can suggest **Start Discovery** or **Start Enterprise Intake**;
+  Kaisersol can suggest **Start Discovery** or **Start Enterprise Intake**;
   manual alternatives remain available. Edit and save the preview, then explicitly
   approve copying its selected context before any workflow is created. Unknowns
   stay blank and user statements remain unverified. Chats expire 30 days after
@@ -158,7 +158,7 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   ownership and pilot gaps alongside process steps and improvement alternatives.
   Both remain visible without autoplay and use clearly fictional previews, not
   measured customer results, organizational monitoring or process-mining claims.
-  The homepage presents AgentSpark Consulting alongside the existing evidence-led
+  The homepage presents Kaisersol Consulting alongside the existing evidence-led
   assessment platform. Consulting is separately scoped human delivery, not a new
   automated provider integration or a change to the signed-in product.
   The public site uses an original consultancy-first editorial identity: large
@@ -210,7 +210,7 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   Visitors paste the supplied MCP/event instructions into their own compatible
   assistant, review permissions and confirm details. Copying never books or
   connects anything. Signed-in platform discovery remains a distinct action;
-  no booking records or contact details are stored in the AgentSpark workspace.
+  no booking records or contact details are stored in the Kaisersol workspace.
   Technology panels separate available platform capabilities, Azure/AWS blueprint
   candidates and customer implementation responsibilities. User-supplied, approved
   Azure/AWS SVG assets accompany the cloud labels with their original colors and
@@ -238,7 +238,7 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   opt-in scheduling, authenticated discovery and private workspace behavior remain.
   `/platform/architecture` includes a fictional invoice-assistance diagram that
   separates inputs, AI suggestions, human approval and authorized business actions.
-  It distinguishes AgentSpark's advisory blueprint from integrations, controls
+  It distinguishes Kaisersol's advisory blueprint from integrations, controls
   and deployment that a customer delivery team must implement and validate.
   Public previews make no model calls and create no records. **Start discovery**
   opens discovery engagements through organization access in live mode, preserving
@@ -260,7 +260,7 @@ and the diagram's model/hosting labels are illustrative. Current configuration i
   archived decisions and PDFs retain the model identity. Historical records without
   provenance are labelled as such; demo fixtures never call either provider.
 - **Choose Azure or AWS:** receive service candidates and a blueprint for the
-  proposed customer solution. AgentSpark itself remains Azure-hosted.
+  proposed customer solution. Kaisersol itself remains Azure-hosted.
 - **Choose the execution architecture:** capture runtime requirements and inspect
   separate reasoning and durable-execution recommendations: application code,
   bounded AI, LangGraph, Temporal, Azure Durable Functions or AWS Step Functions.
@@ -336,9 +336,9 @@ CI does **not** deploy automatically.
 
 ## Important boundaries
 
-- Approval is advisory: AgentSpark does not deploy a customer solution or execute
+- Approval is advisory: Kaisersol does not deploy a customer solution or execute
   business actions such as releasing payments.
-- AWS selection changes the assessment target, not where AgentSpark processes data.
+- AWS selection changes the assessment target, not where Kaisersol processes data.
   Cloud availability, residency, model access, and prices require validation.
 - Evidence references and reviewer attestations are not automated verification.
   Document uploads are not part of the current evidence register.
@@ -360,10 +360,10 @@ CI does **not** deploy automatically.
 
 ## Maintainer and attribution
 
-**Muntazir Abbas** maintains and develops AgentSpark.
+**Muntazir Abbas** maintains and develops Kaisersol.
 
 The base work was forked from
 [AgentSense by Shriram K Vasudevan](https://github.com/shriramkv/The-AgentSense).
-AgentSpark builds on that foundation; original commit history and contributor
+Kaisersol builds on that foundation; original commit history and contributor
 credits are retained. Development uses AI coding assistance, with human review
 and automated validation.

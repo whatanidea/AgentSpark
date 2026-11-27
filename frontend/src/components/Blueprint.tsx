@@ -76,7 +76,7 @@ export default function Blueprint({ sessionId, active, canReview, secureReview, 
         return;
       }
       if (format === "pdf") {
-        saveDownload(await api.blueprintPdf(sessionId, current.analysis_id, current.status), "AgentSpark_Assessment.pdf");
+        saveDownload(await api.blueprintPdf(sessionId, current.analysis_id, current.status), "Kaisersol_Assessment.pdf");
       } else {
         exportMarkdown(current);
       }
@@ -88,7 +88,7 @@ export default function Blueprint({ sessionId, active, canReview, secureReview, 
 
   function exportMarkdown(bp: any) {
     const s = bp.suitability_score || {};
-    const heading = `# AgentSpark ${bp.status === "rejected" ? "Rejected Recommendation" : "Blueprint"}
+    const heading = `# Kaisersol ${bp.status === "rejected" ? "Rejected Recommendation" : "Blueprint"}
 
 **Status:** ${bp.status}${bp.provisional ? " — PROVISIONAL: NOT APPROVED" : ""}
 **Analysis:** ${bp.analysis_id}
@@ -100,7 +100,7 @@ ${bp.human_review ? `**Human review:** ${bp.human_review.decision} by ${bp.human
 
 Advisory recommendation only; approval does not execute or deploy a business workflow.
 ${bp.status !== "rejected" ? architectureViewMarkdown(bp.architecture_view, bp.cloud_mapping) : ""}
-${bp.assessment_limitations || "Region availability, model access, residency and prices are unverified. AgentSpark remains Azure-hosted."}
+${bp.assessment_limitations || "Region availability, model access, residency and prices are unverified. Kaisersol remains Azure-hosted."}
 ${bp.demo_scenario ? `Fictional demo fixture: ${bp.demo_scenario}; not extracted customer facts.` : ""}
 
 ${bp.discovery_origin?.alignment ? alignmentMarkdown(bp.discovery_origin.alignment) : ""}
@@ -165,7 +165,7 @@ ${bp.roadmap || ""}
 ${bp.code_scaffold || ""}
 \`\`\`
 `;
-    saveDownload(new Blob([md], { type: "text/markdown" }), "AgentSpark_Blueprint.md");
+    saveDownload(new Blob([md], { type: "text/markdown" }), "Kaisersol_Blueprint.md");
   }
 
   function saveDownload(blob: Blob, filename: string) {
@@ -214,7 +214,7 @@ ${bp.code_scaffold || ""}
         <p className="font-semibold">{bp.enterprise_context?.target_cloud === "aws" ? "AWS" : "Azure"} / {bp.enterprise_context?.preferred_region || "Region not specified"} (unverified)</p>
         <p className="text-sm mt-2">Data residency: {bp.enterprise_context?.data_residency_requirements || "Not specified"}</p>
         <p className="text-sm mt-2">Constraints: {bp.enterprise_context?.deployment_constraints || "Not specified"}</p>
-        <p className="text-xs text-zinc-500 mt-2">{bp.assessment_limitations || "Assessment only. AgentSpark remains Azure-hosted; availability, residency and pricing require validation."}</p>
+        <p className="text-xs text-zinc-500 mt-2">{bp.assessment_limitations || "Assessment only. Kaisersol remains Azure-hosted; availability, residency and pricing require validation."}</p>
         {bp.cloud_mapping && <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
           {["compute", "database", "ai", "search", "orchestration", "identity", "secrets", "monitoring"].map(key =>
             <div key={key}><dt className="text-xs uppercase text-zinc-500">{key}</dt>

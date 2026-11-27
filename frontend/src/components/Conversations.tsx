@@ -292,7 +292,7 @@ export default function Conversations({ workspaceName, demo, canCreate, onBusyCh
   const filtered = items.filter(item => item.title.toLowerCase().includes(search.toLowerCase()));
   return <section className="conversation-workspace" aria-label="Conversation workspace">
     <aside className="chat-sidebar" aria-label="Private conversation history">
-      <div className="chat-brand"><span aria-hidden="true" className="chat-spark"><BrandMark /></span><strong>AgentSpark Chat</strong></div>
+      <div className="chat-brand"><span aria-hidden="true" className="chat-spark"><BrandMark /></span><strong>Kaisersol Chat</strong></div>
       <Button disabled={busy || !model} onClick={() => {
         if (!mayLeave()) return;
         setChat(null); setComposer(""); setPreviewDirty(false); setPreviewOpen(true); setError(""); setPartial(""); setRenaming(false);
@@ -369,9 +369,9 @@ export default function Conversations({ workspaceName, demo, canCreate, onBusyCh
               <button key={icon} disabled={busy || !!composer.trim()} onClick={() => { setComposer(text); textarea.current?.focus(); }}><Icon name={icon} />{label}</button>)}
           </div>
         </div>}
-        {chat?.messages.map(message => <article key={message.id} className={`chat-message chat-${message.role}`} aria-label={message.role === "user" ? "Your message" : "AgentSpark response"}>
+        {chat?.messages.map(message => <article key={message.id} className={`chat-message chat-${message.role}`} aria-label={message.role === "user" ? "Your message" : "Kaisersol response"}>
           <div className="chat-avatar" aria-hidden="true">{message.role === "user" ? "You" : "AS"}</div>
-          <div className="chat-message-content"><p className="chat-speaker">{message.role === "user" ? "You" : "AgentSpark"}</p>
+          <div className="chat-message-content"><p className="chat-speaker">{message.role === "user" ? "You" : "Kaisersol"}</p>
             {message.role === "assistant" ? <Markdown text={message.content} /> : <p className="chat-user-text">{message.content}</p>}
             {message.interrupted && <p className="chat-interrupted">Response interrupted. No completed assistant reply was saved.</p>}
           </div>
@@ -431,7 +431,7 @@ export default function Conversations({ workspaceName, demo, canCreate, onBusyCh
           {(!canCreate || !chat.can_create) && <span>Read-only workspace: you may chat, but workflow creation needs write permission.</span>}
         </div> : null}
         <form className="chat-composer" onSubmit={event => { event.preventDefault(); void send(); }}>
-          <label className="sr-only" htmlFor="conversation-message">Message AgentSpark</label>
+          <label className="sr-only" htmlFor="conversation-message">Message Kaisersol</label>
           <textarea id="conversation-message" ref={textarea} value={composer} rows={2} maxLength={4000}
             placeholder="Describe a process or ask a question..." disabled={busy || Boolean(chat?.pending || chat?.creation_pending)}
             onChange={event => setComposer(event.target.value)} onKeyDown={event => {

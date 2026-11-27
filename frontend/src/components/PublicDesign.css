@@ -16,11 +16,11 @@
   --premium-amber: var(--warning);
   color: var(--ink);
   background: var(--canvas);
-  font-family: "AgentSpark Public Sans", sans-serif;
+  font-family: var(--ks-type);
 }
 .concept-site .landing-container { width: min(1280px, calc(100% - 120px)); }
 .concept-site :is(.landing-eyebrow, .premium-category-label, .consulting-question, .editorial-signal-meta, .proof-caption) {
-  font-family: "AgentSpark Public Mono", monospace;
+  font-family: var(--ks-type);
 }
 .concept-site .marketing-header {
   top: 0;
@@ -126,18 +126,18 @@
 .clarity-lens .editorial-signal-mobile { display: none; }
 .clarity-lens-center { fill: var(--canvas); stroke: var(--accent); }
 .clarity-lens-check { fill: none; stroke: var(--accent); stroke-width: 2; }
-.clarity-figure-label { font: 9px/1.6 "AgentSpark Public Mono", monospace; letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+.clarity-figure-label { font: 9px/1.6 var(--ks-type); letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
 .clarity-lens > p { text-align: center; margin-top: -14px; }
 .clarity-sources { padding: 0 8px; }
 .clarity-source { border: 1px solid var(--line); background: var(--surface); padding: 17px 18px; border-radius: 5px; margin-top: 12px; transform: rotate(-2deg); transition: transform .6s cubic-bezier(.22, 1, .36, 1); }
 .clarity-source:nth-of-type(2) { transform: translateX(10px) rotate(2deg); }
 .editorial-signal:hover .clarity-source { transform: rotate(0); }
-.clarity-source > span { font: 9px/1.7 "AgentSpark Public Mono", monospace; color: var(--muted); text-transform: uppercase; }
+.clarity-source > span { font: 9px/1.7 var(--ks-type); color: var(--muted); text-transform: uppercase; }
 .clarity-source > p { font-size: 12px; line-height: 1.6; margin-top: 8px; color: var(--ink); }
 .clarity-source > i { display: block; width: 70%; height: 2px; margin-top: 12px; background: var(--line); }
 .clarity-decision { padding: 24px; border: 1px solid #c6cebd; border-radius: 6px; background: #f4f3ec; color: #17201d; box-shadow: 0 22px 50px #0002; transform: perspective(1200px) rotateY(-5deg); transition: transform .6s cubic-bezier(.22, 1, .36, 1); }
 .clarity-decision:hover { transform: perspective(1200px) rotateY(0); }
-.clarity-decision-meta { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid #c6cebd; padding-bottom: 16px; color: #4a5e3e; font: 9px/1.6 "AgentSpark Public Mono", monospace; text-transform: uppercase; }
+.clarity-decision-meta { display: flex; justify-content: space-between; gap: 12px; border-bottom: 1px solid #c6cebd; padding-bottom: 16px; color: #4a5e3e; font: 9px/1.6 var(--ks-type); text-transform: uppercase; }
 .concept-site .clarity-decision h2 { font-size: clamp(22px, 2.2vw, 29px); font-weight: 550; line-height: 1.18; letter-spacing: -.05em; margin: 22px 0 12px; color: #17201d; }
 .clarity-decision > p { font-size: 11px; line-height: 1.8; color: #54624f; }
 .clarity-alternatives { display: flex; flex-wrap: wrap; gap: 6px; margin-block: 18px; }
@@ -224,7 +224,7 @@
 }
 .concept-site .editorial-chapters article:nth-child(1),
 .concept-site .editorial-chapters article:nth-child(4) { grid-column: span 7; }
-.concept-site .editorial-chapter-number { font: 12px "AgentSpark Public Mono", monospace; color: var(--accent); }
+.concept-site .editorial-chapter-number { font: 12px var(--ks-type); color: var(--accent); }
 .concept-site .editorial-chapter-copy { grid-row: 2; grid-column: 1 / -1; }
 .concept-site .editorial-chapters h3 { font-size: 32px; margin-bottom: 12px; }
 .concept-site .editorial-chapter-mark { grid-row: 1; grid-column: 2; justify-self: end; }
@@ -394,10 +394,10 @@
 .clarity-method p:not(.landing-eyebrow) { font-size: 14px; line-height: 1.9; color: var(--muted); }
 .clarity-method .clarity-advisory-note { margin-top: 20px; font-size: 11px; }
 .clarity-advisory-note a { color: var(--accent); text-decoration: underline; text-underline-offset: 3px; }
-.clarity-service-boundary { font: 10px/1.8 "AgentSpark Public Mono", monospace; color: var(--muted); margin-block: 24px; }
+.clarity-service-boundary { font: 10px/1.8 var(--ks-type); color: var(--muted); margin-block: 24px; }
 .concept-site .marketing-capabilities { display: grid; grid-template-columns: 1fr; gap: 0; }
 .concept-site .marketing-capabilities article { display: grid; grid-template-columns: 56px minmax(0, .8fr) minmax(0, 1.2fr); gap: 24px; border: 0; border-top: 1px solid var(--line); border-radius: 0; padding: 30px 0; background: transparent; }
-.concept-site .marketing-capabilities article > span { font: 12px "AgentSpark Public Mono", monospace; }
+.concept-site .marketing-capabilities article > span { font: 12px var(--ks-type); }
 .concept-site .marketing-capabilities article h2 { margin: 0; font-size: 26px; letter-spacing: -.04em; }
 .concept-site .marketing-capabilities article p { margin: 0; }
 .concept-site .premium-page-visual { position: relative; background: linear-gradient(140deg, var(--soft), var(--surface) 70%); }

@@ -46,7 +46,7 @@ AWS_PATTERN_SERVICES = {
 LIMITATIONS = (
     "Assessment candidates, not a deployment plan or price quote. Region availability, model access, "
     "data residency, networking, integrations and costs have not been validated. "
-    "AgentSpark remains Azure-hosted and processes this assessment using its configured Azure services. "
+    "Kaisersol remains Azure-hosted and processes this assessment using its configured Azure services. "
     "No customer cloud credentials are collected and no resources are provisioned."
 )
 

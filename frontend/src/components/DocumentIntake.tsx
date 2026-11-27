@@ -168,7 +168,7 @@ export default function DocumentIntake(props: Props) {
             );
           })}
         </div>
-        <p className="text-xs text-zinc-600">After approval, AgentSpark asks only for missing essential facts. If those facts are complete, analysis and the advisory blueprint start automatically. Readiness and pilot gaps remain unverified.</p>
+        <p className="text-xs text-zinc-600">After approval, Kaisersol asks only for missing essential facts. If those facts are complete, analysis and the advisory blueprint start automatically. Readiness and pilot gaps remain unverified.</p>
         <label className="flex items-start gap-2 text-sm text-zinc-700">
           <input type="checkbox" checked={approved} disabled={props.busy || loading || !valid}
             onChange={event => { setApproved(event.target.checked); approval(fields, event.target.checked); }} />

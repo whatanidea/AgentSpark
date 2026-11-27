@@ -725,7 +725,7 @@ def download_blueprint_pdf(
     if current.analysis_id != analysis_id or current.status != status:
         raise HTTPException(409, "Recommendation changed during PDF generation. Fetch the current version before exporting.")
     return Response(document, media_type="application/pdf", headers={
-        "Content-Disposition": 'attachment; filename="AgentSpark_Assessment.pdf"',
+        "Content-Disposition": 'attachment; filename="Kaisersol_Assessment.pdf"',
         "Pragma": "no-cache",
     })
 
@@ -741,7 +741,7 @@ def download_executive_brief(session_id: SessionId, version: Annotated[str, Quer
     if db_client.get_workflow_state(session_id)._etag != version:
         raise HTTPException(409, "Assessment changed during export; reload before exporting.")
     return Response(document, media_type="application/pdf", headers={
-        "Content-Disposition": 'attachment; filename="AgentSpark_Executive_Brief.pdf"', "Pragma": "no-cache"})
+        "Content-Disposition": 'attachment; filename="Kaisersol_Executive_Brief.pdf"', "Pragma": "no-cache"})
 
 
 @router.get("/review/{session_id}")

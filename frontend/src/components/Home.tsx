@@ -159,7 +159,7 @@ export default function Home({ demo, retentionDays, workspaceName, workspace, in
         <p className="text-sm">{decision.details.deployment_preferences?.target_cloud === "aws" ? "AWS" : "Azure"} / {decision.details.deployment_preferences?.preferred_region || "Region not specified"} (unverified)</p>
         <p className="text-sm mt-2">Data residency: {decision.details.deployment_preferences?.data_residency_requirements || "Not specified"}</p>
         <p className="text-sm mt-2">Constraints: {decision.details.deployment_preferences?.deployment_constraints || "Not specified"}</p>
-        <p className="text-xs text-zinc-500 mt-2">Advisory assessment only; no resources were deployed. AgentSpark remains hosted on Azure.</p>
+        <p className="text-xs text-zinc-500 mt-2">Advisory assessment only; no resources were deployed. Kaisersol remains hosted on Azure.</p>
       </Card>
       <Card title="Recorded assessment model">
         <p className="text-sm">{decision.details.inference_model

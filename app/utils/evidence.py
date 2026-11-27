@@ -3,7 +3,7 @@ from app.utils.models import EvidenceEntry, WorkflowDiagnosis, AgentSuitabilityS
 
 
 EVIDENCE_LIMITATION = (
-    "Source references and fact links are supplied by users, not independently checked by AgentSpark. "
+    "Source references and fact links are supplied by users, not independently checked by Kaisersol. "
     "A confirmation records a reviewer's attestation and method, not an automated verification. "
     "Register entries do not override diagnostic inputs or change scoring formulas. "
     "Check for contradictions before approval; no confidence or evidence-quality score is implied."

@@ -36,7 +36,7 @@ export async function currentToken(): Promise<string> {
 }
 
 export async function azureDevOpsToken(interactive = false): Promise<string> {
-  if (!client || !account) throw new Error("Sign in to AgentSpark with the Microsoft sign-in button before connecting Azure DevOps.");
+  if (!client || !account) throw new Error("Sign in to Kaisersol with the Microsoft sign-in button before connecting Azure DevOps.");
   const signedIn = account;
   const request = { scopes: ["499b84ac-1321-427f-aa17-267ca6975798/.default"], account: signedIn };
   let result;
@@ -48,7 +48,7 @@ export async function azureDevOpsToken(interactive = false): Promise<string> {
   }
   if (!account || account.homeAccountId !== signedIn.homeAccountId ||
       result.account?.homeAccountId !== signedIn.homeAccountId || !result.accessToken) {
-    throw new Error("Microsoft sign-in changed. Reconnect Azure DevOps using your AgentSpark account.");
+    throw new Error("Microsoft sign-in changed. Reconnect Azure DevOps using your Kaisersol account.");
   }
   return result.accessToken;
 }

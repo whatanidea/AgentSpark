@@ -46,7 +46,7 @@ test("guided discovery keeps drafts across stages and exports standalone non-AI 
     const downloading = page.waitForEvent("download");
     await page.getByRole("button", { name: "Export discovery findings PDF", exact: true }).click();
     const download = await downloading;
-    expect(download.suggestedFilename()).toBe("AgentSpark_Discovery_Findings.pdf");
+    expect(download.suggestedFilename()).toBe("Kaisersol_Discovery_Findings.pdf");
     const stream = await download.createReadStream();
     if (!stream) throw new Error("Findings download unavailable");
     const chunks: Buffer[] = [];

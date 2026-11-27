@@ -44,7 +44,7 @@ export default function ExecutiveBriefSummary({ brief, sessionId }: { brief?: Ex
       if (JSON.stringify(state.executive_brief) !== JSON.stringify(brief)) {
         throw new Error("Executive brief changed. Reload the assessment before exporting.");
       }
-      download(await api.executiveBriefPdf(sessionId, state.version), "AgentSpark_Executive_Brief.pdf");
+      download(await api.executiveBriefPdf(sessionId, state.version), "Kaisersol_Executive_Brief.pdf");
     } catch (e) { setError(e instanceof Error ? e.message : "Could not export executive brief."); }
     finally { setBusy(false); }
   }
@@ -70,7 +70,7 @@ export default function ExecutiveBriefSummary({ brief, sessionId }: { brief?: Ex
       <p className="text-xs text-zinc-500 mt-4">{brief.limitations}</p>
       <div className="flex gap-3 mt-4">
         <Button variant="ghost" onClick={() => download(new Blob([executiveBriefMarkdown(brief)], { type: "text/markdown" }),
-          "AgentSpark_Executive_Brief.md")}>Export brief Markdown</Button>
+          "Kaisersol_Executive_Brief.md")}>Export brief Markdown</Button>
         {sessionId && <Button variant="ghost" disabled={busy} onClick={() => void pdf()}>Export one-page brief PDF</Button>}
       </div>
       {error && <p role="alert" className="text-rose-700 mt-2">{error}</p>}

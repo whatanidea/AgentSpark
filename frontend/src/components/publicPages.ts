@@ -1,4 +1,5 @@
 import { CONSULTING_OFFERINGS, CONSULTING_OVERVIEW } from "./consultingContent";
+import { documents } from "./documents/catalog";
 
 export type PublicPage = {
   path: string; name: string; section: "Overview" | "About" | "Consulting" | "Platform" | "Solutions" | "Resources";
@@ -58,7 +59,7 @@ export const PUBLIC_PAGES: readonly PublicPage[] = [
   { path: "/platform/architecture", name: "Architecture & review", section: "Platform",
     title: "See how the design fits together.", summary: "Review a visual plan and downloadable report. See what each part would do, how work would move between systems and where people make the decisions.",
     details: [
-      ["Choose the solution cloud", "Assessment outputs can propose Azure or AWS service candidates. AgentSpark itself remains Azure-hosted."],
+      ["Choose the solution cloud", "Assessment outputs can propose Azure or AWS service candidates. Kaisersol itself remains Azure-hosted."],
       ["Separate reasoning from execution", "Runtime recommendations distinguish model reasoning from durable workflow execution, retries, state and human checkpoints."],
       ["Review the visual blueprint", "Connected diagrams and structured sections connect the proposed components to their purpose, evidence and controls. The assessment PDF carries the proposal and its limitations into review."],
       ["Validate before delivery", "Check availability, integration access, identity, data residency and operating controls. Generated scaffolds and diagrams are starting points, not deployed resources."],
@@ -118,11 +119,11 @@ export const PUBLIC_PAGES: readonly PublicPage[] = [
     title: "What can your team do in the platform?",
     summary: "Explore the platform's expanded alignment, recommendation, blueprint and team-workspace capabilities. Available features, not a roadmap.", details: [] },
   { path: "/resources/trust", name: "Trust & limitations", section: "Resources",
-    title: "What AgentSpark does and does not do.", summary: "Check how evidence, permissions and retention work before you share information or rely on a recommendation.",
+    title: "What Kaisersol does and does not do.", summary: "Check how evidence, permissions and retention work before you share information or rely on a recommendation.",
     details: [] },
 ];
 
 export function publicPage(pathname: string) {
   const path = pathname.replace(/\/+$/, "").replace(/\/index\.html$/, "") || "/";
-  return PUBLIC_PAGES.find(page => page.path === path);
+  return PUBLIC_PAGES.find(page => page.path === path) ?? documents.find(page => page.path === path);
 }

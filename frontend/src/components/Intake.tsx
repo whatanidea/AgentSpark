@@ -121,7 +121,7 @@ export default function Intake({ sessionId, initialContext, initialModel, modelL
       <header className="page-header">
         <div className="eyebrow mb-2">Step 01 / Workflow setup</div>
         <h1>Enterprise Context</h1>
-        <p className="mt-2">Tell AgentSpark about a workflow you're considering for agentification — or load a sample to see a full run fast.</p>
+        <p className="mt-2">Tell Kaisersol about a workflow you're considering for agentification — or load a sample to see a full run fast.</p>
       </header>
 
       <Card title="Quick start" description="Explore a sample scenario, or describe your own workflow below.">
@@ -181,7 +181,7 @@ export default function Intake({ sessionId, initialContext, initialModel, modelL
             <p key={item.id} className="text-xs text-zinc-500 mt-2">{item.label}: {item.reason}</p>)}
       </Card>
 
-      <Card title="Deployment preferences" description="Choose the cloud for the customer's proposed solution, not AgentSpark's hosting.">
+      <Card title="Deployment preferences" description="Choose the cloud for the customer's proposed solution, not Kaisersol's hosting.">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           <Field label="Target cloud">
             <select aria-label="Target cloud" className={inp} required disabled={busy} value={form.target_cloud} onChange={event => {
@@ -203,7 +203,7 @@ export default function Intake({ sessionId, initialContext, initialModel, modelL
               onChange={set("deployment_constraints")} />
           </Field>
         </div>
-        <p className="text-xs text-zinc-500 mt-3">Assessment only. No cloud account connection or deployment. Region availability, model access, residency and pricing require separate validation. AgentSpark remains hosted on Azure and processes assessment data using its configured Azure services.</p>
+        <p className="text-xs text-zinc-500 mt-3">Assessment only. No cloud account connection or deployment. Region availability, model access, residency and pricing require separate validation. Kaisersol remains hosted on Azure and processes assessment data using its configured Azure services.</p>
       </Card>
       {confirmChange && <section role="alertdialog" aria-label="Confirm deployment preference change" className="notice block">
         <p>Saving changed cloud preferences clears the current analysis, blueprint and approval. Existing archived decisions are retained unchanged.</p>

@@ -78,7 +78,7 @@ test.describe("public work story", () => {
       await expect(page.getByRole("heading", {level:1})).toHaveText("Should we fund an AI pilot for claims intake?");
       await expect(page.locator("main")).toContainText("fund measurement first, not software");
       await expect(page.locator("main")).toContainText("Released capacity is not cash savings");
-      await page.getByRole("link", { name:"Discuss a workflow with AgentSpark" }).click();
+      await page.getByRole("link", { name:"Discuss a workflow with Kaisersol" }).click();
       await expect(page.locator("#first-conversation")).toBeInViewport();
     } finally { await page.close(); }
   });

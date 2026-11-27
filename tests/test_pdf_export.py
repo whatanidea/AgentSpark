@@ -74,7 +74,7 @@ class PDFExportTests(unittest.TestCase):
         self.assertTrue(response.content.startswith(b"%PDF-"))
         self.assertTrue(response.content.rstrip().endswith(b"%%EOF"))
         self.assertEqual(response.headers["content-type"], "application/pdf")
-        self.assertEqual(response.headers["content-disposition"], 'attachment; filename="AgentSpark_Assessment.pdf"')
+        self.assertEqual(response.headers["content-disposition"], 'attachment; filename="Kaisersol_Assessment.pdf"')
         self.assertIn("no-store", response.headers["cache-control"])
         self.assertEqual(response.headers["x-content-type-options"], "nosniff")
         reader, text = pdf_text(response.content)
@@ -84,14 +84,14 @@ class PDFExportTests(unittest.TestCase):
             self.assertAlmostEqual(float(page.mediabox.height), 841.8898, places=2)
             self.assertIn("PROVISIONAL - NOT APPROVED", page.extract_text())
             self.assertIn(analysis["analysis_id"], page.extract_text())
-        for value in ("AgentSpark Assessment Report", "PROVISIONAL - NOT APPROVED", analysis["analysis_id"],
+        for value in ("Kaisersol Assessment Report", "PROVISIONAL - NOT APPROVED", analysis["analysis_id"],
                       "aws", "eu-central-1", "Business value and pilot measures",
                       "Business value deferred", "Evidence register", "Implementation Readiness Report",
                       "Not assessed", "not deployment-ready", "Source", "SHA256"):
             self.assertIn(value, text)
         self.assertIn(re.sub(r"\s+", " ", self.client.get(self.path).json()["assessment_limitations"]), text)
         self.assertIn(f"Page {len(reader.pages)}", text)
-        self.assertEqual(reader.metadata.author, "AgentSpark")
+        self.assertEqual(reader.metadata.author, "Kaisersol")
         self.assertEqual(self.client.get(f"/api/v1/sessions/{self.session}").json(), before)
 
     def test_pdf_preserves_evidence_readiness_and_approved_reviewer_snapshot(self):

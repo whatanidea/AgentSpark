@@ -6,13 +6,13 @@ async function intake(page: Page, sample?: string, cloud = "azure") {
   await page.goto("/");
   await page.getByRole("button", { name: "Assess my workflow", exact: true }).first().click();
   await page.getByLabel("Target cloud", { exact: true }).selectOption(cloud);
-  await expect(page).toHaveTitle("Workspace | AgentSpark");
+  await expect(page).toHaveTitle("Workspace | Kaisersol");
   await expect(page.locator("body")).toHaveCSS("background-color", "rgb(17, 27, 24)");
   await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
   await expect(page.getByRole("main")).toHaveCSS("background-color", "rgb(17, 23, 25)");
-  await expect(page.getByText("AgentSpark", { exact: true })).toBeVisible();
+  await expect(page.getByText("Kaisersol", { exact: true })).toBeVisible();
   await expect(page.getByText("AgentSense", { exact: true })).toHaveCount(0);
-  await expect(page.getByText("Tell AgentSpark about a workflow", { exact: false })).toBeVisible();
+  await expect(page.getByText("Tell Kaisersol about a workflow", { exact: false })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Enterprise Context", exact: true })).toBeVisible();
   if (sample) await page.getByRole("button", { name: sample, exact: true }).click();
   else await page.getByLabel("Business Domain", { exact: true }).fill("Fictional incomplete workflow");
@@ -400,7 +400,7 @@ test("PDF reports download for provisional and approved blueprints without repla
     expect(new URL(response.url()).searchParams.get("analysis_id")).toBe(analysis.analysis_id);
     expect(new URL(response.url()).searchParams.get("status")).toBe(status);
     const download = await downloading;
-    expect(download.suggestedFilename()).toBe("AgentSpark_Assessment.pdf");
+    expect(download.suggestedFilename()).toBe("Kaisersol_Assessment.pdf");
     const stream = await download.createReadStream();
     if (!stream) throw new Error("PDF download stream unavailable");
     const chunks: Buffer[] = [];
@@ -678,12 +678,12 @@ test("human review survives reload and exports evidence and deferred business va
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "⬇ Export .md", exact: true }).click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe("AgentSpark_Blueprint.md");
+  expect(download.suggestedFilename()).toBe("Kaisersol_Blueprint.md");
   const stream = await download.createReadStream();
   if (!stream) throw new Error("Markdown export stream is unavailable");
   let markdown = "";
   for await (const chunk of stream) markdown += chunk.toString("utf8");
-  expect(markdown).toMatch(/^# AgentSpark Blueprint\n/);
+  expect(markdown).toMatch(/^# Kaisersol Blueprint\n/);
   for (const text of ["demo_fixture", "Business value deferred", "Business value and pilot measures", "SHA256", "not deployment-ready"]) {
     expect(markdown).toContain(text);
   }
@@ -1192,7 +1192,7 @@ test("invitation-only access blocks signed-in users until an administrator invit
 
 test("invitation-only access removes the workspace when admission is revoked", async ({ page }) => {
   await page.route("**/api/v1/home?*", route => route.fulfill({ status: 403, json: {
-    code: "invitation_required", detail: "AgentSpark is invitation-only.",
+    code: "invitation_required", detail: "Kaisersol is invitation-only.",
   } }));
   await page.goto("/workspace");
   await expect(page.getByRole("heading", { name: "Invitation required", exact: true })).toBeVisible();

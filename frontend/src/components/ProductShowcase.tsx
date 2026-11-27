@@ -18,7 +18,7 @@ export default function ProductShowcase() {
   const stage = stages[index];
   function select(next: number) { setIndex(next); tabs.current[next]?.focus(); }
   return <section id="product-showcase" className="premium-product-section landing-container" aria-labelledby="product-showcase-title">
-    <div className="premium-section-heading"><div><p className="landing-eyebrow">Inside AgentSpark</p>
+    <div className="premium-section-heading"><div><p className="landing-eyebrow">Inside Kaisersol</p>
       <h2 id="product-showcase-title">See the work.<br /><span>Then decide what changes.</span></h2></div>
       <p>See how a team can move from a business question to a practical next step. Explore five stages before deciding whether the platform fits your work.</p></div>
     <div className="premium-product-tabs" role="tablist" aria-label="Product walkthrough stages" onKeyDown={event => {
@@ -43,7 +43,7 @@ export default function ProductShowcase() {
         <Link to={stage.path}>Explore {stage.name.toLowerCase()} <span aria-hidden="true">→</span></Link>
       </div>
       <div key={index} className="premium-product-screen" aria-label={`${stage.name} interface preview`}>
-        <div className="premium-screen-bar"><span><span aria-hidden="true">✦</span> AgentSpark / Finance discovery</span><span>PRODUCT PREVIEW</span></div>
+        <div className="premium-screen-bar"><span><span aria-hidden="true">✦</span> Kaisersol / Finance discovery</span><span>PRODUCT PREVIEW</span></div>
         <div className="public-screen-context"><span>Example organization / Finance team</span><Link to="/platform/workspaces">Team workspace →</Link></div>
         <div className="premium-screen-body">
           {stage.name === "Discover" && <>

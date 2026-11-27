@@ -138,11 +138,11 @@ test("public HTML metadata stays consistent after client navigation and workspac
   await expect(page).toHaveTitle(homeTitle);
   await assess.click();
   await expect(page).toHaveURL("/workspace");
-  await expect(page).toHaveTitle("Workspace | AgentSpark");
+  await expect(page).toHaveTitle("Workspace | Kaisersol");
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex,nofollow");
   await expect(page.locator('link[rel="canonical"]')).toHaveCount(0);
   expect((await page.goto("/this-page-does-not-exist"))?.status()).toBe(404);
-  await expect(page).toHaveTitle("Page not found | AgentSpark");
+  await expect(page).toHaveTitle("Page not found | Kaisersol");
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "noindex,nofollow");
   expect(errors).toEqual([]);
 });
@@ -162,7 +162,7 @@ test("public HTML stays readable during delayed startup and controls work at DOM
     await expect.poll(() => requested).toBe(true);
     await expect(page.locator("#landing-title")).toHaveText("Where are you with AI?");
     await expect(page.locator("main")).toBeVisible();
-    await expect(page).toHaveTitle("AgentSpark | AI Consulting & Assessment for SMEs");
+    await expect(page).toHaveTitle("Kaisersol | AI Consulting & Assessment for SMEs");
     await expect(page.getByText("Loading product overview", { exact: false })).toHaveCount(0);
   } finally {
     release();

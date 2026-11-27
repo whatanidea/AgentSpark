@@ -226,7 +226,7 @@ export default function Diagnose({ sessionId, context, initialHistory = [], demo
           </button>}
           {history.map((item, index) => <div key={index} className={`rounded p-4 text-sm whitespace-pre-wrap break-words ${
             item.blocked ? "bg-rose-50 text-rose-800" : item.role === "user" ? "bg-brand-50" : "bg-zinc-50"}`}>
-            <p className="font-semibold">{item.role === "user" ? "You" : item.blocked ? "Security guardrail" : "AgentSpark"}</p>
+            <p className="font-semibold">{item.role === "user" ? "You" : item.blocked ? "Security guardrail" : "Kaisersol"}</p>
             {item.content}
           </div>)}
           {busy && <p>Loading or saving interview...</p>}

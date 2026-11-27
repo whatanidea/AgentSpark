@@ -31,7 +31,7 @@ class APIValidationTests(unittest.TestCase):
     def test_public_api_uses_agentspark_branding(self):
         response = self.client.get("/openapi.json")
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.json()["info"]["title"], "AgentSpark API")
+        self.assertEqual(response.json()["info"]["title"], "Kaisersol API")
 
     def test_chat_rejects_empty_oversized_and_unknown_fields(self):
         for message in ("", "   ", "x" * 8001):

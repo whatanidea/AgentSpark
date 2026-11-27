@@ -2,7 +2,7 @@
 .studio-hero,.studio-scene,.studio-exercise{display:grid;grid-template-columns:1.04fr 1fr;gap:clamp(22px,6vw,80px);align-items:center}
 .studio-hero,.studio-section{padding-block:clamp(32px,5vw,68px)}
 .studio-section{border-top:1px solid var(--line);scroll-margin-top:78px}
-.studio-home small,.studio-home dt,.studio-fine{font:600 11px/1.5 "AgentSpark Public Mono",monospace;letter-spacing:.07em;color:var(--accent)}
+.studio-home small,.studio-home dt,.studio-fine{font:600 11px/1.5 var(--ks-type);letter-spacing:.07em;color:var(--accent)}
 .studio-home small,.studio-home dt{text-transform:uppercase}
 .studio-home h1,.studio-home h2,.studio-home h3{font-family:inherit;color:inherit;line-height:1.1;margin:8px 0 14px}
 .studio-home h1{font-size:clamp(38px,5vw,68px);font-weight:500;letter-spacing:-.06em}
@@ -28,7 +28,7 @@
 .studio-compare label{display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border:1px solid var(--line);margin:6px 6px 16px 0;border-radius:24px;cursor:pointer}.studio-home input{accent-color:var(--accent)}
 .studio-scene{gap:clamp(20px,4vw,48px)}
 .studio-paper{border-radius:3px 14px 3px 3px;padding:24px;background:#eee9d9;color:#293330;transform:rotate(-1deg);box-shadow:4px 5px #73817a}
-.studio-paper small{color:#344e45}.studio-paper p{color:#293330;display:flex;justify-content:space-between;border-top:1px dashed #93968a;padding-top:8px}.studio-paper b{font:500 24px Georgia,serif}.studio-paper strong{font:600 11px monospace;text-transform:uppercase;border:1px solid;padding:4px}
+.studio-paper small{color:#344e45}.studio-paper p{color:#293330;display:flex;justify-content:space-between;border-top:1px dashed #93968a;padding-top:8px}.studio-paper b{font:500 24px var(--ks-type)}.studio-paper strong{font:600 11px var(--ks-type);text-transform:uppercase;border:1px solid;padding:4px}
 .studio-detail{margin:12px 0;border-top:1px solid var(--line);padding-block:10px}.studio-detail summary{cursor:pointer;min-height:40px;padding-block:9px}
 .studio-steps,.studio-services{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:12px 0}.studio-exercise{gap:20px}.studio-exercise label,.studio-exercise select{display:block}.studio-exercise select{margin-top:8px;max-width:100%;padding:8px;border:1px solid var(--line);background:var(--raised);color:var(--ink);border-radius:8px}
 .studio-links,.studio-book{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px}
