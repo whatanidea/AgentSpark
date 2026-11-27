@@ -1,9 +1,9 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: "Instrument Serif", serif;
-  --font-serif: "Instrument Serif", serif;
-  --font-mono: "Instrument Serif", serif;
+  --font-sans: Inter, sans-serif;
+  --font-serif: Inter, sans-serif;
+  --font-mono: Inter, sans-serif;
   --color-brand-50: #f4f0ff;
   --color-brand-100: #ece5fc;
   --color-brand-200: #d8c9f8;
@@ -24,7 +24,7 @@
 :root {
   font-family: var(--ks-type);
   color-scheme: light;
-  font-synthesis: weight;
+  font-synthesis: style;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
 }

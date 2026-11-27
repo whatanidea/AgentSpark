@@ -207,7 +207,7 @@ changes and worst-case gradient contrast. The local light-theme composition was
 also visually reviewed. No merge or deployment was performed.
 # Agent implementation offering
 
-All first-party site and workspace text uses Instrument Serif, including interface controls, labels, code, chat and printable HTML. Regular and italic are hosted locally. Preserve the supplied logo artwork. Use Night/Panel/Mist/Lime in dark mode and Paper/Ink/Forest in light mode. Status colors remain semantic, independent of brand accents.
+Use locally hosted Inter for site and workspace text; keep the supplied serif wordmark artwork unchanged. Homepage and guide copy use an 18px reading size with roughly 28px leading. Use 16px for primary navigation and controls and 14px for supporting labels. Use Night/Panel/Mist/Lime in dark mode and Paper/Ink/Forest in light mode. Status colors remain semantic, independent of brand accents.
 
 Public guides and the printable brief use the shared Kaisersol navigation, footer and metadata at their existing URLs. Their JSX content lives in `frontend/src/components/documents`. Use the supplied light/dark wordmarks, not typeset approximations. External booking destinations and existing authentication, storage and infrastructure identifiers are intentionally unchanged.
 
