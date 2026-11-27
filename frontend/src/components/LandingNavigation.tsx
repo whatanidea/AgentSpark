@@ -4,7 +4,7 @@ import { PUBLIC_PAGES } from "./publicPages";
 import { MarketingIcon, publicVisual } from "./MarketingVisuals";
 import { AppearanceControl } from "../Appearance";
 import { ConsultationLink } from "./ConsultationBooking";
-import BrandMark from "./BrandMark";
+import { Wordmark } from "./BrandMark";
 import { agentSolutions } from "./AgentImplementation";
 
 const menus = {
@@ -57,8 +57,8 @@ export default function LandingNavigation({ disabled, signedIn, onWorkspace, onB
     }
   }}>
     <div className="landing-container marketing-header-inner">
-      <Link className="landing-brand" to="/" aria-label="AgentSpark overview" onClick={close}>
-        <span className="landing-brand-mark" aria-hidden="true"><BrandMark /></span> AgentSpark
+      <Link className="landing-brand" to="/" aria-label="Kaisersol overview" onClick={close}>
+        <Wordmark/>
       </Link>
       <nav id="marketing-navigation" className="marketing-navigation" data-mobile-open={mobile} aria-label="Product navigation">
         {(Object.keys(menus) as Menu[]).map(name => <div className="marketing-menu" key={name}>

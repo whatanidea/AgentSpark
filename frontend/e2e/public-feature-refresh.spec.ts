@@ -96,7 +96,7 @@ test("public feature refresh provides solution and resource collections with rea
     expect((await page.request.get(href!)).status()).toBe(200);
   }
   await resources.locator('a[href="/resources/how-it-works"]').click();
-  await expect(page.getByRole("figure", { name: "The AgentSpark evaluation path" }).getByRole("listitem")).toHaveCount(5);
+  await expect(page.getByRole("figure", { name: "The Kaisersol evaluation path" }).getByRole("listitem")).toHaveCount(5);
   await expect(page.getByRole("tablist", { name: "Product walkthrough stages" }).getByRole("tab")).toHaveCount(5);
   await page.goBack();
   await expect(resources).toBeVisible();
@@ -155,6 +155,9 @@ test("public feature refresh: implementation desk opens four complete solution g
     await expect(page.getByText("Replay walkthrough")).toBeHidden();
     await page.getByRole("link", { name: "All agent solutions" }).click();
     await expect(page.locator(".cards article")).toHaveCount(4);
-    await page.getByRole("link", { name: "AgentSpark", exact: true }).click();
+    const mobileMenu = page.getByRole("button", {name: "Open navigation"});
+    if (await mobileMenu.isVisible()) await mobileMenu.click();
+    await expect(page.getByRole("navigation", {name: "Product navigation"}).locator("button")).toHaveText(["Platform", "Solutions", "Resources", "Consulting"]);
+    await page.getByRole("link", { name: "Kaisersol overview", exact: true }).click();
   }
 });

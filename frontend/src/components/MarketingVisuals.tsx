@@ -47,7 +47,7 @@ const visuals: Record<string, Visual> = {
     items: [["Receive", "Existing business input"], ["Re-enter", "Reported manual handoff"], ["Resolve exception", "Evidence to validate"], ["Approve", "Human authority"]] },
   "/solutions/advisory": { icon: "evidence", title: "A recommendation your client can inspect.", label: "Illustrative advisory deliverables",
     items: [["Stakeholder perspectives", "Submitted sources"], ["Opportunity rationale", "Assumptions visible"], ["Proposed blueprint", "Customer delivery required"], ["Executive brief", "Versioned advisory decision"]] },
-  "/resources/how-it-works": { icon: "process", title: "Five stages. A connected decision path.", label: "The AgentSpark evaluation path",
+  "/resources/how-it-works": { icon: "process", title: "Five stages. A connected decision path.", label: "The Kaisersol evaluation path",
     items: [["Discover", "How does work happen?"], ["Align", "Which positions and responsibilities are current?"], ["Prioritize", "Which opportunities deserve review?"], ["Prepare", "What needs validation?"], ["Decide", "What is the next step?"]] },
   "/resources": { icon: "evidence", title: "Understand. Explore. Review.", label: "The resource collection",
     items: [["Understand the workflow", "A guided product walkthrough"], ["Try a fictional assessment", "No model calls or saved records"], ["Prepare the review", "Outcomes, evidence and ownership"], ["Know the boundaries", "Supported behavior and limitations"]] },

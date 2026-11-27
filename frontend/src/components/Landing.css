@@ -82,8 +82,8 @@
 .landing-section-heading > p { color: var(--muted); font-size: 14px; line-height: 1.8; max-width: 330px; }
 .landing-journey { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 28px; }
 .landing-journey li { border-top: 1px solid #cfcdda; padding-top: 20px; }
-.landing-journey-number { display: flex; align-items: center; gap: 12px; font-family: ui-monospace, monospace; font-size: 23px; color: var(--accent); }
-.landing-journey-number span { font-family: Inter, ui-sans-serif, system-ui, sans-serif; font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .12em; }
+.landing-journey-number { display: flex; align-items: center; gap: 12px; font-family: var(--ks-type); font-size: 23px; color: var(--accent); }
+.landing-journey-number span { font-family: var(--ks-type); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .12em; }
 .landing-journey h3 { font-size: 15px; margin-block: 20px 10px; font-weight: 650; }
 .landing-journey p { font-size: 12px; color: var(--muted); line-height: 1.9; }
 .landing-deliverables { padding-block: 76px; background: #f1f0f7; border-block: 1px solid #e3e1ee; }

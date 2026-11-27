@@ -2,7 +2,7 @@ import { expect, test, type Page } from "@playwright/test";
 import { expectReadable } from "./appearance";
 
 const root = (page: Page) => page.getByRole("region", { name: "Conversation workspace", exact: true });
-const composer = (page: Page) => root(page).getByRole("textbox", { name: "Message AgentSpark", exact: true });
+const composer = (page: Page) => root(page).getByRole("textbox", { name: "Message Kaisersol", exact: true });
 const send = (page: Page) => root(page).getByRole("button", { name: "Send message", exact: false });
 const unique = () => Date.now().toString(36);
 async function expandHistory(page: Page) {
@@ -21,7 +21,7 @@ async function open(page: Page) {
 async function message(page: Page, text = "Explore discovery opportunities across our onboarding process.") {
   await composer(page).fill(text);
   await send(page).click();
-  await expect(root(page).getByRole("article", { name: "AgentSpark response", exact: true })).toBeVisible();
+  await expect(root(page).getByRole("article", { name: "Kaisersol response", exact: true })).toBeVisible();
   await expect(send(page)).toBeDisabled();
 }
 async function discoveryReview(page: Page) {
@@ -49,7 +49,7 @@ test("Conversation workspace shares the work-story identity in both themes witho
   for (const theme of ["dark", "light"]) {
     await page.getByRole("combobox", { name: "Appearance", exact: true }).selectOption(theme);
     await expect(composer(page)).toHaveValue("An unsent fictional design check");
-    await expect(root(page)).toHaveCSS("background-color", theme === "dark" ? "rgb(24, 34, 33)" : "rgb(252, 253, 249)");
+    await expect(root(page)).toHaveCSS("background-color", theme === "dark" ? "rgb(22, 32, 33)" : "rgb(252, 253, 249)");
     await expect(root(page).locator(".chat-orb")).toHaveCSS("color", theme === "dark" ? "rgb(193, 253, 127)" : "rgb(48, 93, 62)");
     await expectReadable(root(page));
     for (const width of [320, 390, 768, 1440]) {
@@ -68,7 +68,7 @@ test("Conversation workspace offers a modern private thread, real progress and s
   await expect(root(page).getByRole("progressbar", { name: "Response progress" })).toBeVisible();
   await expect(root(page).getByRole("article", { name: "Your message", exact: true })).toContainText(text);
   await expect(root(page).getByRole("progressbar")).not.toHaveAttribute("aria-valuenow");
-  await expect(root(page).getByRole("article", { name: "AgentSpark response", exact: true })).toBeVisible();
+  await expect(root(page).getByRole("article", { name: "Kaisersol response", exact: true })).toBeVisible();
   await expect(root(page).getByRole("progressbar")).toHaveCount(0);
   await expect(root(page).getByRole("region", { name: "Suggested next step" })).toContainText("Discovery");
   const storage = await page.evaluate(() => JSON.stringify([Object.entries(localStorage), Object.entries(sessionStorage)]));
@@ -156,7 +156,7 @@ test("Conversation workspace stops an active response or safely keeps a just-com
   await expect(stop).toBeEnabled();
   await Promise.race([
     stop.click(),
-    root(page).getByRole("article", { name: "AgentSpark response", exact: true }).waitFor(),
+    root(page).getByRole("article", { name: "Kaisersol response", exact: true }).waitFor(),
   ]);
   await expect(root(page).getByRole("progressbar")).toHaveCount(0);
   const persisted = await page.request.get(`/api/v1/conversations/${chat.id}`);
@@ -165,10 +165,10 @@ test("Conversation workspace stops an active response or safely keeps a just-com
   expect(saved.pending).toBeNull();
   if (!saved.messages.some((message: { role: string }) => message.role === "assistant")) {
     await expect(root(page).getByRole("button", { name: "Retry last response", exact: true })).toBeVisible();
-    await expect(root(page).getByRole("article", { name: "AgentSpark response", exact: true })).toHaveCount(0);
+    await expect(root(page).getByRole("article", { name: "Kaisersol response", exact: true })).toHaveCount(0);
     await root(page).getByRole("button", { name: "Retry last response", exact: true }).click();
   }
-  await expect(root(page).getByRole("article", { name: "AgentSpark response", exact: true })).toBeVisible();
+  await expect(root(page).getByRole("article", { name: "Kaisersol response", exact: true })).toBeVisible();
   await expect(root(page).getByRole("article", { name: "Your message", exact: true })).toHaveCount(1);
 });
 
@@ -208,7 +208,7 @@ test("Conversation workspace exposes incomplete stream failures without a false 
   await composer(page).fill("A message whose response is interrupted.");
   await send(page).click();
   await expect(root(page).getByRole("alert")).toContainText("interrupted");
-  await expect(root(page).getByRole("article", { name: "AgentSpark response", exact: true })).toHaveCount(0);
+  await expect(root(page).getByRole("article", { name: "Kaisersol response", exact: true })).toHaveCount(0);
   await expect(root(page)).not.toContainText("Unconfirmed partial reply");
   await expect(composer(page)).toHaveValue("A message whose response is interrupted.");
 });

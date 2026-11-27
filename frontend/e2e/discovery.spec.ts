@@ -123,7 +123,7 @@ test("executive brief keeps provenance in UI and exports and blocks a stale summ
     expect(markdown).toContain("not realized cash savings");
     const pdfDownload = page.waitForEvent("download");
     await card.getByRole("button", { name: "Export one-page brief PDF", exact: true }).click();
-    expect((await pdfDownload).suggestedFilename()).toBe("AgentSpark_Executive_Brief.pdf");
+    expect((await pdfDownload).suggestedFilename()).toBe("Kaisersol_Executive_Brief.pdf");
     await page.getByRole("button", { name: "4 · Blueprint & Review", exact: true }).click();
     await expect(card).toContainText("Validate the agentic opportunity before authorizing a pilot");
     const progress = await (await page.request.get(`/api/v1/sessions/${session}/interview`)).json();

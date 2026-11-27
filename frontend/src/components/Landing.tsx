@@ -13,7 +13,8 @@ import { PageVisual } from "./MarketingVisuals";
 import StudioHome from "./StudioHome";
 import { publicPage } from "./publicPages";
 import { FeaturedCapabilities, PublicCollection, SolutionStory } from "./PublicCollections";
-import BrandMark from "./BrandMark";
+import { Wordmark } from "./BrandMark";
+import { DocumentPage } from "./documents/DocumentPage";
 import ExperiencePilot from "./ExperiencePilot";
 import "./Landing.css";
 import "./Marketing.css";
@@ -107,7 +108,7 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
     <LandingNavigation disabled={disabled} signedIn={signedIn} onWorkspace={onWorkspace} onBook={bookConsultation} />
 
     <main id="landing-main" key={page?.path ?? pathname}>
-      {home ? <><StudioHome titleRef={title} onBook={bookConsultation} />
+      {page?.path.endsWith(".html") ? <DocumentPage path={page.path}/> : home ? <><StudioHome titleRef={title} onBook={bookConsultation} />
         <div className="story-start landing-container"><div><p className="landing-eyebrow">Self-service platform</p><strong>Prefer to assess a workflow yourself?</strong></div>
           <button disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">→</span></button><button disabled={disabled} onClick={onStart}>{startLabel} <span aria-hidden="true">→</span></button>
           {message && <p role="status">{message}</p>}</div></> : <section id="top" className="marketing-page-hero landing-container" aria-labelledby="landing-title">
@@ -116,7 +117,7 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
           {page && (consultingPage && page.path !== "/consulting" ? <Link to="/consulting">Consulting</Link> : <span>{page.section}</span>)}</nav>
         <p className="landing-eyebrow">{page?.name ?? "That destination is unavailable"}</p>
         <h1 ref={title} tabIndex={-1} id="landing-title">{page?.title ?? "Page not found."}</h1>
-        <p>{page?.summary ?? "This link does not point to an AgentSpark page. Return to the overview or use the navigation to explore the platform."}</p>
+        <p>{page?.summary ?? "This link does not point to an Kaisersol page. Return to the overview or use the navigation to explore the platform."}</p>
         {page && <div className="landing-actions">
           {consultingPage ? <ConsultationLink onBook={bookConsultation} />
             : <button className="landing-button landing-button-primary" disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">→</span></button>}
@@ -138,7 +139,7 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
         <ArchitectureIllustration />
       </section>}
       {(page?.path === "/solutions" || page?.path === "/resources") && <PublicCollection page={page} />}
-      {page?.section === "Solutions" && page.path !== "/solutions" && <SolutionStory page={page} />}
+      {page?.section === "Solutions" && page.path !== "/solutions" && !page.path.endsWith(".html") && <SolutionStory page={page} />}
       {!!page?.details.length && page.section !== "Solutions" && <section data-reveal className="landing-section landing-container marketing-page-details" aria-label={`${page.name} capabilities`}>
         <div className="marketing-capabilities">{page.details.map(([heading, text], index) =>
           <article key={heading}><span>0{index + 1}</span><h2>{heading}</h2><p>{text}</p></article>)}</div>
@@ -217,7 +218,7 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
                     {(["azure", "aws"] as const).map(item => <button key={item} aria-pressed={cloud === item} onClick={() => setCloud(item)}>{item === "azure" ? "Azure" : "AWS"}</button>)}
                   </div>
                   <div className="landing-cloud-diagram"><span>{step.title}</span><span aria-hidden="true">↓</span><strong>{step[cloud]}</strong><span aria-hidden="true">↓</span><span>Human oversight &amp; operational controls</span></div>
-                  <p className="landing-preview-footnote">Conceptual service candidates for the selected step, not provisioned resources. Availability, residency, permissions and pricing need validation. AgentSpark itself remains Azure-hosted.</p>
+                  <p className="landing-preview-footnote">Conceptual service candidates for the selected step, not provisioned resources. Availability, residency, permissions and pricing need validation. Kaisersol itself remains Azure-hosted.</p>
                 </>}
               </div>
             </div>
@@ -233,7 +234,7 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
           <button className="landing-button landing-button-secondary" disabled={disabled} onClick={onStart}>Create your assessment report <span aria-hidden="true">→</span></button>
         </div>
         <article className="landing-report" aria-label="Illustrative report cover">
-          <div className="landing-report-top"><span>✦ AgentSpark</span><span>REPORT PREVIEW</span></div>
+          <div className="landing-report-top"><span>✦ Kaisersol</span><span>REPORT PREVIEW</span></div>
           <span className="landing-report-status">ILLUSTRATIVE · NOT APPROVED</span>
           <h3>Workflow<br />Assessment</h3><p>{example.name}</p>
           <div className="landing-report-rule" />
@@ -264,7 +265,7 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
           : <Link to="/resources/example-assessment">Try the sample assessment →</Link>}</nav>}
     </main>
     <footer className="landing-footer landing-container premium-footer">
-      <div><span className="landing-brand"><span className="landing-brand-mark" aria-hidden="true"><BrandMark /></span>AgentSpark</span>
+      <div><span className="landing-brand"><Wordmark/></span>
         <p>AI consulting and workflow assessment for SMEs.</p></div>
       <div><strong>Consulting</strong><Link to="/consulting">Consulting overview</Link><Link to="/consulting/readiness">Opportunity & readiness</Link>
         <Link to="/consulting/workspace-launch">Workspace launch</Link><Link to="/consulting/workflow-pilot">Workflow pilot</Link><Link to="/consulting/adoption">Adoption & optimization</Link></div>

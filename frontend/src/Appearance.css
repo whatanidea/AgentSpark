@@ -1,27 +1,21 @@
 @font-face {
-  font-family: "AgentSpark Public Sans";
-  src: url("/fonts/inter.woff2") format("woff2");
+  font-family: "Instrument Serif";
+  src: url("/brand/InstrumentSerif-Regular.ttf") format("truetype");
   font-style: normal;
-  font-weight: 100 900;
+  font-weight: 400;
   font-display: swap;
 }
 @font-face {
-  font-family: "AgentSpark Public Serif";
+  font-family: "Instrument Serif";
   src: url("/fonts/instrument-serif-italic.woff2") format("woff2");
   font-style: italic;
   font-weight: 400;
   font-display: swap;
 }
-@font-face {
-  font-family: "AgentSpark Public Mono";
-  src: url("/fonts/jetbrains-mono.woff2") format("woff2");
-  font-style: normal;
-  font-weight: 100 800;
-  font-display: swap;
-}
 
 :root {
-  font-family: "AgentSpark Public Sans", sans-serif;
+  --ks-type: "Instrument Serif", serif;
+  font-family: var(--ks-type);
   color-scheme: dark;
   --color-canvas: #111b18;
   --color-surface: #18251f;
@@ -159,7 +153,7 @@ html, body, #root { background: var(--color-canvas); color: var(--color-ink); }
 
 .surface-card, .sample-tile { background: var(--color-surface); border-color: var(--color-line); border-radius: 12px; }
 .section-title { font-size: 16px; }
-.eyebrow { font-family: "AgentSpark Public Mono", monospace; color: var(--color-accent); }
+.eyebrow { font-family: var(--ks-type); color: var(--color-accent); }
 .page-header h1 { font-size: clamp(32px, 3.8vw, 46px); letter-spacing: -.055em; }
 .form-control { background: var(--color-surface); border-color: var(--color-line); border-radius: 10px; }
 .form-control:focus { border-color: var(--color-accent); box-shadow: 0 0 0 3px var(--color-brand-50); }
@@ -176,7 +170,7 @@ html, body, #root { background: var(--color-canvas); color: var(--color-ink); }
 .data-table tbody tr:hover { background: var(--color-raised); }
 .portal-sidebar { background: var(--color-surface); border-color: var(--color-line); }
 .portal {
-  --color-canvas:#111719; --color-surface:#182221; --color-raised:#233331;
+  --color-canvas:#111719; --color-surface:#162021; --color-raised:#233331;
   --color-line:#435754; --color-muted:#bdcbc5; --color-ink:#f0f3eb;
   --color-accent:#c1fd7f; --color-button:#c1fd7f; --color-button-ink:#15201a;
   --color-brand-50:#223930; --color-brand-200:#547669; --color-brand-500:#b5ed95;
@@ -194,7 +188,7 @@ html, body, #root { background: var(--color-canvas); color: var(--color-ink); }
 .workspace-invitation>svg {color:var(--color-accent)}
 .workspace-invitation>div {flex:1 1 270px;min-width:0}
 .workspace-invitation{border-radius:16px;border:1px solid var(--color-line);background:radial-gradient(ellipse at top right,color-mix(in srgb,var(--color-accent) 15%,transparent),transparent 65%),var(--color-surface)}
-.workspace-invitation h2 {font:550 clamp(22px,2.4vw,32px)/1.1 "AgentSpark Public Sans",sans-serif;letter-spacing:-.04em}
+.workspace-invitation h2 {font:550 clamp(22px,2.4vw,32px)/1.1 var(--ks-type);letter-spacing:-.04em}
 .workspace-invitation p {font-size:13px;color:var(--color-muted);max-width:60ch;margin-top:8px}
 .portal-sidebar [class~="text-white/70"] { color: var(--color-muted); }
 .portal-sidebar [class~="text-white/85"] { color: var(--color-ink); }
@@ -207,6 +201,16 @@ html, body, #root { background: var(--color-canvas); color: var(--color-ink); }
 .nav-number { border-radius: 8px; background: var(--color-raised); border-color: var(--color-line); color: var(--color-muted); }
 .nav-item[aria-current] .nav-number { background: var(--color-accent); border-color: var(--color-accent); color: var(--color-canvas); }
 .portal-sidebar :focus-visible { outline-color: var(--color-accent); }
+.portal .ks-wordmark img { width: 152px; }
+.workspace-signature { margin-top: 4px; font: 500 11px/1.5 var(--ks-type); color: var(--color-muted); }
+.portal #main-content h1, .portal .workspace-invitation h2, .portal .chat-main .chat-welcome h2 {
+  font-family: var(--ks-type);
+  font-weight: 400;
+  letter-spacing: -.025em;
+  line-height: 1.12;
+}
+.portal .workspace-toolbar > p { font-family: var(--ks-type); }
+.portal .portal-sidebar .nav-item[aria-current] { box-shadow: inset 3px 0 var(--color-accent); }
 .portal-sidebar .action-secondary { background: var(--color-raised); border-color: var(--color-line); color: var(--color-ink); }
 .portal-sidebar .action-secondary:hover:not(:disabled) { background: var(--color-brand-50); }
 .portal-sidebar .action-button:disabled { background: var(--color-raised); border-color: var(--color-line); color: var(--color-muted); }

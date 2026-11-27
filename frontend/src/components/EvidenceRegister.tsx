@@ -133,7 +133,7 @@ export default function EvidenceRegister({ sessionId, hasAnalysis, onRefresh, on
   return <div className="space-y-6">
     <header className="page-header"><h1>Evidence &amp; assumptions</h1>
       <p className="mt-2">Record facts, sources, assumptions and questions before assessment or review.</p></header>
-    <p className="notice">References are recorded as text; AgentSpark does not fetch or verify them. No file uploads in this phase.
+    <p className="notice">References are recorded as text; Kaisersol does not fetch or verify them. No file uploads in this phase.
       {" "}Do not enter credentials, personal data or confidential source contents. Links do not prove that a claim matches the interview.
       {" "}Update Diagnostic separately if a measured fact changes. Evidence uses the workflow's access, retention and deletion rules.</p>
     {!sessionId ? <Card><p>Save an intake first to create an evidence register.</p></Card> : <>
@@ -159,7 +159,7 @@ export default function EvidenceRegister({ sessionId, hasAnalysis, onRefresh, on
         </section>)}</div>
       </Card>}
       {confirmationId && <Card title="Record reviewer confirmation">
-        <p className="text-sm mb-3">Inspect the referenced source outside AgentSpark, then describe what you checked. Your authenticated identity and time will be recorded. This clears the current analysis and requires a rerun before approval.</p>
+        <p className="text-sm mb-3">Inspect the referenced source outside Kaisersol, then describe what you checked. Your authenticated identity and time will be recorded. This clears the current analysis and requires a rerun before approval.</p>
         <label className="block text-sm">Confirmation method
           <textarea aria-label="Confirmation method" className="form-control block mt-2" value={method} maxLength={1000} onChange={e => setMethod(e.target.value)} />
         </label>

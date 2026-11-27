@@ -162,7 +162,7 @@ export default function ImplementationReadiness({ sessionId, hasAnalysis, onRefr
         setError("Readiness or evidence changed. Reload and inspect the report before exporting."); return;
       }
       const url = URL.createObjectURL(new Blob([readinessMarkdown(current.report, current.review)], { type: "text/markdown" }));
-      const anchor = document.createElement("a"); anchor.href = url; anchor.download = "AgentSpark_Readiness.md";
+      const anchor = document.createElement("a"); anchor.href = url; anchor.download = "Kaisersol_Readiness.md";
       anchor.click(); URL.revokeObjectURL(url);
     } catch (e) { setError(e instanceof Error ? e.message : "Could not export readiness."); }
     finally { setBusy(false); onBusyChange(false); }

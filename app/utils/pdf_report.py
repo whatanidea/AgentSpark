@@ -202,7 +202,7 @@ def build_discovery_findings_pdf(snapshot: dict) -> bytes:
     if snapshot.get("alignment"):
         _alignment_brief(report, snapshot["alignment"])
         report.story.append(PageBreakIfNotEmpty())
-    report.paragraph("AgentSpark Discovery Findings", report.title)
+    report.paragraph("Kaisersol Discovery Findings", report.title)
     report.paragraph("DISCUSSION DOCUMENT - NOT IMPLEMENTATION APPROVAL", report.h2)
     report.paragraph(snapshot["limitations"])
     report.heading("Engagement scope and discussion guide")
@@ -236,7 +236,7 @@ def build_discovery_findings_pdf(snapshot: dict) -> bytes:
         report.field(_label(key), snapshot[key])
     output = BytesIO()
     SimpleDocTemplate(output, pagesize=A4, leftMargin=42, rightMargin=42, topMargin=42, bottomMargin=42,
-                      title="AgentSpark Discovery Findings").build(report.story)
+                      title="Kaisersol Discovery Findings").build(report.story)
     return output.getvalue()
 
 
@@ -247,7 +247,7 @@ def build_executive_brief_pdf(brief: dict) -> bytes:
         value = str(text)
         return value if len(value) <= limit else value[:limit].rsplit(" ", 1)[0] + " [excerpt; see full assessment]"
 
-    report.paragraph("AgentSpark Executive Decision Brief", report.title)
+    report.paragraph("Kaisersol Executive Decision Brief", report.title)
     report.field("Workflow", brief["workflow_name"])
     report.field("Analysis ID", brief.get("analysis_id") or "Incomplete assessment")
     report.field("Brief version", brief["version"])
@@ -269,7 +269,7 @@ def build_executive_brief_pdf(brief: dict) -> bytes:
     report.paragraph(brief["limitations"], report.small)
     output = BytesIO()
     document = SimpleDocTemplate(output, pagesize=A4, leftMargin=42, rightMargin=42, topMargin=42, bottomMargin=42,
-                                 title="AgentSpark Executive Decision Brief")
+                                 title="Kaisersol Executive Decision Brief")
     document.build([KeepInFrame(_WIDTH - 12, A4[1] - 100, report.story, mode="shrink")])
     return output.getvalue()
 
@@ -301,7 +301,7 @@ def _assessment_reference(report, snapshot: dict):
                  "Not recorded in this historical assessment.")
     report.paragraph("Advisory recommendation only. Approval does not authorize or execute a pilot, deployment or business action.")
     report.paragraph(snapshot.get("assessment_limitations") or
-                     "Cloud availability, model access, residency and prices require validation. AgentSpark remains Azure-hosted.")
+                     "Cloud availability, model access, residency and prices require validation. Kaisersol remains Azure-hosted.")
     if snapshot.get("demo_scenario"):
         report.field("Fictional demo fixture (not extracted customer facts)", snapshot["demo_scenario"])
 
@@ -492,7 +492,7 @@ class _AssessmentReport(_Report):
             while self.story and isinstance(self.story[-1], Spacer):
                 self.story.pop()
             self.story.append(PageBreakIfNotEmpty())
-        self.paragraph(f"{number} / AGENTSPARK ASSESSMENT", self.kicker)
+        self.paragraph(f"{number} / KAISERSOL ASSESSMENT", self.kicker)
         heading = Paragraph(_text(title), self.h1)
         heading.report_bookmark = f"chapter-{number}"
         self.story.append(heading)
@@ -687,7 +687,7 @@ def build_blueprint_pdf(snapshot: dict) -> bytes:
     value = snapshot.get("roi") or {}
     view = None if rejected else snapshot.get("architecture_view")
     report.chapter("01", "The decision at a glance", first=True)
-    report.paragraph("AgentSpark Assessment Report", report.small)
+    report.paragraph("Kaisersol Assessment Report", report.small)
     report.paragraph(intel.get("workflow_name") or context.get("business_domain") or "Workflow assessment", report.title)
     if intel.get("summary"):
         report.paragraph(_excerpt(intel["summary"], 340))
@@ -877,7 +877,7 @@ def build_blueprint_pdf(snapshot: dict) -> bytes:
     output = BytesIO()
     document = _AssessmentDocument(output, pagesize=A4, leftMargin=42, rightMargin=42,
                                   topMargin=59, bottomMargin=48, pageCompression=1,
-                                  title="AgentSpark Assessment Report", author="AgentSpark")
+                                  title="Kaisersol Assessment Report", author="Kaisersol")
 
     def page_footer(canvas, doc):
         canvas.saveState()
@@ -885,7 +885,7 @@ def build_blueprint_pdf(snapshot: dict) -> bytes:
         canvas.rect(0, A4[1] - 5, A4[0], 5, fill=1, stroke=0)
         canvas.setFillColor(_INK)
         canvas.setFont("ReportVeraBold", 10)
-        canvas.drawString(42, A4[1] - 30, "AgentSpark")
+        canvas.drawString(42, A4[1] - 30, "Kaisersol")
         canvas.setFont("ReportVera", 6.8)
         canvas.setFillColor(_MUTED)
         canvas.drawRightString(A4[0] - 42, A4[1] - 30, _STATUS[status])

@@ -76,7 +76,7 @@ class SecurityBoundary:
             }
             if not admission_exempt and not await run_in_threadpool(tenant_directory.has_platform_access, principal):
                 return await JSONResponse(status_code=403, content={
-                    "detail": "AgentSpark is invitation-only. Accept an administrator invitation before using the platform.",
+                    "detail": "Kaisersol is invitation-only. Accept an administrator invitation before using the platform.",
                     "code": "invitation_required",
                 })(scope, receive, secured_send)
             await self.app(scope, receive, secured_send)

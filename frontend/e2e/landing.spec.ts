@@ -12,7 +12,7 @@ test("public examples explain workflow boundaries without authentication, writes
   } }));
   await page.goto("/");
   await expect(page.locator("#landing-title")).toHaveText("Where are you with AI?");
-  await expect(page).toHaveTitle("AgentSpark | AI Consulting & Assessment for SMEs");
+  await expect(page).toHaveTitle("Kaisersol | AI Consulting & Assessment for SMEs");
   await expect(page.getByRole("button", { name: "Sign in", exact: true })).toBeEnabled();
   await expect(page.getByRole("group", { name: "Example workflow", exact: true })).toHaveCount(0);
   await page.goto("/platform/discovery");
@@ -58,7 +58,7 @@ test("deliverables follow the selected workflow and expose cloud and capacity as
   await expect(page.locator(".landing-cloud-diagram")).toContainText("Azure AI Document Intelligence");
   await page.getByRole("group", { name: "Example target cloud", exact: true }).getByRole("button", { name: "AWS", exact: true }).click();
   await expect(page.locator(".landing-cloud-diagram")).toContainText("Amazon Textract");
-  await expect(page.getByText("AgentSpark itself remains Azure-hosted.", { exact: false })).toBeVisible();
+  await expect(page.getByText("Kaisersol itself remains Azure-hosted.", { exact: false })).toBeVisible();
   await previews.getByRole("button", { name: "Business case", exact: false }).click();
   await expect(page.getByText("$44,000", { exact: true })).toBeVisible();
   const slider = page.getByRole("slider", { name: "Illustrative workflows per day", exact: false });

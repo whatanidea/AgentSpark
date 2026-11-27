@@ -52,7 +52,7 @@ export default function HomeUseCases() {
     </div>
     <div className="marketing-home-deliverables">
       <h3>What you leave with</h3>
-      <ul aria-label="AgentSpark deliverables">
+      <ul aria-label="Kaisersol deliverables">
         <li>Stakeholder alignment and accepted responsibilities</li><li>Source-linked opportunities and readiness gaps</li>
         <li>Connected visual blueprint</li><li>Outcome-led executive brief and next action</li>
       </ul>

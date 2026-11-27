@@ -74,7 +74,7 @@ export default function Analyze({ sessionId, active, initialSnapshot, onRefresh,
       {busy && <Card><Spinner label={running ? "Running the agent flow; live stages appear above…" : "Loading the saved assessment…"} /></Card>}
       {err && <Card><p role="alert" className="text-rose-700 text-sm">❌ {err}</p></Card>}
       {data?.enterprise_context && <p className="notice">Assessment target: {data.enterprise_context.target_cloud === "aws" ? "AWS" : "Azure"}.
-        {" "}Region: {data.enterprise_context.preferred_region || "not specified"} (unverified). This does not change AgentSpark hosting or deploy resources.</p>}
+        {" "}Region: {data.enterprise_context.preferred_region || "not specified"} (unverified). This does not change Kaisersol hosting or deploy resources.</p>}
       {data && <ExecutiveBriefSummary brief={data.executive_brief} sessionId={sessionId} />}
       {score && <AgenticAdoption adoption={score.adoption} readiness={data?.readiness_report} />}
       <form ref={valueForm} onSubmit={(event) => { event.preventDefault(); void run(); }}>

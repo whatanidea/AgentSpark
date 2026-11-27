@@ -114,7 +114,7 @@ export default function Discovery({ canCreate, onOpen, onBusyChange, onManageAcc
       const blob = await api.discoveryFindingsPdf(record.id, record.version);
       const url = URL.createObjectURL(blob);
       const anchor = document.createElement("a");
-      anchor.href = url; anchor.download = "AgentSpark_Discovery_Findings.pdf"; anchor.click();
+      anchor.href = url; anchor.download = "Kaisersol_Discovery_Findings.pdf"; anchor.click();
       setTimeout(() => URL.revokeObjectURL(url), 1000);
       setMessage("Findings exported from the saved snapshot. This does not approve implementation.");
     } catch (e) { setError(e instanceof Error ? e.message : "Could not export findings. Reload before retrying."); }

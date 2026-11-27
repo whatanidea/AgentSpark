@@ -292,7 +292,7 @@ def get_findings(engagement_id: SessionId, http_response: Response,
 def get_findings_pdf(engagement_id: SessionId, version: Annotated[str, Query(min_length=1, max_length=1000)]):
     snapshot = redact_data(discovery_findings(checked_state(engagement_id, version, "read")))
     return Response(build_discovery_findings_pdf(snapshot), media_type="application/pdf",
-                    headers={"Content-Disposition": 'attachment; filename="AgentSpark_Discovery_Findings.pdf"',
+                    headers={"Content-Disposition": 'attachment; filename="Kaisersol_Discovery_Findings.pdf"',
                              "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"})
 
 

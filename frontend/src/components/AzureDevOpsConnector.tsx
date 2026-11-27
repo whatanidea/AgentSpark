@@ -109,7 +109,7 @@ export default function AzureDevOpsConnector({ onBusyChange, onUnsavedChange, on
     <header className="page-header"><div className="eyebrow mb-2">Workspace / Integrations</div>
       <h1>Azure DevOps connector</h1><p className="mt-2">Read real project work, shape your brief and explicitly start discovery.</p>
     </header>
-    <p role="note" className="notice">Read-only external access. AgentSpark never creates, edits or deletes Azure DevOps work items.
+    <p role="note" className="notice">Read-only external access. Kaisersol never creates, edits or deletes Azure DevOps work items.
       Selected source content is copied into this workspace for discovery and is visible to its readers. Ticket text is not proof of process facts or AI value.</p>
     {error && <p role="alert" className="notice">{error}</p>}
     {message && <p role="status" className="notice">{message}</p>}

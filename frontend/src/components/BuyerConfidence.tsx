@@ -7,10 +7,10 @@ export function TechnologyBoundaries() {
   return <section className="premium-technology landing-container" aria-labelledby="technology-title">
     <div className="premium-section-heading"><div><p className="landing-eyebrow">Technology with context</p>
       <h2 id="technology-title">Your decisions first.<br /><span>The stack follows.</span></h2></div>
-      <p>AgentSpark's software is an assessment platform, not a model marketplace or an integration gateway. Consulting delivery and proposed customer solutions are separate from product capabilities.</p></div>
+      <p>Kaisersol's software is an assessment platform, not a model marketplace or an integration gateway. Consulting delivery and proposed customer solutions are separate from product capabilities.</p></div>
     <div className="premium-technology-grid">
       <article><MarketingIcon name="lock" /><span className="premium-category-label">IN THE PLATFORM</span><h3>Scoped collaboration</h3>
-        <p>Microsoft sign-in, team-scoped discovery, source provenance and reviewed assessment outputs.</p><span className="premium-tech-badge">AgentSpark capability</span></article>
+        <p>Microsoft sign-in, team-scoped discovery, source provenance and reviewed assessment outputs.</p><span className="premium-tech-badge">Kaisersol capability</span></article>
       <article><MarketingIcon name="cloud" /><span className="premium-category-label">IN THE BLUEPRINT</span><h3>Cloud-aligned candidates</h3>
         <div className="premium-cloud-options" aria-label="Proposed target cloud options"><span><img src={azureLogo} alt="" width="28" height="28" />Azure</span><span><img src={awsLogo} alt="" width="48" height="28" />AWS</span></div>
         <p>Service candidates for the selected assessment cloud. Not connected integrations, provisioned infrastructure or model-provider endorsements.</p></article>
@@ -31,7 +31,7 @@ export default function BuyerConfidence({ disabled, onDiscover }: { disabled: bo
       <Link className="premium-trust-link" to="/resources/trust"><MarketingIcon name="lock" />Read our access, retention and review boundaries →</Link>
     </div>
     <div className="premium-deliverable-stack" aria-label="Illustrative assessment deliverables">
-      <article className="premium-document"><span className="premium-document-brand">✦ AgentSpark <small>ILLUSTRATIVE / NOT APPROVED</small></span>
+      <article className="premium-document"><span className="premium-document-brand">✦ Kaisersol <small>ILLUSTRATIVE / NOT APPROVED</small></span>
         <h3>Workflow<br />decision brief</h3><p>Invoice exception handling</p><div className="premium-document-rule" />
         <ol><li>Source-linked opportunity shortlist</li><li>Suitability and readiness gaps</li><li>Proposed architecture</li><li>Executive brief and next step</li></ol>
         <p className="premium-document-note">Preview only. Create an assessment to export your own report.</p>

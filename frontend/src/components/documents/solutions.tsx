@@ -1,0 +1,14 @@
+export default function Content() { return <>
+<p className="location"><a href="/">Home</a> &nbsp;/&nbsp; <a href="/solutions">Solutions</a> &nbsp;/&nbsp; Agent implementation</p>
+<small>Advisory + hands-on delivery</small><h1 id="landing-title" tabIndex={-1}>From recurring task<br/>to <em>working pilot.</em></h1>
+<p className="lead">We work alongside your process owner to configure one agent in your environment. Together we decide what it may read, what it may draft, and what a person must approve.</p>
+<section className="examples"><small>Field notes / illustrative pilots</small><h2>What would you hand off?</h2>
+<div className="cards"><article id="cowork"><i><img src="claude.svg" alt=""/></i><small>Anthropic / Claude Cowork</small><h3>Prepare the account brief.</h3><p>Turn an approved folder of meeting notes into a draft for the next client call. The account lead checks the source notes before sharing.</p><a href="cowork.html">See the Cowork plan &rarr;</a></article>
+<article id="dots"><i><img src="openai.svg" alt=""/></i><small>OpenAI / dots</small><h3>Draft the Friday update.</h3><p>Turn selected project updates into a weekly digest. The delivery lead checks dates, blockers, and owners before it goes to the team.</p><a href="dots.html">See the dots plan &rarr;</a></article>
+<article id="grok"><i><img src="grok.svg" alt=""/></i><small>xAI / Grok Bot</small><h3>Sort the incoming queue.</h3><p>Use sample requests to draft a priority and suggested owner. The coordinator makes the routing decision; the pilot does not reassign work.</p><a href="grok.html">See the Grok Bot plan &rarr;</a></article>
+<article id="openbot"><i><img src="openbot.svg" alt=""/></i><small>CopilotKit / OpenBot</small><h3>Prepare a launch announcement.</h3><p>One AI coworker gathers approved facts. Another drafts the announcement. Your launch lead decides what is ready to publish.</p><a href="openbot.html">See the OpenBot plan &rarr;</a></article></div>
+<p className="caption">Examples, not exclusive platform capabilities. We confirm access, licensing, and fit before choosing a pilot.</p></section>
+<section className="strip"><small>The engagement</small><h2>What changes hands</h2><ol><li><strong>Choose the job.</strong> You get a scope, a baseline, and a named reviewer.</li><li><strong>Build and test.</strong> We configure the workflow and test it on agreed cases, including exceptions.</li><li><strong>Hand it over.</strong> Your operator gets a walkthrough, a review checklist, and a way to stop the pilot.</li></ol></section>
+<section className="next"><small>First conversation</small><h2>Bring one recent example.</h2><p>Bring the input, the output you wanted, and who signed it off. We can start there without connecting a tool.</p><a href="/#first-conversation">Plan a first conversation &rarr;</a></section>
+<p className="caption">Independent consulting by Kaisersol. Vendor marks identify the platforms, not a partnership.</p>
+</>; }

@@ -6,7 +6,8 @@ async function openPortal(page: Page) {
 }
 
 async function verifyPalette(page: Page) {
-  await expect(page.locator(".portal-sidebar")).toHaveCSS("background-color", "rgb(24, 34, 33)");
+  await expect(page.locator(".portal-sidebar")).toHaveCSS("background-color", "rgb(22, 32, 33)");
+  await expect(page.locator(".portal-sidebar").getByRole("img", {name: "Kaisersol"})).toBeVisible();
   await expect(page.getByRole("main")).toHaveCSS("background-color", "rgb(17, 23, 25)");
   const active = page.locator(".nav-item[aria-current]");
   await expect(active).toHaveCSS("background-color", "rgb(34, 57, 48)");

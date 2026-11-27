@@ -1,0 +1,4 @@
+.ks-wordmark{display:inline-flex;align-items:center}.ks-wordmark img{width:132px;height:auto;max-width:100%;display:block}
+.ks-wordmark .ks-on-light,html[data-theme="light"] .ks-wordmark .ks-on-dark{display:none}
+html[data-theme="light"] .ks-wordmark .ks-on-light{display:block}
+.work-story .studio-home :is(h1,h2),.work-story .marketing-page-hero h1,.ks-document :is(h1,h2){font-family:var(--ks-type);font-weight:400;letter-spacing:-.025em}

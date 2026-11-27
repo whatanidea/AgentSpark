@@ -16,7 +16,7 @@ export default function ArchitectureIllustration() {
         <h2 id="architecture-example-title">Invoice assistance, with people in control.</h2></div>
       <span className="landing-demo-label">Fictional design</span>
     </div>
-    <p className="architecture-example-intro">One possible customer implementation. This is not AgentSpark's internal architecture or a connected, deployed workflow.</p>
+    <p className="architecture-example-intro">One possible customer implementation. This is not Kaisersol's internal architecture or a connected, deployed workflow.</p>
     <ol className="architecture-flow" role="list" aria-label="Illustrative invoice assistance flow">
       {steps.map((step, index) => <li key={step.title} data-kind={step.kind}>
         <span className="architecture-step-number">0{index + 1}</span>
@@ -34,10 +34,10 @@ export default function ArchitectureIllustration() {
       <div><h3>Controls to validate</h3><p>Scoped access, decision logs, escalation paths and pilot quality targets must be designed and tested.</p></div>
     </div>
     <div className="architecture-delivery-boundary">
-      <div><h3>What AgentSpark provides</h3><p>An assessment, proposed cloud-aligned blueprint and advisory review record.</p></div>
+      <div><h3>What Kaisersol provides</h3><p>An assessment, proposed cloud-aligned blueprint and advisory review record.</p></div>
       <div><h3>What your delivery team still does</h3><p>Validate data, build integrations, establish permissions, test controls and deploy the approved design.</p></div>
     </div>
     <figcaption>Static illustration only. No model calls, saved records or connected business systems.
-      Approval in AgentSpark is advisory; it does not authorize actions in your business systems.</figcaption>
+      Approval in Kaisersol is advisory; it does not authorize actions in your business systems.</figcaption>
   </figure>;
 }

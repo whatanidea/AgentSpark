@@ -163,7 +163,7 @@ class DeliveryConfigurationTests(unittest.TestCase):
         self.assertEqual(lock["name"], package["name"])
         self.assertEqual(lock["packages"][""]["name"], package["name"])
         dockerfile = (ROOT / "Dockerfile").read_text()
-        self.assertIn('org.opencontainers.image.title="AgentSpark"', dockerfile)
+        self.assertIn('org.opencontainers.image.title="Kaisersol"', dockerfile)
         workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text()
         self.assertIn("tags: agentspark:${{ github.sha }}", workflow)
         self.assertIn("release/agentspark-linux-amd64.tar.gz", workflow)
@@ -182,7 +182,7 @@ class DeliveryConfigurationTests(unittest.TestCase):
         app_source = (ROOT / "frontend" / "src" / "App.tsx").read_text()
         self.assertIn('"agentsense.session.v1"', app_source)
         architecture = (ROOT / "docs" / "architecture.svg").read_text(encoding="utf-8")
-        self.assertIn(">AgentSpark</text>", architecture)
+        self.assertIn(">Kaisersol</text>", architecture)
         self.assertIn("Shriram K Vasudevan", architecture)
 
     def test_actions_are_immutable_read_only_and_packaging_depends_on_quality(self):

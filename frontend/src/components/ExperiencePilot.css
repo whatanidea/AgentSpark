@@ -13,7 +13,7 @@
   isolation: isolate;
   background: var(--p-bg);
   color: var(--p-ink);
-  font-family: "AgentSpark Public Sans", sans-serif;
+  font-family: var(--ks-type);
   -webkit-font-smoothing: antialiased;
   overflow: clip;
 }

@@ -11,7 +11,7 @@ import Portfolio from "./components/Portfolio";
 import Integrations from "./components/Integrations";
 import AzureDevOpsConnector from "./components/AzureDevOpsConnector";
 import Home from "./components/Home";
-import BrandMark from "./components/BrandMark";
+import { Wordmark } from "./components/BrandMark";
 import type PublicLanding from "./components/Landing";
 import { publicPage } from "./components/publicPages";
 import { applyPageMetadata, pageMetadata } from "./publicMetadata";
@@ -399,7 +399,7 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
   if (identity && !identity.platform_access) return <main className="min-h-screen bg-canvas px-4 py-12">
     {inactivityNotice}
     <div className="max-w-xl mx-auto space-y-5">
-      <div className="flex items-center justify-between gap-3"><p className="text-xl font-bold">AgentSpark</p><AppearanceControl /></div>
+      <div className="flex items-center justify-between gap-3"><Wordmark/><AppearanceControl /></div>
       <Card>
         <p className="eyebrow mb-3">Private platform</p>
         <h1 className="text-2xl font-bold">Invitation required</h1>
@@ -440,12 +440,9 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
       <aside className="portal-sidebar md:w-64 lg:w-72 shrink-0 border-b md:border-b-0 md:border-r border-white/10 bg-graphite flex flex-col md:sticky md:top-0 md:h-screen md:overflow-y-auto">
         <div className="px-5 py-5 md:px-6 md:pt-7 md:pb-6">
           <div className="flex items-center gap-3">
-            <span className="portal-brand-mark grid place-items-center h-10 w-10" aria-hidden="true">
-              <BrandMark />
-            </span>
             <div>
-              <div className="text-xl font-medium tracking-tight text-white">AgentSpark</div>
-              <p className="text-[11px] text-white/70 mt-0.5">Enterprise AI decision workspace</p>
+              <Wordmark/>
+              <p className="workspace-signature">Enterprise AI decision workspace</p>
             </div>
           </div>
           <p className="hidden md:block text-xs leading-relaxed text-white/70 mt-5">The agent that tells you where agents belong.</p>
@@ -524,7 +521,7 @@ export default function App({ publicLanding }: { publicLanding?: typeof PublicLa
           </div>
           {message && <p role="status" className="notice">{message}</p>}
           {snapshot && view !== "conversations" && <p className="text-xs text-zinc-600">Assessment target: <strong>{snapshot.enterprise_context.target_cloud === "aws" ? "AWS" : "Azure"}</strong>
-            {" "} / Region: {snapshot.enterprise_context.preferred_region || "not specified"} (unverified). AgentSpark hosting is unchanged.</p>}
+            {" "} / Region: {snapshot.enterprise_context.preferred_region || "not specified"} (unverified). Kaisersol hosting is unchanged.</p>}
           {snapshot && view !== "conversations" && <p className="text-xs text-zinc-600">Assessment model: <strong>{snapshot.inference_model
             ? `${snapshot.inference_model.provider} / ${snapshot.inference_model.model}` : "Legacy Azure OpenAI default (historical provenance not recorded)"}</strong>.
             {" "}No automatic provider fallback.</p>}

@@ -118,7 +118,7 @@ export default function ConsultationBooking({ onClose }: { onClose: () => void }
         (event.shiftKey ? last : first).focus();
       }
     }}>
-    <div className="consultation-dialog-header"><div><p className="landing-eyebrow">AgentSpark Consulting</p>
+    <div className="consultation-dialog-header"><div><p className="landing-eyebrow">Kaisersol Consulting</p>
       <h2 id="consultation-title">A conversation. A clearer next step.</h2></div>
       <button type="button" className="consultation-close" onClick={onClose} aria-label="Close consultation booking">Close <span aria-hidden="true">&times;</span></button></div>
     <div className="consultation-dialog-body">
@@ -141,7 +141,7 @@ export default function ConsultationBooking({ onClose }: { onClose: () => void }
         </section>
       </div>
       {calendar && <CalendarEmbed />}
-      <p className="consultation-boundary">Scheduling is separate from the AgentSpark workspace. We do not forward page query parameters or prefill assessment data. A consultation does not authorize implementation or commit you to an engagement.</p>
+      <p className="consultation-boundary">Scheduling is separate from the Kaisersol workspace. We do not forward page query parameters or prefill assessment data. A consultation does not authorize implementation or commit you to an engagement.</p>
     </div>
   </dialog>;
 }
