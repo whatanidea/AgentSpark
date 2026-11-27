@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { MarketingIcon, publicVisual } from "./MarketingVisuals";
 import { PUBLIC_PAGES, type PublicPage } from "./publicPages";
+import { agentSolutions } from "./AgentImplementation";
 
 const featured = new Set(["/platform/alignment", "/platform/assessment", "/platform/architecture", "/platform/workspaces"]);
 const featureCopy: Record<string, readonly [string, string, string]> = {
@@ -60,6 +61,6 @@ export function PublicCollection({ page }: { page: PublicPage }) {
         <div aria-hidden="true" className="public-cover-lines"><span /><span /><span /></div></div>
       <div className="public-directory-copy"><h2>{item.name}</h2><p>{item.summary}</p>
         <span className="public-card-action">{page.section === "Resources" ? "Read" : "Explore"} {item.name} <span aria-hidden="true">→</span></span></div>
-    </Link>)}</div>
+    </Link>)}{page.path === "/solutions" && <a className="public-directory-card" href={agentSolutions}><div className="public-directory-copy"><h2>Agent implementation</h2><p>Compare four platforms and see what your team keeps from a pilot.</p><span className="public-card-action">Explore agent implementation →</span></div></a>}</div>
   </section>;
 }
