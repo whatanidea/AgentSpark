@@ -10,7 +10,7 @@ async function intake(page: Page, sample?: string, cloud = "azure") {
   await expect(page.locator("body")).toHaveCSS("background-color", "rgb(17, 27, 24)");
   await expect(page.locator("html")).toHaveCSS("color-scheme", "dark");
   await expect(page.getByRole("main")).toHaveCSS("background-color", "rgb(17, 23, 25)");
-  await expect(page.getByText("Kaisersol", { exact: true })).toBeVisible();
+  await expect(page.locator(".portal-sidebar").getByRole("img", { name: "Kaisersol", exact: true })).toBeVisible();
   await expect(page.getByText("AgentSense", { exact: true })).toHaveCount(0);
   await expect(page.getByText("Tell Kaisersol about a workflow", { exact: false })).toBeVisible();
   await expect(page.getByRole("heading", { name: "Enterprise Context", exact: true })).toBeVisible();
