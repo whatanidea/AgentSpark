@@ -205,3 +205,6 @@ Chromium/mobile Safari. New checks verify actual animation progression, finite
 duration, scroll response, page-specific positioning, live reduced-motion
 changes and worst-case gradient contrast. The local light-theme composition was
 also visually reviewed. No merge or deployment was performed.
+# Agent implementation offering
+
+The Studio homepage places agent implementation after the self-service exercise. Solutions navigation and the directory link to the same overview. The four public guides in `frontend/public/solutions/agent-implementation` work without sign-in or JavaScript; optional walkthrough animation respects reduced motion. Their pilots are fictional examples, not integrations or claims of vendor partnership.

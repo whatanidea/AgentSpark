@@ -5,6 +5,7 @@ import { MarketingIcon, publicVisual } from "./MarketingVisuals";
 import { AppearanceControl } from "../Appearance";
 import { ConsultationLink } from "./ConsultationBooking";
 import BrandMark from "./BrandMark";
+import { agentSolutions } from "./AgentImplementation";
 
 const menus = {
   Platform: PUBLIC_PAGES.filter(page => ["/platform/discovery", "/platform/assessment", "/platform/architecture"].includes(page.path)),
@@ -70,7 +71,7 @@ export default function LandingNavigation({ disabled, signedIn, onWorkspace, onB
             <ul>{menus[name].map(page => <li key={page.path}>
               <NavLink to={page.path} onClick={close}><span className="premium-menu-icon"><MarketingIcon name={publicVisual(page).icon} /></span>
                 <div><strong>{menuCopy[page.path][0]}<span aria-hidden="true">→</span></strong><small>{menuCopy[page.path][1]}</small></div></NavLink>
-            </li>)}</ul>
+            </li>)}{name === "Solutions" && <li><a href={agentSolutions}><div><strong>Agent implementation →</strong><small>Explore four platform-specific pilots.</small></div></a></li>}</ul>
             <NavLink className="public-menu-overview" to={`/${name.toLowerCase()}`} onClick={close}>
               All {name.toLowerCase()} <span aria-hidden="true">→</span>
             </NavLink>

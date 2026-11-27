@@ -190,7 +190,7 @@ test("desktop dropdowns support keyboard dismissal, outside close and substantiv
     const links = nav.locator(".marketing-dropdown:visible a");
     for (const link of await links.all()) {
       const href = (await link.getAttribute("href"))!;
-      expect(href).toMatch(/^\/(consulting|platform|solutions|resources)(\/[a-z-]+)?$/);
+      expect(href).toMatch(/^\/(?:(consulting|platform|solutions|resources)(\/[a-z-]+)?|solutions\/agent-implementation\/solutions\.html)$/);
       const response = await page.request.get(href);
       expect(response.status()).toBe(200);
     }

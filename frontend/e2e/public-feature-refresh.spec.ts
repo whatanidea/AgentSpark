@@ -76,7 +76,7 @@ test("public feature refresh previews alignment and outcome-led decisions withou
 test("public feature refresh provides solution and resource collections with real internal destinations", async ({ page }) => {
   await page.goto("/solutions");
   const solutions = page.getByRole("region", { name: "Solutions directory" });
-  await expect(solutions.getByRole("link")).toHaveCount(3);
+  await expect(solutions.getByRole("link")).toHaveCount(4);
   await solutions.locator('a[href="/solutions/operations"]').click();
   await expect(page.getByRole("heading", { level: 1 })).toBeFocused();
   const story = page.getByRole("region", { name: "An invoice exception review", exact: true });
@@ -142,4 +142,19 @@ test("public feature refresh explains alignment, workspace scope and inactivity 
   await trust.locator("summary").filter({ hasText: "Inactive tabs normally sign out after five minutes" }).click();
   await expect(trust).toContainText("potentially indefinitely for drafts");
   await expect(trust).toContainText("not global Microsoft logout or bearer-token revocation");
+});
+test("public feature refresh: implementation desk opens four complete solution guides", async ({ page }) => {
+  await page.goto("/");
+  const desk = page.locator("#agent-implementation");
+  await expect(desk.locator(".agent-row")).toHaveCount(4);
+  for (const slug of ["cowork", "dots", "grok", "openbot"]) {
+    await desk.locator(`a[href$="/${slug}.html"]`).click();
+    await expect(page.locator(".phases li")).toHaveCount(5);
+    await expect(page.locator("figure .frame")).toHaveCount(3);
+    await page.emulateMedia({ reducedMotion: "reduce" });
+    await expect(page.getByText("Replay walkthrough")).toBeHidden();
+    await page.getByRole("link", { name: "All agent solutions" }).click();
+    await expect(page.locator(".cards article")).toHaveCount(4);
+    await page.getByRole("link", { name: "AgentSpark", exact: true }).click();
+  }
 });
