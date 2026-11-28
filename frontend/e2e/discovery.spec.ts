@@ -12,7 +12,7 @@ test.afterEach(async ({ request }) => {
 });
 
 async function intake(page: Page, fixture = false) {
-  await page.goto("/");
+  await page.goto("/platform");
   await page.getByRole("button", { name: "Assess my workflow", exact: true }).first().click();
   await page.getByLabel("Target cloud", { exact: true }).selectOption("azure");
   if (fixture) await page.getByRole("button", { name: "🧾 Invoice Approval (Finance)", exact: true }).click();

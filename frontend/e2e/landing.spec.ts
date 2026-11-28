@@ -79,11 +79,10 @@ test("landing supports keyboard operation, narrow viewports and reduced motion",
   await expect(page.getByRole("link", { name: "Skip to content", exact: true })).toBeAttached();
   await page.keyboard.press("Tab");
   await expect(page.getByRole("link", { name: "Skip to content", exact: true })).toBeFocused();
-  const assessment = page.getByRole("link", { name: /See the full sample assessment/i });
+  const assessment = page.getByRole("contentinfo").getByRole("link", { name: "Example assessment", exact: true });
   await assessment.focus();
   await page.keyboard.press("Enter");
-  await expect(page).toHaveURL("/resources/example-assessment#workflow-explorer");
-  await expect(page.locator("#workflow-explorer")).toBeFocused();
+  await expect(page).toHaveURL("/resources/example-assessment");
   const example = page.getByRole("group", { name: "Example workflow" }).getByRole("button", { name: "Employee onboarding", exact: true });
   expect((await example.boundingBox())!.height).toBeGreaterThanOrEqual(44);
   await example.focus();
@@ -101,8 +100,8 @@ test("landing supports keyboard operation, narrow viewports and reduced motion",
 });
 
 test("workspace entry and returning to overview preserve the active assessment", async ({ page }) => {
-  await page.goto("/");
-  const actions = page.locator(".story-start");
+  await page.goto("/platform");
+  const actions = page.locator(".landing-actions").first();
   await actions.getByRole("button", { name: /Assess my workflow/ }).click();
   await page.getByLabel("Business Domain", { exact: true }).fill("Fictional landing regression");
   await page.getByLabel("Target cloud", { exact: true }).selectOption("aws");
@@ -112,11 +111,12 @@ test("workspace entry and returning to overview preserve the active assessment",
   try {
     await page.getByRole("button", { name: "Product overview", exact: false }).click();
     await expect(page.locator("#landing-title")).toHaveText(publicPage("/")!.title);
+    await page.goto("/platform");
     await actions.getByRole("button", { name: /Start discovery/ }).click();
     await expect(page.getByRole("heading", { name: "Discovery engagements", exact: true })).toBeVisible();
     expect(JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!).session).toBe(pointer.session);
     await page.getByRole("button", { name: "Product overview", exact: false }).click();
-    await actions.getByRole("button", { name: /Open your workspace/ }).click();
+    await page.locator(".marketing-workspace").click();
     await expect(page.getByRole("heading", { name: "Home", exact: true })).toBeVisible();
     expect(JSON.parse((await page.evaluate(() => sessionStorage.getItem("agentsense.session.v1")))!).session).toBe(pointer.session);
     await page.getByRole("button", { name: "2 · Diagnostic Interview", exact: true }).click();
@@ -157,8 +157,8 @@ test("signing in from the assessment action opens intake without creating a work
   await page.route("**/api/v1/auth/me", route => route.fulfill({ json: {
     identity: "fictional-browser-identity", can_review: false, platform_access: true,
   } }));
-  await page.goto("/");
-  await page.locator(".story-start").getByRole("button", { name: /Assess my workflow/ }).click();
+  await page.goto("/platform");
+  await page.locator(".landing-actions").first().getByRole("button", { name: /Assess my workflow/ }).click();
   await page.getByLabel("Access token", { exact: true }).fill("fictional-browser-token");
   await page.getByRole("button", { name: "Connect securely", exact: true }).click();
   await expect(page.getByRole("heading", { name: "Enterprise Context", exact: true })).toBeVisible();
@@ -227,8 +227,8 @@ test("mobile navigation remains usable at 320px and closes after destination sel
 });
 
 test("discovery sign-in retries retain the destination and the restored assessment without writes", async ({ page }) => {
-  await page.goto("/");
-  await page.locator(".story-start").getByRole("button", { name: /Assess my workflow/ }).click();
+  await page.goto("/platform");
+  await page.locator(".landing-actions").first().getByRole("button", { name: /Assess my workflow/ }).click();
   await page.getByLabel("Business Domain", { exact: true }).fill("Fictional discovery entry regression");
   await page.getByLabel("Target cloud", { exact: true }).selectOption("aws");
   await page.getByRole("button", { name: "Submit Intake", exact: true }).click();

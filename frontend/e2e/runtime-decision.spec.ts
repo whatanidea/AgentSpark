@@ -6,7 +6,7 @@ test("structured runtime requirements persist the same advisory decision in anal
   let session = "";
   let headers: Record<string, string> = {};
   try {
-    await page.goto("/");
+    await page.goto("/platform");
     await page.getByRole("button", { name: "Assess my workflow", exact: true }).first().click();
     await page.getByLabel("Target cloud", { exact: true }).selectOption("azure");
     await page.getByRole("button", { name: "🧾 Invoice Approval (Finance)", exact: true }).click();

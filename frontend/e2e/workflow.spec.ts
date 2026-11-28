@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { processingResult, watchProcessing } from "./responses";
 
 async function intake(page: Page, sample?: string, cloud = "azure") {
-  await page.goto("/");
+  await page.goto("/platform");
   await page.getByRole("button", { name: "Assess my workflow", exact: true }).first().click();
   await page.getByLabel("Target cloud", { exact: true }).selectOption(cloud);
   await expect(page).toHaveTitle("Workspace | Kaisersol");
@@ -724,7 +724,7 @@ test("no-agent outcome stays rejected and confirmed deletion removes restoration
 });
 
 test("light workspace supports keyboard focus, sample selection and readable primary actions", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/platform");
   await page.getByRole("button", { name: "Assess my workflow", exact: true }).first().click();
   const domain = page.getByLabel("Business Domain", { exact: true });
   await domain.focus();

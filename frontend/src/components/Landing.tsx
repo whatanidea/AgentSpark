@@ -109,9 +109,7 @@ export default function Landing({ onStart, onWorkspace, onDiscover, disabled, ha
 
     <main id="landing-main" key={page?.path ?? pathname}>
       {page?.path.endsWith(".html") ? <DocumentPage path={page.path}/> : home ? <><StudioHome titleRef={title} onBook={bookConsultation} />
-        <div className="story-start landing-container"><div><p className="landing-eyebrow">Self-service platform</p><strong>Prefer to assess a workflow yourself?</strong></div>
-          <button disabled={disabled} onClick={onDiscover}>Start discovery <span aria-hidden="true">→</span></button><button disabled={disabled} onClick={onStart}>{startLabel} <span aria-hidden="true">→</span></button>
-          {message && <p role="status">{message}</p>}</div></> : <section id="top" className="marketing-page-hero landing-container" aria-labelledby="landing-title">
+        {message && <p role="status" className="landing-container landing-feedback">{message}</p>}</> : <section id="top" className="marketing-page-hero landing-container" aria-labelledby="landing-title">
         <div className="premium-page-copy">
         <nav className="marketing-breadcrumb" aria-label="Breadcrumb"><Link to="/">Home</Link><span aria-hidden="true">/</span>
           {page && (consultingPage && page.path !== "/consulting" ? <Link to="/consulting">Consulting</Link> : <span>{page.section}</span>)}</nav>

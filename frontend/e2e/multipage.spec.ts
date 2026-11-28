@@ -78,8 +78,8 @@ test("menu links navigate without document reloads and history restores heading 
 });
 
 test("public deep links remain public with a restored assessment and preserve its cloud", async ({ page }) => {
-  await page.goto("/");
-  await page.locator(".story-start").getByRole("button", { name: /Assess my workflow/ }).click();
+  await page.goto("/platform");
+  await page.locator(".landing-actions").first().getByRole("button", { name: /Assess my workflow/ }).click();
   await page.getByLabel("Business Domain", { exact: true }).fill("Fictional multipage restoration");
   await page.getByLabel("Target cloud", { exact: true }).selectOption("aws");
   await page.getByRole("button", { name: "Submit Intake", exact: true }).click();
@@ -121,7 +121,7 @@ test("browser Back protects an unsaved discovery draft without creating records"
     if (request.url().includes("/api/") && ["POST", "PUT", "PATCH", "DELETE"].includes(request.method()))
       writes.push(request.method());
   });
-  await page.goto("/");
+  await page.goto("/platform");
   await page.getByRole("button", { name: "Start discovery", exact: false }).first().click();
   await expect(page.getByRole("heading", { name: "Discovery engagements", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "New discovery engagement", exact: true }).click();
