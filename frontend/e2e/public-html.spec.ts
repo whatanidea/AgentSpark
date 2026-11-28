@@ -1,6 +1,22 @@
 import { expect, test } from "@playwright/test";
 import { PUBLIC_PAGES, publicPage } from "../src/components/publicPages";
-import { pageMetadata } from "../src/publicMetadata";
+import { MARKETING_ORIGIN, pageMetadata } from "../src/publicMetadata";
+import { documents } from "../src/components/documents/catalog";
+
+test("public HTML sitemap lists only canonical public pages and is advertised to crawlers", async ({ page, request }) => {
+  const response = await request.get("/sitemap.xml");
+  expect(response.status()).toBe(200);
+  expect(response.headers()["content-type"]).toMatch(/xml/);
+  const locations = await page.evaluate(xml => {
+    const doc = new DOMParser().parseFromString(xml, "application/xml");
+    if (doc.documentElement.namespaceURI !== "http://www.sitemaps.org/schemas/sitemap/0.9") throw new Error("Invalid sitemap");
+    return [...doc.querySelectorAll("urlset > url > loc")].map(loc => loc.textContent);
+  }, await response.text());
+  expect(locations.sort()).toEqual([...PUBLIC_PAGES, ...documents].map(p => MARKETING_ORIGIN + p.path).sort());
+  const robots = await request.get("/robots.txt");
+  expect(robots.status()).toBe(200);
+  expect(await robots.text()).toContain(`Sitemap: ${MARKETING_ORIGIN}/sitemap.xml`);
+});
 
 test.describe("public HTML without JavaScript", () => {
   test.use({ javaScriptEnabled: false });
@@ -25,7 +41,7 @@ test.describe("public HTML without JavaScript", () => {
         await expect(page.locator(`meta[${key.startsWith("og:") ? "property" : "name"}="${key}"]`))
           .toHaveAttribute("content", content);
       }
-      await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", entry.path);
+      await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", MARKETING_ORIGIN + entry.path);
       await expect(page.locator("body > noscript")).toBeVisible();
       expect(await page.locator("body > noscript").textContent()).toContain("require JavaScript");
       const book = page.getByRole("link", { name: "Book a consultation", exact: true }).first();
@@ -133,7 +149,7 @@ test("public HTML metadata stays consistent after client navigation and workspac
   const consultingTitle = pageMetadata(publicPage("/consulting")).title;
   await expect(page).toHaveTitle(consultingTitle);
   await expect(page.locator('meta[property="og:title"]')).toHaveAttribute("content", consultingTitle);
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", "/consulting");
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", MARKETING_ORIGIN + "/consulting");
   await page.goBack();
   await expect(page).toHaveTitle(homeTitle);
   await assess.click();
@@ -192,7 +208,7 @@ test("public HTML document aliases keep the same content and canonical metadata 
     await page.goto(path === "/" ? "/index.html" : `${path}/index.html`);
     await expect(page).toHaveTitle(pageMetadata(entry).title);
     await expect(page.locator(".concept-site")).toHaveAttribute("data-page", path);
-    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", path);
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute("href", MARKETING_ORIGIN + path);
     await expect(page.locator('meta[name="robots"]')).toHaveAttribute("content", "index,follow");
   }
 });

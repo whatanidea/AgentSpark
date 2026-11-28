@@ -55,8 +55,18 @@ try {
       rollupOptions: { output: { entryFileNames: "prerender.mjs" } },
     },
   });
-  const { renderPublicPages, workspaceHead } = await import(pathToFileURL(join(serverOutput, "prerender.mjs")).href);
+  const { renderPublicPages, workspaceHead, MARKETING_ORIGIN } = await import(pathToFileURL(join(serverOutput, "prerender.mjs")).href);
   const pages = renderPublicPages();
+  const urls = pages.map(page => page.canonical);
+  if (new Set(urls).size !== pages.length || urls.some(url => !url?.startsWith(`${MARKETING_ORIGIN}/`))) {
+    throw new Error("Every public sitemap entry must have a unique marketing URL.");
+  }
+  const entries = urls.map(url => `  <url><loc>${url.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")}</loc></url>`);
+  await writeFile(join(dist, "sitemap.xml"), [
+    '<?xml version="1.0" encoding="UTF-8"?>', '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
+    ...entries, "</urlset>", "",
+  ].join("\n"));
+  await writeFile(join(dist, "robots.txt"), `User-agent: *\nDisallow: /api/\n\nSitemap: ${MARKETING_ORIGIN}/sitemap.xml\n`);
   await writeFile(join(dist, "spa.html"), template.replace(metadataMarker, () => workspaceHead));
   for (const page of pages) {
     const destination = page.path.endsWith(".html") ? join(dist, page.path.slice(1)) : join(dist, page.path.slice(1), "index.html");

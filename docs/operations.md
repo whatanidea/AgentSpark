@@ -1,5 +1,14 @@
 # Delivery and operations runbook
 
+## Google indexing for the public website
+
+The frontend build generates `/sitemap.xml` from the public page catalog and advertises it in `/robots.txt`.
+Submit `https://www.kaisersol.com/sitemap.xml`, not the app subdomain or Azure hostname.
+In Google Search Console add the Domain property `kaisersol.com`. If DNS verification is requested,
+add Google's TXT value at `@` in GoDaddy without replacing existing records, verify, and keep the record.
+After deployment, confirm the sitemap opens publicly, then submit its full URL under **Indexing > Sitemaps**.
+Check **URL inspection** for individual marketing pages; successful sitemap processing does not guarantee indexing.
+
 ## Outcome-first recommendations and visual blueprints
 
 New blueprints include a bounded `architecture_view` snapshot: proposed outcome,

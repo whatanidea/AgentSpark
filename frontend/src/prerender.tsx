@@ -4,7 +4,9 @@ import { AppearanceProvider } from "./Appearance";
 import Landing from "./components/Landing";
 import { PUBLIC_PAGES } from "./components/publicPages";
 import { documents } from "./components/documents/catalog";
-import { pageMetadata } from "./publicMetadata";
+import { MARKETING_ORIGIN, pageMetadata } from "./publicMetadata";
+
+export { MARKETING_ORIGIN };
 
 function requiresBrowser() {
   throw new Error("Interactive public actions require the browser application.");
@@ -24,6 +26,7 @@ export const workspaceHead = renderMetadata(pageMetadata(undefined, true));
 export function renderPublicPages() {
   return [...PUBLIC_PAGES, ...documents].map(page => ({
     path: page.path,
+    canonical: pageMetadata(page).canonical,
     head: renderMetadata(pageMetadata(page)),
     body: renderToStaticMarkup(<StaticRouter location={page.path}>
       <AppearanceProvider>

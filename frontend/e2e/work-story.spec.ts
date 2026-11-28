@@ -47,7 +47,7 @@ test.describe("public work story", () => {
       await test.step(route.path, async () => {
         expect((await page.goto(route.path))?.status()).toBe(200);
         await expect(page.getByRole("heading", { level: 1 })).toHaveText(route.title);
-        await expect(page.locator("link[rel=canonical]")).toHaveAttribute("href", route.path);
+        await expect(page.locator("link[rel=canonical]")).toHaveAttribute("href", "https://www.kaisersol.com" + route.path);
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
       });
     }
