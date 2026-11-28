@@ -1,12 +1,14 @@
 import type { PublicPage } from "./components/publicPages";
 
+export const MARKETING_ORIGIN = "https://www.kaisersol.com";
+
 export function pageMetadata(page?: PublicPage, workspace = false) {
   const title = workspace ? "Workspace | Kaisersol" : page?.path === "/"
     ? "Kaisersol | AI Consulting & Assessment for SMEs" : `${page?.name ?? "Page not found"} | Kaisersol`;
   const description = workspace ? "Sign in to your private Kaisersol workspace." : page?.summary ?? "This Kaisersol page could not be found.";
   return {
     title,
-    canonical: !workspace && page ? page.path : null,
+    canonical: !workspace && page ? MARKETING_ORIGIN + page.path : null,
     meta: {
       description,
       robots: !workspace && page ? "index,follow" : "noindex,nofollow",
