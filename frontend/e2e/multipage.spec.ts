@@ -135,8 +135,8 @@ test("browser Back protects an unsaved discovery draft without creating records"
   expect(confirmations).toEqual(["Discard unsaved discovery changes?"]);
   page.once("dialog", dialog => { confirmations.push(dialog.message()); return dialog.accept(); });
   await page.goBack();
-  await expect(page).toHaveURL(/\/$/);
-  await expect(page.locator("#landing-title")).toHaveText(publicPage("/")!.title);
+  await expect(page).toHaveURL("/platform");
+  await expect(page.locator("#landing-title")).toHaveText(publicPage("/platform")!.title);
   expect(confirmations).toEqual(["Discard unsaved discovery changes?", "Discard unsaved discovery changes?"]);
   expect(writes).toEqual([]);
 });
