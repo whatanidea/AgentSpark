@@ -21,26 +21,11 @@ test.describe("public work story", () => {
     await page.getByRole("radio",{name:"Proposed pilot"}).check();
     await expect(page.locator(".studio-paper")).toContainText("Date mismatch flagged");
   });
-  test("compares the two health claim sources and reverses the date check without deciding coverage", async ({ page }) => {
-    await page.goto("/#claim-adoption");
-    await page.getByText("Try the example: a health claim with conflicting dates").click();
-    const desk = page.getByRole("region", { name: "Check the visit date." });
-    const bill = desk.locator(".intake-sources > div").nth(1);
-    await expect(bill).toContainText("8 May");
-    await expect(desk.getByRole("status")).toContainText("Dates differ");
-    await expect(desk.getByRole("status")).toContainText("claims specialist’s queue");
-    await expect(desk.getByRole("status")).toContainText("AI-drafted query");
-    const switchBill = desk.getByRole("button");
-    await switchBill.focus();
-    await page.keyboard.press("Enter");
-    await expect(bill).toContainText("Corrected clinic bill");
-    await expect(bill).toContainText("6 May");
-    await expect(desk.getByRole("status")).toContainText("Dates match. Check eligibility next.");
-    await expect(desk.getByRole("status")).toContainText("not whether the visit is covered");
-    await expect(desk.getByRole("status")).not.toContainText("AI-drafted query");
-    await switchBill.click();
-    await expect(bill).toContainText("8 May");
-    await expect(desk.getByRole("status")).toContainText("Ask the clinic to confirm");
+  test("the self-service comparison ends before agent implementation", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator("#self-service .studio-compare")).toBeAttached();
+    await expect(page.locator("#self-service details, #self-service a")).toHaveCount(0);
+    await expect(page.locator("#self-service + #agent-implementation")).toBeAttached();
   });
   test("every destination has its own heading, working assets and a fitting layout", async ({ page }) => {
     for (const route of PUBLIC_PAGES) {
@@ -58,7 +43,7 @@ test.describe("public work story", () => {
     await page.goto("/");
     await expect(page.getByRole("button", { name: /Scroll motion/ })).toHaveCount(0);
     await expect(page.locator("#first-conversation").getByRole("link", {name:"Book a consultation"})).toBeVisible();
-    await page.getByRole("link", {name:"See the full sample assessment"}).click();
+    await page.goto("/resources/example-assessment#workflow-explorer");
     await expect(page).toHaveURL(/example-assessment#workflow-explorer$/);
     await expect(page.locator("#workflow-explorer")).toBeInViewport();
     await expect(page.getByRole("button", { name: "Step 1: Receive a claim" })).toHaveAttribute("aria-pressed", "true");
@@ -72,8 +57,7 @@ test.describe("public work story", () => {
   test("opens a shareable decision brief without a form or client script", async ({ browser, baseURL }) => {
     const page = await browser.newPage({ baseURL, javaScriptEnabled:false });
     try {
-      await page.goto("/");
-      await page.getByRole("link", { name:"Read a sample recommendation" }).click();
+      await page.goto("/briefs/claim-intake.html");
       await expect(page).toHaveURL(/\/briefs\/claim-intake\.html$/);
       await expect(page.getByRole("heading", {level:1})).toHaveText("Should we fund an AI pilot for claims intake?");
       await expect(page.locator("main")).toContainText("fund measurement first, not software");

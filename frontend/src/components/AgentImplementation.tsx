@@ -30,6 +30,5 @@ export default function AgentImplementation() {
         {platforms.map(([slug, icon, name, vendor]) => <a className="agent-row" href={`${root}${slug}.html`} key={slug}>
           <img src={`${root}${icon}.svg`} alt=""/><strong>{name}</strong><span>{vendor}</span></a>)}
         <p>Choose a platform to see an example pilot.</p></aside></div>
-    <div className="agent-outputs"><small>What your team keeps</small><p>A tested workflow / Review checklist / Operator playbook</p></div>
   </section>;
 }

@@ -69,7 +69,11 @@ test("Home design preview fits narrow, tablet and desktop layouts in both themes
       await expectReadable(page.locator(".concept-site"));
     }
   }
-  expect(await page.evaluate(() => document.getAnimations().filter(animation => animation.playState === "running").length)).toBe(0);
+  const atlas = page.locator("#decision-atlas");
+  await atlas.getByRole("button", { name: "Pause survey" }).click();
+  await expect.poll(() => page.evaluate(() => document.getAnimations().filter(animation => animation.playState === "running").length)).toBe(0);
+  await atlas.getByRole("button", { name: "Play survey" }).click();
+  await expect.poll(() => atlas.evaluate(el => el.getAnimations({subtree:true}).some(a => a.playState === "running"))).toBe(true);
 });
 
 test("public footer keeps a centered, usable grid and an unbroken brand at every screen size", async ({ page }) => {

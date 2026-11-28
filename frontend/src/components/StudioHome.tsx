@@ -6,6 +6,7 @@ import Icon, { type IconName } from "./Icon";
 import StudioRibbon from "./StudioRibbon";
 import StudioPilot from "./StudioPilot";
 import AgentImplementation from "./AgentImplementation";
+import DecisionAtlas from "./DecisionAtlas";
 import "./StudioHome.css";
 
 const paths = [
@@ -68,7 +69,7 @@ export default function StudioHome({ titleRef, onBook }: { titleRef: RefObject<H
         <StudioRibbon variant={stage}/><small>What you keep</small><h2 aria-live="polite">{active.output}</h2>
         <dl>{active.rows.map(([label,desc])=><div key={label}><dt>{label}</dt><dd>{desc}</dd></div>)}</dl></aside>
     </section>
-    <DataFlow/><StudioPilot/><AgentImplementation/>
+    <DecisionAtlas/><DataFlow/><StudioPilot/><AgentImplementation/>
     <section id="engagements" className="studio-section"><small>Work with an adviser</small><h2 id="consulting-services">Consulting services</h2>
       <p>Choose the engagement you need now. Each has its own scope and handover.</p>
       <div className="studio-services">{CONSULTING_OFFERINGS.map((s,i)=><Link key={s.path} to={s.path}><Icon name={serviceIcons[i]}/><h3>{s.name} →</h3><p>{serviceResults[i]}</p></Link>)}</div></section>

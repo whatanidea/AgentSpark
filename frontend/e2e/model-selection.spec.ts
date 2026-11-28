@@ -13,7 +13,7 @@ test("live intake requires an explicit approved model and sends its ID before in
     submitted = route.request().postDataJSON();
     return route.fulfill({ status: 503, json: { detail: "Fictional backend failure; no provider was called." } });
   });
-  await page.goto("/");
+  await page.goto("/platform");
   await page.getByRole("button", { name: "Assess my workflow", exact: true }).first().click();
   await page.getByLabel("Business Domain", { exact: true }).fill("Fictional model-selection test");
   await page.getByLabel("Target cloud", { exact: true }).selectOption("aws");
@@ -37,7 +37,7 @@ test("an unavailable Claude connection cannot be selected and catalog failures b
         reason: "Coming soon. Continue with Azure OpenAI.", definition: null },
     ],
   } }));
-  await page.goto("/");
+  await page.goto("/platform");
   await page.getByRole("button", { name: "Assess my workflow", exact: true }).first().click();
   const claudeOption = page.getByRole("option", { name: "Claude Haiku (Azure Foundry) — Coming soon" });
   await expect(claudeOption).toHaveJSProperty("disabled", true);

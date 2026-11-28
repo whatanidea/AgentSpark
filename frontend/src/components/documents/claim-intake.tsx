@@ -14,5 +14,5 @@ export default function Content() { return <>
 <section><h2>When to release pilot funding</h2><p>The claims lead sets acceptable missed-discrepancy and unnecessary-referral rates before testing. Compare the candidate with the current method on the same held-out cases. Count review, correction and escalation time, not just model response time.</p>
 <p><strong>Finance check:</strong> weekly cases × net minutes saved per case ÷ 60 = potential hours released per week. Compare their usable value with setup, running and supervision costs. Released capacity is not cash savings unless spending actually changes.</p>
 <p><strong>Next decision:</strong> the operations lead and finance partner review the baseline together. Stop if a form change solves the problem. Scope a pilot only if the remaining burden is material and the data owner approves testing.</p></section>
-<footer><a href="/#first-conversation">Discuss a workflow with Kaisersol</a> · <a href="/#claim-adoption">Try the fictional date check</a></footer>
+<footer><a href="/#first-conversation">Discuss a workflow with Kaisersol</a> · <a href="/#claim-review">Compare manual and assisted intake</a></footer>
 </>; }

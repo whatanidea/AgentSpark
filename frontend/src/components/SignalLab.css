@@ -1,0 +1,17 @@
+.ks-document .signal-lab{margin:clamp(28px,5vw,64px) 0;scroll-margin-top:85px;overflow:hidden;border:1px solid #495a54;border-radius:22px;background:#101917;color:#f4f6e8}
+.signal-ident,.signal-body,.signal-readout{padding-inline:clamp(20px,4vw,48px)}
+.signal-ident{display:flex;justify-content:space-between;align-items:center;gap:14px;padding-block:16px;border-bottom:1px solid #35443e;color:#b9c9bd;font-size:12px;letter-spacing:.1em;font-weight:600}
+.signal-ident i{display:inline-block;width:8px;height:8px;margin-right:8px;background:#c1faac;border-radius:50%;box-shadow:0 0 12px #9eef9b}
+.signal-body{display:grid;grid-template-columns:1fr 1.15fr;align-items:center;gap:18px;background:radial-gradient(ellipse at 74% 66%,#25433d 0,transparent 52%),#101917}
+.signal-intro{padding-block:36px}.ks-document .signal-lab small{color:#c1dbb9;font-size:12px;letter-spacing:.12em}
+.ks-document .signal-lab h2{color:#f4f6e8;font-size:clamp(40px,5.3vw,74px);line-height:.96;letter-spacing:-.065em;margin:14px 0 18px}
+.signal-intro em{color:#c0f1b1;font-style:normal}.ks-document .signal-lab p{color:#c7d2ca;font-size:16px}
+.signal-intro a,.signal-motion{display:inline-flex;align-items:center;min-height:44px;color:#edffdf;text-decoration:underline;text-underline-offset:5px}.signal-intro a span{margin-left:8px}
+.signal-stage{position:relative;min-width:0;background-image:radial-gradient(#9fbfab38 .8px,transparent 1px);background-size:16px 16px}
+.signal-stage svg{display:block;width:100%;height:auto}.signal-caption{position:absolute;top:3%;left:0;font-size:12px;color:#c5d3c9}.signal-caption span{color:inherit;font-weight:700}
+.signal-motion{position:absolute;bottom:0;right:0;font-size:13px;padding:0 8px}.signal-switch{display:grid;grid-template-columns:repeat(4,1fr);border-top:1px solid #45584e}
+.signal-switch button{min-height:56px;padding:10px 12px;font:inherit;font-weight:550;color:#dce7dc;background:#17231e;border:0;border-bottom:1px solid #45584e;border-right:1px solid #45584e;text-align:left;cursor:pointer}
+.signal-switch b{font-size:12px;font-weight:500;opacity:.72;margin-right:10px}.signal-switch button[aria-pressed=true]{background:#c1eeb0;color:#142319}
+.signal-lab :is(a,button):focus-visible{outline:3px solid #69b8ff;outline-offset:-3px}
+.signal-readout{display:grid;grid-template-columns:1fr 1.15fr;align-items:center;gap:20px;padding-block:20px}.ks-document .signal-readout :is(h3,p){margin:4px 0}
+@media(max-width:700px){.signal-ident{font-size:10px;letter-spacing:.06em}.signal-body,.signal-readout{grid-template-columns:1fr;gap:0}.signal-intro{padding:24px 0 4px}.signal-stage{max-width:440px;width:100%;margin:auto}.signal-switch{grid-template-columns:1fr 1fr}.signal-readout{gap:6px}.signal-motion{bottom:-2px}}

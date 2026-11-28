@@ -116,7 +116,7 @@ test.describe("public HTML without JavaScript", () => {
   });
 });
 
-test("public HTML has four concise menus, footer navigation and protected actions below the story", async ({ page }) => {
+test("public HTML keeps menus and footer navigation without redundant homepage strips", async ({ page }) => {
   await page.goto("/");
   const nav = page.getByRole("navigation", { name: "Product navigation" });
   const mobile = page.getByRole("button", { name: "Open navigation", exact: true });
@@ -130,16 +130,15 @@ test("public HTML has four concise menus, footer navigation and protected action
   const close = page.getByRole("button", { name: "Close navigation", exact: true });
   if (await close.isVisible()) await close.click();
   await expect(page.getByRole("contentinfo").getByRole("link", { name: "About", exact: true })).toBeVisible();
-  const actions = page.locator(".story-start");
-  await expect(actions.getByRole("button", { name: /Start discovery/ })).toBeVisible();
-  await expect(actions.getByRole("button", { name: /Assess my workflow/ })).toBeVisible();
+  await expect(page.getByText("Prefer to assess a workflow yourself?")).toHaveCount(0);
+  await expect(page.getByText("What your team keeps")).toHaveCount(0);
 });
 
 test("public HTML metadata stays consistent after client navigation and workspace entry", async ({ page }) => {
   const errors: string[] = [];
   page.on("pageerror", error => errors.push(error.message));
   await page.goto("/");
-  const assess = page.locator(".story-start").getByRole("button", { name: /Assess my workflow/ });
+  const assess = page.locator(".marketing-workspace");
   await expect(assess).toBeEnabled();
   const homeTitle = pageMetadata(publicPage("/")).title;
   await expect(page).toHaveTitle(homeTitle);
